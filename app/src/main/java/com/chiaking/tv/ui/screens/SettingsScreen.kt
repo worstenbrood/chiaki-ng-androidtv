@@ -81,7 +81,6 @@ fun SettingsScreen(
 				title = "Bitrate",
 				value = if(bitrate == null) "Auto (${preferences.bitrateAuto} kbps)" else "$bitrate kbps",
 				onNext = {
-					val auto = preferences.bitrateAuto
 					bitrate = when(bitrate)
 					{
 						null -> 5000
@@ -90,7 +89,7 @@ fun SettingsScreen(
 						20000 -> 50000
 						else -> null
 					}
-					preferences.bitrate = bitrate ?: 0
+					preferences.bitrate = bitrate
 				}
 			)
 		}
@@ -136,27 +135,5 @@ fun SettingsScreen(
 		}
 
 		Spacer(Modifier.height(32.dp))
-	}
-}
-
-@Composable
-private fun TvCycleRow(title: String, value: String, onNext: () -> Unit)
-{
-	var focused by remember { mutableStateOf(false) }
-	Row(
-		modifier = Modifier
-			.fillMaxWidth()
-			.onFocusChanged { focused = it.isFocused }
-			.focusable()
-			.padding(horizontal = 20.dp, vertical = 12.dp),
-		verticalAlignment = Alignment.CenterVertically
-	) {
-		Text(title, fontSize = 18.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-		Text(
-			value,
-			fontSize = 16.sp,
-			color = if(focused) PsBlueLight else OnSurfaceMuted,
-			fontWeight = if(focused) FontWeight.Bold else FontWeight.Normal
-		)
 	}
 }

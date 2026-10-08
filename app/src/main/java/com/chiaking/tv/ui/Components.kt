@@ -4,6 +4,7 @@ package com.chiaking.tv.ui
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
@@ -12,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -25,6 +27,7 @@ import com.chiaking.tv.ui.theme.*
 @Composable
 fun TvFocusCard(
 	focusRequester: FocusRequester? = null,
+	containerColor: Color = SurfaceCard,
 	onClick: (() -> Unit)? = null,
 	content: @Composable BoxScope.() -> Unit
 )
@@ -42,6 +45,8 @@ fun TvFocusCard(
 				if(onClick != null) Modifier.clickable { onClick() } else Modifier.focusable()
 			)
 			.onFocusChanged { focused = it.isFocused }
+			.clip(CardShape)
+			.background(containerColor)
 			.border(
 				BorderStroke(
 					if(focused) 3.dp else 1.dp,
@@ -86,6 +91,16 @@ fun TvButton(
 }
 
 @Composable
+private fun Modifier.tvRow(focused: MutableState<Boolean>, onClick: () -> Unit): Modifier =
+	this
+		.padding(horizontal = 8.dp, vertical = 2.dp)
+		.clip(RoundedCornerShape(14.dp))
+		.background(if(focused.value) PsBlue.copy(alpha = 0.40f) else Color.Transparent)
+		.onFocusChanged { focused.value = it.isFocused }
+		.clickable(onClick = onClick)
+		.padding(horizontal = 16.dp, vertical = 12.dp)
+
+@Composable
 fun TvSwitchRow(
 	title: String,
 	summary: String?,
@@ -93,13 +108,11 @@ fun TvSwitchRow(
 	onCheckedChange: (Boolean) -> Unit
 )
 {
-	var focused by remember { mutableStateOf(false) }
+	val focused = remember { mutableStateOf(false) }
 	Row(
 		modifier = Modifier
 			.fillMaxWidth()
-			.onFocusChanged { focused = it.isFocused }
-			.focusable()
-			.padding(horizontal = 20.dp, vertical = 12.dp),
+			.tvRow(focused) { onCheckedChange(!checked) },
 		verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
 	) {
 		Column(modifier = Modifier.weight(1f)) {
@@ -107,14 +120,48 @@ fun TvSwitchRow(
 			if(summary != null)
 				Text(summary, fontSize = 13.sp, color = OnSurfaceMuted)
 		}
-		Switch(
-			checked = checked,
-			onCheckedChange = onCheckedChange,
-			colors = SwitchDefaults.colors(
-				checkedTrackColor = PsBlue,
-				uncheckedTrackColor = Color.White.copy(alpha = 0.15f)
+		Spacer(Modifier.width(12.dp))
+		Box(
+			modifier = Modifier
+				.clip(RoundedCornerShape(10.dp))
+				.background(if(checked) PsBlue else Color.White.copy(alpha = 0.12f))
+				.padding(horizontal = 14.dp, vertical = 5.dp)
+		) {
+			Text(
+				if(checked) "ON" else "OFF",
+				fontSize = 14.sp,
+				fontWeight = FontWeight.Bold,
+				color = if(checked) Color.White else OnSurfaceMuted
 			)
-		)
+		}
+	}
+}
+
+@Composable
+fun TvCycleRow(title: String, value: String, onNext: () -> Unit)
+{
+	val focused = remember { mutableStateOf(false) }
+	Row(
+		modifier = Modifier
+			.fillMaxWidth()
+			.tvRow(focused, onNext),
+		verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+	) {
+		Text(title, fontSize = 18.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+		Spacer(Modifier.width(12.dp))
+		Box(
+			modifier = Modifier
+				.clip(RoundedCornerShape(10.dp))
+				.background(if(focused.value) PsBlueLight else PsBlue.copy(alpha = 0.30f))
+				.padding(horizontal = 14.dp, vertical = 5.dp)
+		) {
+			Text(
+				value,
+				fontSize = 15.sp,
+				fontWeight = FontWeight.Bold,
+				color = if(focused.value) Color(0xFF0B0E17) else PsBlueLight
+			)
+		}
 	}
 }
 
@@ -125,13 +172,11 @@ fun TvActionRow(
 	onClick: () -> Unit
 )
 {
-	var focused by remember { mutableStateOf(false) }
+	val focused = remember { mutableStateOf(false) }
 	Row(
 		modifier = Modifier
 			.fillMaxWidth()
-			.onFocusChanged { focused = it.isFocused }
-			.focusable()
-			.padding(horizontal = 20.dp, vertical = 14.dp),
+			.tvRow(focused, onClick),
 		verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
 	) {
 		Column(modifier = Modifier.weight(1f)) {
@@ -139,7 +184,7 @@ fun TvActionRow(
 			if(summary != null)
 				Text(summary, fontSize = 13.sp, color = OnSurfaceMuted)
 		}
-		Text(">", color = if(focused) PsBlueLight else OnSurfaceMuted, fontSize = 20.sp)
+		Text(">", color = if(focused.value) Color.White else OnSurfaceMuted, fontSize = 20.sp)
 	}
 }
 

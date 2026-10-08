@@ -152,7 +152,7 @@ private fun ConsoleCard(
 		Column(
 			modifier = Modifier
 				.width(260.dp)
-				.background(SurfaceCard, CardShape)
+				.height(170.dp)
 				.padding(20.dp)
 		) {
 			Row(verticalAlignment = Alignment.CenterVertically) {
@@ -195,12 +195,12 @@ private fun ConsoleCard(
 @Composable
 private fun AddCard(text: String, icon: ImageVector, onClick: () -> Unit)
 {
-	TvFocusCard(onClick = onClick) {
+	TvFocusCard(onClick = onClick, containerColor = SurfaceDark) {
 		Column(
 			modifier = Modifier
 				.width(260.dp)
-				.height(150.dp)
-				.background(SurfaceDark, CardShape),
+				.height(170.dp)
+				.padding(16.dp),
 			horizontalAlignment = Alignment.CenterHorizontally,
 			verticalArrangement = Arrangement.Center
 		) {
