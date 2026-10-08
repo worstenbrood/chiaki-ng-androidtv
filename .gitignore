@@ -6,9 +6,6 @@ app/.cxx/
 *.apk
 local.properties
 
-# Vendored third-party sources (use scripts/fetch-external.ps1 to download)
-external/
-
 # Docker build cache artifacts
 docker/cache/
 
