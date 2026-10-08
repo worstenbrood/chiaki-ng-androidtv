@@ -11,3 +11,5 @@ docker/cache/
 
 # Logs
 *.log
+
+tools/
