@@ -4,10 +4,10 @@ package com.chiaking.tv.common
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.chiaking.tv.lib.Codec
-import com.chiaking.tv.lib.ConnectVideoProfile
-import com.chiaking.tv.lib.VideoFPSPreset
-import com.chiaking.tv.lib.VideoResolutionPreset
+import com.metallic.chiaki.lib.Codec
+import com.metallic.chiaki.lib.ConnectVideoProfile
+import com.metallic.chiaki.lib.VideoFPSPreset
+import com.metallic.chiaki.lib.VideoResolutionPreset
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,11 +30,11 @@ class Preferences(context: Context)
 		FPS_60("60", "60 FPS", VideoFPSPreset.FPS_60)
 	}
 
-	enum class Codec(val value: String, val title: String, val codec: com.chiaking.tv.lib.Codec)
+	enum class Codec(val value: String, val title: String, val codec: com.metallic.chiaki.lib.Codec)
 	{
-		CODEC_H264("h264", "H.264", com.chiaking.tv.lib.Codec.CODEC_H264),
-		CODEC_H265("h265", "H.265", com.chiaking.tv.lib.Codec.CODEC_H265),
-		CODEC_H265_HDR("h265_hdr", "H.265 HDR", com.chiaking.tv.lib.Codec.CODEC_H265_HDR)
+		CODEC_H264("h264", "H.264", com.metallic.chiaki.lib.Codec.CODEC_H264),
+		CODEC_H265("h265", "H.265", com.metallic.chiaki.lib.Codec.CODEC_H265),
+		CODEC_H265_HDR("h265_hdr", "H.265 HDR", com.metallic.chiaki.lib.Codec.CODEC_H265_HDR)
 	}
 
 	companion object

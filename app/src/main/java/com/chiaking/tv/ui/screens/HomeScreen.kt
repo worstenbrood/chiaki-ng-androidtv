@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chiaking.tv.common.*
 import com.chiaking.tv.discovery.serverMac
-import com.chiaking.tv.lib.DiscoveryHost
+import com.metallic.chiaki.lib.DiscoveryHost
 import com.chiaking.tv.ui.*
 import com.chiaking.tv.ui.theme.*
 

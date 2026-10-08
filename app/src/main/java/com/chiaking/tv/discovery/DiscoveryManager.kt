@@ -5,10 +5,10 @@ package com.chiaking.tv.discovery
 import android.util.Log
 import com.chiaking.tv.common.MacAddress
 import com.chiaking.tv.common.ext.hexToByteArray
-import com.chiaking.tv.lib.CreateError
-import com.chiaking.tv.lib.DiscoveryHost
-import com.chiaking.tv.lib.DiscoveryService
-import com.chiaking.tv.lib.DiscoveryServiceOptions
+import com.metallic.chiaki.lib.CreateError
+import com.metallic.chiaki.lib.DiscoveryHost
+import com.metallic.chiaki.lib.DiscoveryService
+import com.metallic.chiaki.lib.DiscoveryServiceOptions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

@@ -8,7 +8,7 @@ import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.OnLifecycleEvent
 import com.chiaking.tv.common.Preferences
-import com.chiaking.tv.lib.ControllerState
+import com.metallic.chiaki.lib.ControllerState
 
 class StreamInput(val context: Context, val preferences: Preferences)
 {

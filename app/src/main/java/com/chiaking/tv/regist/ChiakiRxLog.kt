@@ -2,7 +2,7 @@
 
 package com.chiaking.tv.regist
 
-import com.chiaking.tv.lib.ChiakiLog
+import com.metallic.chiaki.lib.ChiakiLog
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

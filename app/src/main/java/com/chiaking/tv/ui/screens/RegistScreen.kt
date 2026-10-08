@@ -14,8 +14,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.chiaking.tv.lib.RegistInfo
-import com.chiaking.tv.lib.Target
+import com.metallic.chiaki.lib.RegistInfo
+import com.metallic.chiaki.lib.Target
 import com.chiaking.tv.regist.RegistExecuteViewModel
 import com.chiaking.tv.ui.*
 import com.chiaking.tv.ui.theme.*

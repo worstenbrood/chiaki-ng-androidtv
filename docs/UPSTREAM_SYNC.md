@@ -52,7 +52,7 @@ When upstream changes these files, diff and port by hand:
 
 | Upstream file | Our file | Notes |
 |---|---|---|
-| `android/.../lib/Chiaki.kt` | `com/chiaking/tv/lib/Chiaki.kt` | JNI bindings. New `external fun`s / data classes must be mirrored **and** match the native signatures in `chiaki-jni.c`. New enums (e.g. extra codecs/targets) go here first. |
+| `android/.../lib/Chiaki.kt` | `com/metallic/chiaki/lib/Chiaki.kt` | JNI bindings. **Package must remain `com.metallic.chiaki.lib`** (hardcoded in `chiaki-jni.h`). New `external fun`s / data classes must be mirrored **and** match the native signatures in `chiaki-jni.c`. New enums (e.g. extra codecs/targets) go here first. |
 | `android/.../common/Preferences.kt` + `res/xml/preferences.xml` | `com/chiaking/tv/common/Preferences.kt` + `ui/screens/SettingsScreen.kt` | Every new upstream setting needs: a property in `Preferences.kt` (plain string keys, no `R.string`), and a row in `SettingsScreen.kt` (`TvSwitchRow` / `TvCycleRow`). Wire it into `videoProfile` if it affects streaming. |
 | `android/.../session/StreamInput.kt` | `com/chiaking/tv/session/StreamInput.kt` | Keep our TV additions (see divergences below) when porting. |
 | `android/.../session/StreamSession.kt` | `com/chiaking/tv/session/StreamSession.kt` | We use `StateFlow` instead of `LiveData` (see divergences). |
@@ -65,7 +65,8 @@ ported — the TV UI is Compose and independent.
 
 ## Intentional local divergences (do not revert when porting)
 
-- Package rename `com.metallic.chiaki.*` → `com.chiaking.tv.*`.
+- Package rename `com.metallic.chiaki.*` → `com.chiaking.tv.*`, **except** `lib/Chiaki.kt`
+  which must stay in `com.metallic.chiaki.lib` (JNI symbol names are hardcoded in `chiaki-jni.h`).
 - `StreamSession`/`RegistExecuteViewModel` expose `MutableStateFlow` instead of `LiveData` (Compose).
 - `StreamInput`: TV remote D-pad/`KEYCODE_MENU` → controller D-pad/OPTIONS mapping, gated by the
   `dpad_as_controller` preference.

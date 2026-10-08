@@ -6,7 +6,7 @@ import android.content.Context
 import androidx.room.*
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.chiaking.tv.lib.Target
+import com.metallic.chiaki.lib.Target
 
 @Database(
 	version = 2,

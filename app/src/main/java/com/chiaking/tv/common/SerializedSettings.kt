@@ -4,7 +4,7 @@ package com.chiaking.tv.common
 
 import android.util.Base64
 import androidx.room.*
-import com.chiaking.tv.lib.Target
+import com.metallic.chiaki.lib.Target
 import com.squareup.moshi.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first

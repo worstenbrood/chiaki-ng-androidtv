@@ -7,7 +7,7 @@ import android.util.Log
 import android.view.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import com.chiaking.tv.common.LogManager
-import com.chiaking.tv.lib.*
+import com.metallic.chiaki.lib.*
 
 sealed class StreamState
 object StreamStateIdle: StreamState()

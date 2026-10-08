@@ -18,7 +18,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.chiaking.tv.lib.ConnectInfo
+import com.metallic.chiaki.lib.ConnectInfo
 import com.chiaking.tv.session.*
 import com.chiaking.tv.ui.TvButton
 import com.chiaking.tv.ui.theme.*

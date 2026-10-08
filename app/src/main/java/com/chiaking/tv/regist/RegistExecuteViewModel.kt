@@ -7,7 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.chiaking.tv.common.AppDatabase
 import com.chiaking.tv.common.MacAddress
 import com.chiaking.tv.common.RegisteredHost
-import com.chiaking.tv.lib.*
+import com.metallic.chiaki.lib.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

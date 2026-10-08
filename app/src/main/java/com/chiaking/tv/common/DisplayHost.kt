@@ -2,7 +2,7 @@
 
 package com.chiaking.tv.common
 
-import com.chiaking.tv.lib.DiscoveryHost
+import com.metallic.chiaki.lib.DiscoveryHost
 
 sealed class DisplayHost
 {

@@ -4,8 +4,8 @@ package com.chiaking.tv.common
 
 import androidx.room.*
 import androidx.room.ColumnInfo.Companion.BLOB
-import com.chiaking.tv.lib.RegistHost
-import com.chiaking.tv.lib.Target
+import com.metallic.chiaki.lib.RegistHost
+import com.metallic.chiaki.lib.Target
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "registered_host")

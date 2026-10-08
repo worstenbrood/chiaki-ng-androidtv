@@ -21,8 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.lifecycleScope
 import com.chiaking.tv.common.*
-import com.chiaking.tv.lib.ConnectInfo
-import com.chiaking.tv.lib.RegistInfo
+import com.metallic.chiaki.lib.ConnectInfo
+import com.metallic.chiaki.lib.RegistInfo
 import com.chiaking.tv.regist.RegistExecuteViewModel
 import com.chiaking.tv.session.StreamInput
 import com.chiaking.tv.session.StreamSession

@@ -9,12 +9,14 @@ The app is Kotlin + Jetpack Compose; the streaming core is chiaki-ng's C library
 app/                      Android TV app (namespace com.chiaking.tv)
   build.gradle            Gradle module; wires CMake to external/chiaki-ng/CMakeLists.txt
   src/main/java/com/chiaking/tv/
-    lib/Chiaki.kt         JNI bindings (must match external/chiaki-ng/android/.../chiaki-jni.c)
     common/               Room DB, Preferences, settings import/export, MAC type
     session/              StreamSession (StateFlow), StreamInput (gamepad + TV remote input)
     regist/               Console registration (PIN flow)
     discovery/            UDP discovery service wrapper
     ui/                   Compose TV UI: screens/, theme/ (dark PS-blue, D-pad focus)
+  src/main/java/com/metallic/chiaki/lib/Chiaki.kt
+                          JNI bindings — package MUST stay `com.metallic.chiaki.lib`
+                          (chiaki-jni.h hardcodes BASE_PACKAGE "com/metallic/chiaki/lib")
 external/chiaki-ng        git submodule = upstream C core + JNI (do not edit casually)
 docker/Dockerfile.build   Linux build image (SDK 35, NDK 28.2, protoc, perl, python)
 docs/UPSTREAM_SYNC.md     How to integrate new upstream chiaki-ng commits — READ before syncing
@@ -55,6 +57,8 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
 
 ## Gotchas
 
+- `Chiaki.kt` must stay in package `com.metallic.chiaki.lib` — the native `chiaki-jni.h`
+  hardcodes `BASE_PACKAGE "com/metallic/chiaki/lib"`; renaming it causes `UnsatisfiedLinkError` at runtime.
 - `ksp.useKSP2=false` in gradle.properties — Room 2.7.1 + Moshi 1.15.2 combo requires KSP1 here.
 - Parcelize is applied as `id 'kotlin-parcelize'` (no version) — versioned alias breaks resolution.
 - Room DAO methods must not be named `import` (use `importAll`); `@Transaction` concrete methods must be `open`.

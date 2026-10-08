@@ -1,4 +1,4 @@
-package com.chiaking.tv.lib
+package com.metallic.chiaki.lib
 
 import android.os.Parcelable
 import android.util.Log
