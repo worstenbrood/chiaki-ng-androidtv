@@ -133,7 +133,6 @@ fun SettingsScreen(
 				onNext = {
 					deviceIndex = (deviceIndex + 1) % audioDevices.size
 					preferences.audioDeviceId = audioDevices[deviceIndex].second
-					preferences.audioDeviceName = audioDevices[deviceIndex].first
 				}
 			)
 		}

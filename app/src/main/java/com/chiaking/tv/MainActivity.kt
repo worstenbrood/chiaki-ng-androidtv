@@ -11,6 +11,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
@@ -44,6 +45,16 @@ private object ScreenManageHosts: Screen()
 
 class MainActivity: ComponentActivity()
 {
+	companion object
+	{
+		private val hudNavigationKeys = setOf(
+			KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
+			KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
+			KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER,
+			KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_MENU
+		)
+	}
+
 	private lateinit var preferences: Preferences
 	private lateinit var database: AppDatabase
 	private lateinit var logManager: LogManager
@@ -57,7 +68,7 @@ class MainActivity: ComponentActivity()
 	private val exportLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
 		if(uri == null) return@registerForActivityResult
 		lifecycleScope.launch {
-			val json = exportAllSettings(database, preferences)
+			val json = exportAllSettings(database)
 			contentResolver.openOutputStream(uri)?.use { out ->
 				out.write(json.toByteArray())
 			}
@@ -71,7 +82,7 @@ class MainActivity: ComponentActivity()
 				val settings = contentResolver.openInputStream(uri)!!.source().buffer().use {
 					parseSettingsImport(it)
 				}
-				importSettings(database, preferences, settings)
+				importSettings(database, settings)
 			} catch(e: Exception) {
 				// surfaced via toast-less UI; log for debugging
 				android.util.Log.e("MainActivity", "Import failed", e)
@@ -104,6 +115,13 @@ class MainActivity: ComponentActivity()
 	@Composable
 	private fun Navigation()
 	{
+		BackHandler(enabled = screenStack.size > 1 || showManualHostDialog)
+		{
+			if(showManualHostDialog)
+				showManualHostDialog = false
+			else if(screenStack.size > 1)
+				screenStack.removeAt(screenStack.size - 1)
+		}
 		when(val screen = screenStack.last())
 		{
 			ScreenHome -> {
@@ -181,7 +199,7 @@ class MainActivity: ComponentActivity()
 				}
 			}
 
-			is ScreenStream -> StreamScreen(screen.session, preferences.audioVolume, preferences.audioDeviceName, onQuit = {
+			is ScreenStream -> StreamScreen(screen.session, preferences, onQuit = {
 				screenStack.removeAt(screenStack.size - 1)
 			})
 
@@ -263,8 +281,15 @@ class MainActivity: ComponentActivity()
 	{
 		if(screenStack.lastOrNull() is ScreenStream)
 		{
+			val session = (screenStack.last() as ScreenStream).session
 			if(event.keyCode == KeyEvent.KEYCODE_BACK)
 			{
+				if(session.hudVisible.value)
+				{
+					if(event.action == KeyEvent.ACTION_UP)
+						session.hudVisible.value = false
+					return true
+				}
 				if(event.action == KeyEvent.ACTION_UP)
 					(screenStack.last() as ScreenStream).let {
 						it.session.shutdown()
@@ -273,6 +298,9 @@ class MainActivity: ComponentActivity()
 					}
 				return true
 			}
+			// While the HUD is open, navigation keys drive the HUD instead of the console
+			if(session.hudVisible.value && event.keyCode in hudNavigationKeys)
+				return super.dispatchKeyEvent(event)
 			streamInput?.let { if(it.dispatchKeyEvent(event)) return true }
 		}
 		return super.dispatchKeyEvent(event)
@@ -281,7 +309,11 @@ class MainActivity: ComponentActivity()
 	override fun onGenericMotionEvent(event: MotionEvent): Boolean
 	{
 		if(screenStack.lastOrNull() is ScreenStream)
+		{
+			if((screenStack.last() as ScreenStream).session.hudVisible.value)
+				return false
 			streamInput?.let { if(it.onGenericMotionEvent(event)) return true }
+		}
 		return super.onGenericMotionEvent(event)
 	}
 }

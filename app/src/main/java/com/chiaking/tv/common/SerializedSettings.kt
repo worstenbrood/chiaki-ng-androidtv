@@ -50,15 +50,12 @@ class SerializedManualHost(
 @JsonClass(generateAdapter = true)
 data class SerializedSettings(
 	@Json(name = "registered_hosts") val registeredHosts: List<SerializedRegisteredHost>,
-	@Json(name = "manual_hosts") val manualHosts: List<SerializedManualHost>,
-	@Json(name = "audio_volume") val audioVolume: Int = 100,
-	@Json(name = "audio_device_id") val audioDeviceId: Int = 0,
-	@Json(name = "audio_device_name") val audioDeviceName: String = "Default"
+	@Json(name = "manual_hosts") val manualHosts: List<SerializedManualHost>
 )
 {
 	companion object
 	{
-		suspend fun fromDatabase(db: AppDatabase, preferences: Preferences): SerializedSettings
+		suspend fun fromDatabase(db: AppDatabase): SerializedSettings
 		{
 			val registeredHosts = db.registeredHostDao().getAll().first()
 			val manualHosts = db.manualHostDao().getAll().first()
@@ -71,10 +68,7 @@ data class SerializedSettings(
 							registeredHosts.firstOrNull { it.id == registeredHostId }
 						}?.serverMac
 					)
-				},
-				preferences.audioVolume,
-				preferences.audioDeviceId,
-				preferences.audioDeviceName
+				}
 			)
 		}
 	}
@@ -99,11 +93,11 @@ private fun Moshi.serializedSettingsAdapter() =
 private const val KEY_FORMAT = "format"
 private const val FORMAT = "chiaki-settings"
 private const val KEY_VERSION = "version"
-private const val VERSION = 3
+private const val VERSION = 2
 private const val KEY_SETTINGS = "settings"
 
-suspend fun exportAllSettings(db: AppDatabase, preferences: Preferences): String = withContext(Dispatchers.IO) {
-	val settings = SerializedSettings.fromDatabase(db, preferences)
+suspend fun exportAllSettings(db: AppDatabase): String = withContext(Dispatchers.IO) {
+	val settings = SerializedSettings.fromDatabase(db)
 	val buffer = Buffer()
 	val writer = JsonWriter.of(buffer)
 	val adapter = moshi().serializedSettingsAdapter()
@@ -144,7 +138,7 @@ suspend fun parseSettingsImport(source: okio.BufferedSource): SerializedSettings
 		throw SettingsImportException("Missing format, version or settings from JSON")
 	if(format != FORMAT)
 		throw SettingsImportException("Value of format is invalid")
-	if(version != VERSION && version != 2)
+	if(version != VERSION)
 		throw SettingsImportException("Value of version is invalid")
 
 	try {
@@ -154,11 +148,8 @@ suspend fun parseSettingsImport(source: okio.BufferedSource): SerializedSettings
 	}
 }
 
-suspend fun importSettings(db: AppDatabase, preferences: Preferences, settings: SerializedSettings) = withContext(Dispatchers.IO) {
+suspend fun importSettings(db: AppDatabase, settings: SerializedSettings) = withContext(Dispatchers.IO) {
 	db.importDao().importAll(settings)
-	preferences.audioVolume = settings.audioVolume
-	preferences.audioDeviceId = settings.audioDeviceId
-	preferences.audioDeviceName = settings.audioDeviceName
 }
 
 @Dao

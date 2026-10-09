@@ -65,6 +65,11 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 			session?.setAudioDevice(deviceId)
 	}
 
+	fun setVolumePercent(volumePercent: Int)
+	{
+		session?.setVolume(volumePercent / 100f)
+	}
+
 	fun resume()
 	{
 		if(session != null)
