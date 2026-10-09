@@ -27,10 +27,13 @@ import com.metallic.chiaki.lib.RegistInfo
 import com.chiaking.tv.regist.RegistExecuteViewModel
 import com.chiaking.tv.session.StreamInput
 import com.chiaking.tv.session.StreamSession
+import com.chiaking.tv.session.StreamStateDisconnecting
 import com.chiaking.tv.ui.screens.*
 import com.chiaking.tv.ui.theme.ChiakiTvTheme
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okio.buffer
 import okio.source
 
@@ -200,9 +203,7 @@ class MainActivity: ComponentActivity()
 				}
 			}
 
-			is ScreenStream -> StreamScreen(screen.session, preferences, onQuit = {
-				screenStack.removeAt(screenStack.size - 1)
-			})
+			is ScreenStream -> StreamScreen(screen.session, preferences, onQuit = { disconnectStream() })
 
 			ScreenLogs -> LogsScreen(logManager) { screenStack.removeAt(screenStack.size - 1) }
 
@@ -259,6 +260,21 @@ class MainActivity: ComponentActivity()
 		screenStack.add(ScreenStream(session))
 	}
 
+	private fun disconnectStream()
+	{
+		val screen = screenStack.lastOrNull() as? ScreenStream ?: return
+		if(screen.session.state.value is StreamStateDisconnecting)
+			return
+		screen.session.state.value = StreamStateDisconnecting
+		lifecycleScope.launch {
+			withContext(Dispatchers.IO) { screen.session.shutdown(StreamStateDisconnecting) }
+			if(currentStreamSession === screen.session)
+				currentStreamSession = null
+			if(screenStack.lastOrNull() === screen)
+				screenStack.removeAt(screenStack.size - 1)
+		}
+	}
+
 	override fun onResume()
 	{
 		super.onResume()
@@ -292,11 +308,7 @@ class MainActivity: ComponentActivity()
 					return true
 				}
 				if(event.action == KeyEvent.ACTION_UP)
-					(screenStack.last() as ScreenStream).let {
-						it.session.shutdown()
-						currentStreamSession = null
-						screenStack.removeAt(screenStack.size - 1)
-					}
+					disconnectStream()
 				return true
 			}
 			// While the HUD is open, navigation keys drive the HUD instead of the console

@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -27,9 +28,9 @@ import com.metallic.chiaki.lib.Codec
 import com.metallic.chiaki.lib.ConnectInfo
 import com.chiaking.tv.common.Preferences
 import com.chiaking.tv.session.*
-import com.chiaking.tv.ui.TvButton
 import com.chiaking.tv.ui.theme.*
 import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 private data class HudStats(val fps: Double, val kbps: Double, val framesLost: Long)
 
@@ -69,15 +70,6 @@ fun StreamScreen(
 			.distinctBy { it.second }
 	}
 	var deviceIndex by remember { mutableStateOf(audioDevices.indexOfFirst { it.second == preferences.audioDeviceId }.coerceAtLeast(0)) }
-	val qualityPresets = remember {
-		listOf(
-			Preferences.Resolution.RES_720P to Preferences.FPS.FPS_30,
-			Preferences.Resolution.RES_720P to Preferences.FPS.FPS_60,
-			Preferences.Resolution.RES_1080P to Preferences.FPS.FPS_30,
-			Preferences.Resolution.RES_1080P to Preferences.FPS.FPS_60
-		)
-	}
-	var qualityIndex by remember { mutableStateOf(qualityPresets.indexOfFirst { it.first == preferences.resolution && it.second == preferences.fps }.coerceAtLeast(0)) }
 	val hudFocus = remember { FocusRequester() }
 
 	LaunchedEffect(hudVisible)
@@ -147,16 +139,8 @@ fun StreamScreen(
 
 		when(state)
 		{
-			StreamStateConnecting, StreamStateIdle -> Box(
-				modifier = Modifier.fillMaxSize(),
-				contentAlignment = Alignment.Center
-			) {
-				Column(horizontalAlignment = Alignment.CenterHorizontally) {
-					CircularProgressIndicator(color = PsBlueLight)
-					Spacer(Modifier.height(16.dp))
-					Text("Connecting...", color = Color.White, fontSize = 20.sp)
-				}
-			}
+			StreamStateConnecting, StreamStateIdle -> HudSpinner("Connecting...")
+			StreamStateDisconnecting -> HudSpinner("Disconnecting...")
 			else -> {}
 		}
 
@@ -186,7 +170,12 @@ fun StreamScreen(
 					HudItem(
 						label = if(session.connectInfo.ps5) "PS5" else "PS4",
 						value = session.connectInfo.host,
-						sub = if(state is StreamStateConnected) "Connected" else "Connecting"
+						sub = when(state)
+						{
+							is StreamStateConnected -> "Connected"
+							is StreamStateDisconnecting -> "Disconnecting"
+							else -> "Connecting"
+						}
 					)
 					HudDivider()
 					HudItem(
@@ -212,35 +201,26 @@ fun StreamScreen(
 					horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
 					verticalAlignment = Alignment.CenterVertically
 				) {
-					TvButton(
-						text = "Volume: $volume%",
-						onClick = {
-							volume = if(volume >= 100) 0 else volume + 25
+					Text("Volume", fontSize = 16.sp, color = Color.White)
+					Slider(
+						value = volume / 100f,
+						onValueChange = {
+							volume = (it * 100).roundToInt()
 							preferences.audioVolume = volume
 							session.setVolumePercent(volume)
 						},
-						focusRequester = hudFocus
+						valueRange = 0f..1f,
+						steps = 19,
+						colors = SliderDefaults.colors(
+							thumbColor = PsBlueLight,
+							activeTrackColor = PsBlueLight
+						),
+						modifier = Modifier
+							.width(300.dp)
+							.focusRequester(hudFocus)
 					)
-					TvButton(
-						text = "Output: ${audioDevices[deviceIndex].first}",
-						onClick = {
-							deviceIndex = (deviceIndex + 1) % audioDevices.size
-							preferences.audioDeviceId = audioDevices[deviceIndex].second
-						}
-					)
-					TvButton(
-						text = "Quality: ${qualityPresets[qualityIndex].first.title} ${qualityPresets[qualityIndex].second.title}",
-						onClick = {
-							qualityIndex = (qualityIndex + 1) % qualityPresets.size
-							preferences.resolution = qualityPresets[qualityIndex].first
-							preferences.fps = qualityPresets[qualityIndex].second
-						}
-					)
-					Text(
-						"Volume applies now • Output & Quality apply next session • Back closes HUD",
-						fontSize = 12.sp,
-						color = OnSurfaceMuted
-					)
+					Text("$volume%", fontSize = 16.sp, color = Color.White, fontWeight = FontWeight.Bold)
+					Text("Back closes HUD", fontSize = 12.sp, color = OnSurfaceMuted)
 				}
 			}
 		}
@@ -305,6 +285,21 @@ fun StreamScreen(
 			text = { Text(createError!!.error.errorCode.toString(), color = OnSurfaceMuted) },
 			confirmButton = { TextButton(onClick = onQuit) { Text("Quit", color = OnSurfaceMuted) } }
 		)
+	}
+}
+
+@Composable
+private fun HudSpinner(text: String)
+{
+	Box(
+		modifier = Modifier.fillMaxSize(),
+		contentAlignment = Alignment.Center
+	) {
+		Column(horizontalAlignment = Alignment.CenterHorizontally) {
+			CircularProgressIndicator(color = PsBlueLight)
+			Spacer(Modifier.height(16.dp))
+			Text(text, color = Color.White, fontSize = 20.sp)
+		}
 	}
 }
 

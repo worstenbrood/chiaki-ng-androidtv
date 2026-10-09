@@ -13,6 +13,7 @@ sealed class StreamState
 object StreamStateIdle: StreamState()
 object StreamStateConnecting: StreamState()
 object StreamStateConnected: StreamState()
+object StreamStateDisconnecting: StreamState()
 data class StreamStateCreateError(val error: CreateError): StreamState()
 data class StreamStateQuit(val reason: QuitReason, val reasonString: String?): StreamState()
 data class StreamStateLoginPinRequest(val pinIncorrect: Boolean): StreamState()
@@ -44,12 +45,12 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 
 	fun getStats(): LongArray? = session?.getStats()
 
-	fun shutdown()
+	fun shutdown(finalState: StreamState = StreamStateIdle)
 	{
 		session?.stop()
 		session?.dispose()
 		session = null
-		_state.value = StreamStateIdle
+		_state.value = finalState
 		//surfaceTexture?.release()
 	}
 
