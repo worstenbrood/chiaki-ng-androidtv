@@ -37,7 +37,7 @@ import okio.source
 private sealed class Screen
 private object ScreenHome: Screen()
 private object ScreenSettings: Screen()
-private class ScreenRegist(val host: String?): Screen()
+private class ScreenRegist(val host: String?, val ps5: Boolean?): Screen()
 private class ScreenRegistExecute(val info: RegistInfo, val assignManualHostId: Long?): Screen()
 private class ScreenStream(val session: StreamSession): Screen()
 private object ScreenLogs: Screen()
@@ -144,8 +144,8 @@ class MainActivity: ComponentActivity()
 								showManualHostDialog = true
 							}
 							is DeleteManualHost -> viewModel.deleteManualHost(action.manualHost)
-							RegisterNew -> screenStack.add(ScreenRegist(null))
-							is RegisterHost -> screenStack.add(ScreenRegist(action.host))
+							RegisterNew -> screenStack.add(ScreenRegist(null, null))
+							is RegisterHost -> screenStack.add(ScreenRegist(action.host, action.ps5))
 							AddManualHost -> {
 								editingManualHost = null
 								showManualHostDialog = true
@@ -185,6 +185,7 @@ class MainActivity: ComponentActivity()
 
 			is ScreenRegist -> RegistScreen(
 				initialHost = screen.host,
+				initialPs5 = screen.ps5,
 				onBack = { screenStack.removeAt(screenStack.size - 1) },
 				onStartRegist = { info, assignId ->
 					screenStack.add(ScreenRegistExecute(info, assignId))

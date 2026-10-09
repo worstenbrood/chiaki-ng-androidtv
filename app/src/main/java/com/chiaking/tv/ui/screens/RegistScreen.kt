@@ -25,12 +25,20 @@ enum class ConsoleVersion { PS5, PS4_GE_8, PS4_GE_7, PS4_LT_7 }
 @Composable
 fun RegistScreen(
 	initialHost: String?,
+	initialPs5: Boolean? = null,
 	onBack: () -> Unit,
 	onStartRegist: (RegistInfo, Long?) -> Unit
 )
 {
 	var host by remember { mutableStateOf(initialHost ?: "255.255.255.255") }
-	var version by remember { mutableStateOf(ConsoleVersion.PS5) }
+	var version by remember { mutableStateOf(
+		when(initialPs5)
+		{
+			true -> ConsoleVersion.PS5
+			false -> ConsoleVersion.PS4_GE_8
+			null -> ConsoleVersion.PS5
+		}
+	) }
 	var psnId by remember { mutableStateOf("") }
 	var pin by remember { mutableStateOf("") }
 	var error by remember { mutableStateOf<String?>(null) }

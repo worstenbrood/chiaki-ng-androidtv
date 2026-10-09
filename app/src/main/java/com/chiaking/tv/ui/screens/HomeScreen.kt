@@ -34,7 +34,7 @@ data class WakeupHost(val host: DisplayHost): HomeAction()
 data class EditManualHost(val manualHost: ManualHost): HomeAction()
 data class DeleteManualHost(val manualHost: ManualHost): HomeAction()
 object RegisterNew: HomeAction()
-data class RegisterHost(val host: String): HomeAction()
+data class RegisterHost(val host: String, val ps5: Boolean): HomeAction()
 object AddManualHost: HomeAction()
 object OpenSettings: HomeAction()
 object ToggleDiscovery: HomeAction()
@@ -153,7 +153,7 @@ private fun ConsoleCard(
 				if(standby) onAction(WakeupHost(host)) else onAction(ConnectHost(host))
 			}
 			else
-				onAction(RegisterHost(host.host))
+				onAction(RegisterHost(host.host, host.isPS5))
 		}
 	) {
 		Column(
