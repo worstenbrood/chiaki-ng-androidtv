@@ -41,11 +41,11 @@ fun TvFocusCard(
 			.then(
 				if(focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier
 			)
+			.clip(CardShape)
 			.then(
 				if(onClick != null) Modifier.clickable { onClick() } else Modifier.focusable()
 			)
 			.onFocusChanged { focused = it.isFocused }
-			.clip(CardShape)
 			.background(containerColor)
 			.border(
 				BorderStroke(
