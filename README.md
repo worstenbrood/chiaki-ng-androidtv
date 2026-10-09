@@ -33,8 +33,10 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
 
 - Android TV 7.0+ (API 24), arm64-v8a (e.g. Shield TV, most modern TV boxes)
 - PS4 (system software 5.0+) or PS5 with Remote Play enabled
-- A PSN **Account ID** (base64, 8 bytes) for registration — see
-  [chiaki-ng's guide](https://github.com/chiaki-ng/chiaki-ng#obtaining-your-psn-accountid)
+- A PSN **Account ID** (base64, 8 bytes) for registration — obtain it with the
+  `psn-account-id.go` or `psn-account-id.py` script from
+  [`external/chiaki-ng/scripts/`](external/chiaki-ng/scripts) (see
+  [chiaki-ng's guide](https://github.com/chiaki-ng/chiaki-ng#obtaining-your-psn-accountid))
 
 ## Getting started
 
