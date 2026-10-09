@@ -93,6 +93,7 @@ private class ChiakiNative
 		@JvmStatic external fun sessionSetSurface(ptr: Long, surface: Surface?)
 		@JvmStatic external fun sessionSetVolume(ptr: Long, volume: Float)
 		@JvmStatic external fun sessionSetAudioDevice(ptr: Long, deviceId: Int)
+		@JvmStatic external fun sessionSetAudioBuffer(ptr: Long, bufferMs: Int)
 		@JvmStatic external fun sessionGetStats(ptr: Long, out: LongArray)
 		@JvmStatic external fun sessionSetControllerState(ptr: Long, controllerState: ControllerState)
 		@JvmStatic external fun sessionSetLoginPin(ptr: Long, pin: String)
@@ -393,6 +394,11 @@ class Session(connectInfo: ConnectInfo, logFile: String?, logVerbose: Boolean)
 	fun setAudioDevice(deviceId: Int)
 	{
 		ChiakiNative.sessionSetAudioDevice(nativePtr, deviceId)
+	}
+
+	fun setAudioBuffer(bufferMs: Int)
+	{
+		ChiakiNative.sessionSetAudioBuffer(nativePtr, bufferMs)
 	}
 
 	fun getStats(): LongArray

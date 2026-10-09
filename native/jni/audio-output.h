@@ -16,6 +16,7 @@ void android_chiaki_audio_output_settings(uint32_t channels, uint32_t rate, void
 void android_chiaki_audio_output_frame(int16_t *buf, size_t samples_count, void *audio_output);
 void android_chiaki_audio_output_set_volume(void *audio_output, float volume);
 void android_chiaki_audio_output_set_device_id(void *audio_output, int32_t device_id);
+void android_chiaki_audio_output_set_buffer_ms(void *audio_output, int32_t buffer_ms);
 
 #ifdef __cplusplus
 }

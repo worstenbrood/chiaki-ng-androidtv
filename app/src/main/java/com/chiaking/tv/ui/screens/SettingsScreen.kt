@@ -41,6 +41,7 @@ fun SettingsScreen(
 	var dpadAsController by remember { mutableStateOf(preferences.dpadAsController) }
 	var logVerbose by remember { mutableStateOf(preferences.logVerbose) }
 	var volume by remember { mutableStateOf(preferences.audioVolume) }
+	var bufferMs by remember { mutableStateOf(preferences.audioBufferMs) }
 
 	val ctx = androidx.compose.ui.platform.LocalContext.current
 	val audioDevices = remember {
@@ -133,6 +134,14 @@ fun SettingsScreen(
 				onNext = {
 					deviceIndex = (deviceIndex + 1) % audioDevices.size
 					preferences.audioDeviceId = audioDevices[deviceIndex].second
+				}
+			)
+			TvCycleRow(
+				title = "Audio Buffer",
+				value = if(bufferMs == 0) "Auto" else "$bufferMs ms",
+				onNext = {
+					bufferMs = if(bufferMs >= 100) 0 else bufferMs + 10
+					preferences.audioBufferMs = bufferMs
 				}
 			)
 		}

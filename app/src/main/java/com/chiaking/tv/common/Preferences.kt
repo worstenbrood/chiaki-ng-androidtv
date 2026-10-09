@@ -55,6 +55,7 @@ class Preferences(context: Context)
 		const val displayModeKey = "display_mode"
 		const val audioVolumeKey = "audio_volume"
 		const val audioDeviceIdKey = "audio_device_id"
+		const val audioBufferMsKey = "audio_buffer_ms"
 
 		val resolutionDefault = Resolution.RES_1080P
 		val fpsDefault = FPS.FPS_60
@@ -104,6 +105,10 @@ class Preferences(context: Context)
 	var audioDeviceId
 		get() = sharedPreferences.getInt(audioDeviceIdKey, 0)
 		set(value) { sharedPreferences.edit().putInt(audioDeviceIdKey, value).apply() }
+
+	var audioBufferMs
+		get() = sharedPreferences.getInt(audioBufferMsKey, 0)
+		set(value) { sharedPreferences.edit().putInt(audioBufferMsKey, value.coerceIn(0, 100)).apply() }
 
 	var resolution
 		get() = sharedPreferences.getString(resolutionDefaultKey, resolutionDefault.value)?.let { value ->

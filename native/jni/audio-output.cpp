@@ -36,6 +36,7 @@ struct AudioOutput
 	AudioBuffer buf;
 	float volume = 1.0f;
 	int32_t device_id = 0;
+	int32_t buffer_ms = 0;
 
 	AudioOutput() : stream_callback(this) {}
 };
@@ -67,6 +68,8 @@ extern "C" void android_chiaki_audio_output_settings(uint32_t channels, uint32_t
 		->setChannelCount(channels)
 		->setSampleRate(rate)
 		->setCallback(&ao->stream_callback);
+	if(ao->buffer_ms > 0)
+		builder.setBufferCapacityInFrames(static_cast<int32_t>(ao->buffer_ms) * static_cast<int32_t>(rate) / 1000);
 
 	if(ao->device_id != 0)
 	{
@@ -85,6 +88,8 @@ extern "C" void android_chiaki_audio_output_settings(uint32_t channels, uint32_t
 				->setChannelCount(channels)
 				->setSampleRate(rate)
 				->setCallback(&ao->stream_callback);
+			if(ao->buffer_ms > 0)
+				fallback_builder.setBufferCapacityInFrames(static_cast<int32_t>(ao->buffer_ms) * static_cast<int32_t>(rate) / 1000);
 			result = fallback_builder.openManagedStream(ao->stream);
 			if(result != oboe::Result::OK)
 			{
@@ -104,6 +109,15 @@ extern "C" void android_chiaki_audio_output_settings(uint32_t channels, uint32_t
 			CHIAKI_LOGE(ao->log, "Audio Output failed to open Oboe stream: %s", oboe::convertToText(result));
 			return;
 		}
+	}
+
+	if(ao->buffer_ms > 0)
+	{
+		auto r = ao->stream->setBufferSizeInFrames(ao->stream->getBufferCapacityInFrames());
+		if(r != oboe::Result::OK)
+			CHIAKI_LOGW(ao->log, "Audio Output failed to set buffer size");
+		CHIAKI_LOGI(ao->log, "Audio Output buffer: %i/%i frames (%i ms requested)",
+			ao->stream->getBufferSizeInFrames(), ao->stream->getBufferCapacityInFrames(), ao->buffer_ms);
 	}
 
 	auto result = ao->stream->start();
@@ -127,6 +141,12 @@ extern "C" void android_chiaki_audio_output_set_device_id(void *audio_output, in
 {
 	auto ao = reinterpret_cast<AudioOutput *>(audio_output);
 	ao->device_id = device_id;
+}
+
+extern "C" void android_chiaki_audio_output_set_buffer_ms(void *audio_output, int32_t buffer_ms)
+{
+	auto ao = reinterpret_cast<AudioOutput *>(audio_output);
+	ao->buffer_ms = buffer_ms;
 }
 
 extern "C" void android_chiaki_audio_output_frame(int16_t *buf, size_t samples_count, void *audio_output)
