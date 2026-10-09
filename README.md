@@ -23,9 +23,10 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
   (HDMI, Bluetooth, USB, ...) with automatic fallback to the system default, and
   audio buffer size (Auto or 10–100 ms in 10 ms steps, like the Qt app)
 - **In-stream HUD** — press **Share + Options** while streaming to slide up a stats bar
-  (live FPS, measured bitrate, lost frames, video/audio config) with focusable controls:
-  volume, output device and video quality (device & quality apply on the next session);
-  D-pad + ✕ navigate, Back closes
+  with live FPS, measured bitrate, lost frames and the current video/audio config;
+  Back closes it, the D-pad keeps controlling the game
+- **Clean disconnect** — Back shows a "Disconnecting" spinner and returns to the main
+  screen once the session has fully shut down
 - **Settings** — resolution, FPS, codec, bitrate, audio, controller options, verbose logging, session log viewer
 - **Backup** — export/import registered + manual hosts as JSON (compatible with chiaki-ng's format)
 
@@ -46,7 +47,7 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
    pairing PIN shown on screen (or use *Register Console*).
 4. Select the registered console to start streaming. Rest-mode consoles offer a wakeup option.
 5. While streaming, press **Share + Options** on the controller to open the in-stream HUD
-   (stats + volume/output-device/quality controls).
+   (live FPS, bitrate, lost frames, video/audio config).
 
 ## Building
 
@@ -63,9 +64,13 @@ docker build --platform linux/amd64 -f docker/Dockerfile.build -t chiaki-tv-buil
 
 # build the APK (~30 min cold, faster incrementally)
 docker run --rm --platform linux/amd64 -v "${PWD}:/src" -w /src chiaki-tv-build-amd64 sh gradlew assembleDebug
+
+# build the release APK (signed with the repo keystore, optimized native libs)
+docker run --rm --platform linux/amd64 -v "${PWD}:/src" -w /src chiaki-tv-build-amd64 sh gradlew assembleRelease
 ```
 
-Output: `app/build/outputs/apk/debug/app-debug.apk`.
+Output: `app/build/outputs/apk/debug/app-debug.apk` or `app/build/outputs/apk/release/app-release.apk`.
+The release APK is signed with the repo's keystore, so it installs over a debug build without data loss.
 Other ABIs: append `-Pabis=arm64-v8a,armeabi-v7a`.
 
 ## Project layout

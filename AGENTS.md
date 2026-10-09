@@ -18,7 +18,7 @@ app/                      Android TV app (namespace com.chiaking.tv)
                           JNI bindings — package MUST stay `com.metallic.chiaki.lib`
                           (chiaki-jni.h hardcodes BASE_PACKAGE "com/metallic/chiaki/lib")
 external/chiaki-ng        git submodule = upstream C core + JNI (do not edit casually)
-native/                   Our CMake entry point + copy of the JNI layer (with audio volume/device additions)
+native/                   Our CMake entry point + copy of the JNI layer (audio volume/device/buffer + video stats additions)
 docker/Dockerfile.build   Linux build image (SDK 35, NDK 28.2, protoc, perl, python)
 docs/UPSTREAM_SYNC.md     How to integrate new upstream chiaki-ng commits — READ before syncing
 ```
@@ -38,9 +38,13 @@ docker build --platform linux/amd64 -f docker/Dockerfile.build -t chiaki-tv-buil
 
 # build APK (~30 min cold, faster incrementally):
 docker run --rm --platform linux/amd64 -v "${PWD}:/src" -w /src chiaki-tv-build-amd64 sh gradlew assembleDebug
+
+# build release APK (signed with the repo debug.keystore, CMake Release native libs):
+docker run --rm --platform linux/amd64 -v "${PWD}:/src" -w /src chiaki-tv-build-amd64 sh gradlew assembleRelease
 ```
 
-APK output: `app/build/outputs/apk/debug/app-debug.apk` (arm64-v8a; add ABIs with `-Pabis=arm64-v8a,armeabi-v7a`).
+APK output: `app/build/outputs/apk/debug/app-debug.apk` or `app/build/outputs/apk/release/app-release.apk`
+(arm64-v8a; add ABIs with `-Pabis=arm64-v8a,armeabi-v7a`).
 Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
 
 ## Architecture rules
@@ -77,6 +81,12 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
 - `app/.cxx/` and `app/build/` caches persist across runs on the mounted volume; delete them
   if CMake configure behaves oddly after a submodule bump.
 - Native codegen needs `protoc` + `python3` + `protobuf` pip package + `perl` + `make` — all in the Docker image only.
+- `chiaki_session_stop` must **never** be called twice (SIGABRT in `chiaki_mutex_lock` on the
+  destroyed mutex). `StreamSession.shutdown` is guarded by a `stopped` flag (reset in `resume()`),
+  and `MainActivity.disconnectStream` by a `disconnecting` flag — the QuitEvent that arrives
+  during shutdown re-enters the quit handling, so both guards are required.
+- Release builds are signed with the repo `debug.keystore` (sideload convenience: release installs
+  over debug without data loss). Replace with a real keystore before publishing anywhere.
 
 ## Verify changes
 

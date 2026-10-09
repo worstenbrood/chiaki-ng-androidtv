@@ -234,6 +234,7 @@ fun StreamScreen(
 			confirmButton = {
 				TextButton(onClick = {
 					quitDialog = null
+					session.shutdown(StreamStateIdle)
 					session.resume()
 				}) { Text("Reconnect", color = PsBlueLight) }
 			},

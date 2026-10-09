@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.chiaking.tv.common.*
 import com.chiaking.tv.discovery.DiscoveryManager
 import com.chiaking.tv.discovery.serverMac
+import com.metallic.chiaki.lib.DiscoveryHost
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -22,16 +23,39 @@ class MainViewModel(val database: AppDatabase, val preferences: Preferences): Vi
 		}
 	}
 
+	private val lastSeenHosts = MutableStateFlow<Map<MacAddress, DiscoveryHost>>(emptyMap())
+
+	init
+	{
+		viewModelScope.launch {
+			discoveryManager.discoveredHosts.collect { hosts ->
+				if(hosts.isEmpty())
+					return@collect
+				val cur = lastSeenHosts.value.toMutableMap()
+				hosts.forEach { h -> h.serverMac?.let { cur[it] = h } }
+				lastSeenHosts.value = cur
+			}
+		}
+	}
+
 	val displayHosts by lazy {
 		combine(
 			database.manualHostDao().getAll(),
 			database.registeredHostDao().getAll(),
-			discoveryManager.discoveredHosts
-		) { manualHosts, registeredHosts, discoveredHosts ->
+			discoveryManager.discoveredHosts,
+			lastSeenHosts
+		) { manualHosts, registeredHosts, discoveredHosts, lastSeen ->
 			val macRegisteredHosts = registeredHosts.associateBy { it.serverMac }
 			val idRegisteredHosts = registeredHosts.associateBy { it.id }
+			val discoveredMacs = discoveredHosts.mapNotNull { it.serverMac }.toSet()
 			discoveredHosts.map {
 				DiscoveredDisplayHost(it.serverMac?.let { mac -> macRegisteredHosts[mac] }, it)
+			} +
+			registeredHosts.mapNotNull { reg ->
+				if(reg.serverMac !in discoveredMacs)
+					lastSeen[reg.serverMac]?.let { DiscoveredDisplayHost(reg, it) }
+				else
+					null
 			} +
 			manualHosts.map {
 				ManualDisplayHost(it.registeredHost?.let { id -> idRegisteredHosts[id] }, it)
