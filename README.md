@@ -11,13 +11,20 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
 ## Features
 
 - **Console discovery** — automatically finds PS4/PS5 consoles on the LAN
-- **Console registration** — PIN-based pairing flow (8-digit PIN from the console)
+- **Console registration** — PIN-based pairing flow (8-digit PIN from the console);
+  selecting an unregistered discovered console opens registration with its IP prefilled
 - **Remote Play** — H.264 / H.265 / H.265 HDR, up to 1080p60, auto or manual bitrate (2000–50000 kbps)
 - **Wake-on-LAN** — rest-mode console wakeup from the home screen
 - **Gamepad support** — full controller mapping incl. sticks, triggers, motion controls and rumble
 - **TV remote support** — D-pad and menu button act as controller input while streaming (toggleable)
 - **Manual hosts** — add consoles by IP when discovery is not enough
-- **Settings** — resolution, FPS, codec, bitrate, controller options, verbose logging, session log viewer
+- **Audio controls** — stream volume (applies live) and output-device selection
+  (HDMI, Bluetooth, USB, ...) with automatic fallback to the system default
+- **In-stream HUD** — press **Share + Options** while streaming to slide up a stats bar
+  (live FPS, measured bitrate, lost frames, video/audio config) with focusable controls:
+  volume, output device and video quality (device & quality apply on the next session);
+  D-pad + ✕ navigate, Back closes
+- **Settings** — resolution, FPS, codec, bitrate, audio, controller options, verbose logging, session log viewer
 - **Backup** — export/import registered + manual hosts as JSON (compatible with chiaki-ng's format)
 
 ## Requirements
@@ -34,6 +41,8 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
 3. Open Chiaki TV — discovered consoles appear as cards. Select one and enter the 8-digit
    pairing PIN shown on screen (or use *Register Console*).
 4. Select the registered console to start streaming. Rest-mode consoles offer a wakeup option.
+5. While streaming, press **Share + Options** on the controller to open the in-stream HUD
+   (stats + volume/output-device/quality controls).
 
 ## Building
 
@@ -59,14 +68,17 @@ Other ABIs: append `-Pabis=arm64-v8a,armeabi-v7a`.
 
 ```
 app/                    Android TV app (Kotlin + Compose, namespace com.chiaking.tv)
-external/chiaki-ng      git submodule — upstream chiaki-ng (C core + JNI, built via CMake)
+external/chiaki-ng      git submodule — upstream chiaki-ng (C core, built via CMake)
+native/                 CMake entry point + our copy of the JNI layer
+                        (adds audio volume, output-device and stream-stats on top of upstream)
 docker/                 Docker build image definition
 docs/UPSTREAM_SYNC.md   How to integrate new upstream chiaki-ng commits
 AGENTS.md               Build/architecture notes for AI agents and contributors
 ```
 
-The native layer is compiled directly from the submodule; the Kotlin layer is a manual
-port of upstream's Android app adapted for TV (see `docs/UPSTREAM_SYNC.md` for the mapping).
+The C core is compiled directly from the submodule; the JNI layer is our own copy in
+`native/jni/` that must be re-diffed on upstream bumps (see `docs/UPSTREAM_SYNC.md`).
+The Kotlin layer is a manual port of upstream's Android app adapted for TV.
 
 ## Troubleshooting
 
