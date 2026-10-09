@@ -95,6 +95,16 @@ fun TvButton(
 }
 
 @Composable
+fun ScreenHeader(title: String, onBack: () -> Unit, modifier: Modifier = Modifier, fontSize: androidx.compose.ui.unit.TextUnit = 30.sp)
+{
+	Row(modifier = modifier, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+		TvButton("Back", onClick = onBack)
+		Spacer(Modifier.width(20.dp))
+		Text(title, fontSize = fontSize, fontWeight = FontWeight.Bold)
+	}
+}
+
+@Composable
 private fun Modifier.tvRow(focused: MutableState<Boolean>, onClick: () -> Unit): Modifier =
 	this
 		.padding(vertical = 2.dp)

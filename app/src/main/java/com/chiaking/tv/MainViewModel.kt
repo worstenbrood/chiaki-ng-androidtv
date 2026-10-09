@@ -53,7 +53,7 @@ class MainViewModel(val database: AppDatabase, val preferences: Preferences): Vi
 			} +
 			registeredHosts.mapNotNull { reg ->
 				if(reg.serverMac !in discoveredMacs)
-					lastSeen[reg.serverMac]?.let { DiscoveredDisplayHost(reg, it) }
+					lastSeen[reg.serverMac]?.let { DiscoveredDisplayHost(reg, it, cached = true) }
 				else
 					null
 			} +

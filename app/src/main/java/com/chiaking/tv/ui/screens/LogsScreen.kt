@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 import com.chiaking.tv.common.LogFile
 import com.chiaking.tv.common.LogManager
 import com.chiaking.tv.common.RegisteredHost
+import com.chiaking.tv.ui.ScreenHeader
 import com.chiaking.tv.ui.SectionHeader
 import com.chiaking.tv.ui.SettingsCard
 import com.chiaking.tv.ui.TvActionRow
@@ -40,11 +41,7 @@ fun LogsScreen(logManager: LogManager, onBack: () -> Unit)
 			}
 		}
 		Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-			Row(verticalAlignment = Alignment.CenterVertically) {
-				TvButton("Back", onClick = { selected = null })
-				Spacer(Modifier.width(16.dp))
-				Text(selected!!.filename, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-			}
+			ScreenHeader(selected!!.filename, { selected = null }, fontSize = 18.sp)
 			Spacer(Modifier.height(12.dp))
 			Text(
 				content.value,
@@ -57,11 +54,7 @@ fun LogsScreen(logManager: LogManager, onBack: () -> Unit)
 	}
 
 	Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-		Row(verticalAlignment = Alignment.CenterVertically) {
-			TvButton("Back", onClick = onBack)
-			Spacer(Modifier.width(16.dp))
-			Text("Session Logs", fontSize = 28.sp, fontWeight = FontWeight.Bold)
-		}
+		ScreenHeader("Session Logs", onBack, fontSize = 28.sp)
 		SectionHeader("Recorded Sessions")
 		SettingsCard {
 			if(files.isEmpty())
@@ -81,11 +74,7 @@ fun ManageHostsScreen(
 )
 {
 	Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-		Row(verticalAlignment = Alignment.CenterVertically) {
-			TvButton("Back", onClick = onBack)
-			Spacer(Modifier.width(16.dp))
-			Text("Registered Consoles", fontSize = 28.sp, fontWeight = FontWeight.Bold)
-		}
+		ScreenHeader("Registered Consoles", onBack, fontSize = 28.sp)
 		SectionHeader("Registered")
 		SettingsCard {
 			if(registeredHosts.isEmpty())

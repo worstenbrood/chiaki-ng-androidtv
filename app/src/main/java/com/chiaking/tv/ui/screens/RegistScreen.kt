@@ -47,11 +47,7 @@ fun RegistScreen(
 		modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(32.dp),
 		horizontalAlignment = Alignment.CenterHorizontally
 	) {
-		Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-			TvButton("Back", onClick = onBack)
-			Spacer(Modifier.width(20.dp))
-			Text("Register Console", fontSize = 30.sp, fontWeight = FontWeight.Bold)
-		}
+		ScreenHeader("Register Console", onBack, modifier = Modifier.fillMaxWidth())
 
 		Spacer(Modifier.height(24.dp))
 

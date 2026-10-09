@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.metallic.chiaki.lib.Codec
 import com.metallic.chiaki.lib.ConnectInfo
+import com.chiaking.tv.common.AudioDevices
 import com.chiaking.tv.common.Preferences
 import com.chiaking.tv.session.*
 import com.chiaking.tv.ui.theme.*
@@ -48,26 +49,8 @@ fun StreamScreen(
 
 	var volume by remember { mutableStateOf(preferences.audioVolume) }
 	val ctx = LocalContext.current
-	val audioDevices = remember {
-		val am = ctx.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
-		val types = setOf(
-			android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER,
-			android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE,
-			android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
-			android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET,
-			android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
-			android.media.AudioDeviceInfo.TYPE_HDMI,
-			android.media.AudioDeviceInfo.TYPE_HDMI_ARC,
-			android.media.AudioDeviceInfo.TYPE_HDMI_EARC,
-			android.media.AudioDeviceInfo.TYPE_USB_DEVICE,
-			android.media.AudioDeviceInfo.TYPE_USB_HEADSET
-		)
-		listOf("Default" to 0) + am.getDevices(android.media.AudioManager.GET_DEVICES_OUTPUTS)
-			.filter { it.isSink && types.contains(it.type) }
-			.map { (it.productName?.toString() ?: "Device ${it.type}") to it.id }
-			.distinctBy { it.second }
-	}
-	var deviceIndex by remember { mutableStateOf(audioDevices.indexOfFirst { it.second == preferences.audioDeviceId }.coerceAtLeast(0)) }
+	val deviceName = remember(ctx) { AudioDevices.outputDevices(ctx) }
+		.firstOrNull { it.second == preferences.audioDeviceId }?.first ?: "Default"
 
 	LaunchedEffect(hudVisible)
 	{
@@ -184,7 +167,7 @@ fun StreamScreen(
 					HudItem(
 						label = "Audio",
 						value = "$volume%",
-						sub = audioDevices[deviceIndex].first
+						sub = deviceName
 					)
 				}
 			}

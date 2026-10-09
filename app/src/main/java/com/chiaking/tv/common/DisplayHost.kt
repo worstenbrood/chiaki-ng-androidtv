@@ -17,7 +17,8 @@ sealed class DisplayHost
 
 class DiscoveredDisplayHost(
 	override val registeredHost: RegisteredHost?,
-	val discoveredHost: DiscoveryHost
+	val discoveredHost: DiscoveryHost,
+	val cached: Boolean = false
 ): DisplayHost()
 {
 	override val host get() = discoveredHost.hostAddr ?: ""

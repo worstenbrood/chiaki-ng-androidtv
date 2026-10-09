@@ -14,6 +14,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chiaking.tv.common.AudioDevices
 import com.chiaking.tv.common.Preferences
 import com.chiaking.tv.ui.*
 import com.chiaking.tv.ui.theme.*
@@ -44,36 +45,11 @@ fun SettingsScreen(
 	var bufferMs by remember { mutableStateOf(preferences.audioBufferMs) }
 
 	val ctx = androidx.compose.ui.platform.LocalContext.current
-	val audioDevices = remember {
-		val am = ctx.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
-		val types = setOf(
-			android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER,
-			android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE,
-			android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
-			android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET,
-			android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
-			android.media.AudioDeviceInfo.TYPE_HDMI,
-			android.media.AudioDeviceInfo.TYPE_HDMI_ARC,
-			android.media.AudioDeviceInfo.TYPE_HDMI_EARC,
-			android.media.AudioDeviceInfo.TYPE_USB_DEVICE,
-			android.media.AudioDeviceInfo.TYPE_USB_HEADSET
-		)
-		listOf("Default" to 0) + am.getDevices(android.media.AudioManager.GET_DEVICES_OUTPUTS)
-			.filter { it.isSink && types.contains(it.type) }
-			.map { (it.productName?.toString() ?: "Device ${it.type}") to it.id }
-			.distinctBy { it.second }
-	}
+	val audioDevices = remember { AudioDevices.outputDevices(ctx) }
 	var deviceIndex by remember { mutableStateOf(audioDevices.indexOfFirst { it.second == preferences.audioDeviceId }.coerceAtLeast(0)) }
 
 	Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 24.dp)) {
-		Row(
-			modifier = Modifier.padding(horizontal = 32.dp),
-			verticalAlignment = Alignment.CenterVertically
-		) {
-			TvButton("Back", onClick = onBack)
-			Spacer(Modifier.width(20.dp))
-			Text("Settings", fontSize = 30.sp, fontWeight = FontWeight.Bold)
-		}
+		ScreenHeader("Settings", onBack, modifier = Modifier.padding(horizontal = 32.dp))
 
 		SectionHeader("Stream")
 		SettingsCard {
