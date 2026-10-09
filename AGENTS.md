@@ -48,8 +48,11 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
 - **Native layer**: `external/chiaki-ng/lib` (C core) is compiled as-is via CMake — upstream
   changes apply automatically on submodule bump. The **JNI layer is our own copy** in
   `native/jni/` (copied from `external/chiaki-ng/android/app/src/main/cpp`) with local
-  additions: audio **volume** and **output device** selection (`sessionSetVolume`,
-  `sessionSetAudioDevice` in `chiaki-jni.c` + `audio-output.cpp`). When bumping upstream,
+  additions: audio **volume** (software gain in the Oboe callback), **output device**
+  selection with default-device fallback, audio **buffer size** (ms → Oboe buffer capacity),
+  video **stats counters** (frames/bytes/lost for the HUD) and the matching JNI functions
+  (`sessionSetVolume`, `sessionSetAudioDevice`, `sessionSetAudioBuffer`, `sessionGetStats`
+  in `chiaki-jni.c` + `audio-output.cpp` / `video-decoder.c`). When bumping upstream,
   diff and re-apply our changes to those files.
 - **CMake entry point** is `native/CMakeLists.txt` (a trimmed copy of upstream's root
   CMakeLists: third-party + lib + our `native/jni`). It must keep `CHIAKI_ENABLE_ANDROID=ON`

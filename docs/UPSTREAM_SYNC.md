@@ -49,9 +49,12 @@ of `app/build.gradle`.
 The JNI layer is **not** compiled from the submodule. `native/jni/` is a copy of
 `external/chiaki-ng/android/app/src/main/cpp/` with local additions:
 
-- `audio-output.{h,cpp}`: volume (`setVolume` on the Oboe stream) and output-device
-  selection (`setDeviceId` with fallback to the default device)
-- `chiaki-jni.c`: `sessionSetVolume`, `sessionSetAudioDevice` JNI functions
+- `audio-output.{h,cpp}`: volume (software gain in the Oboe callback), output-device
+  selection (`setDeviceId` with fallback to the default device) and buffer size
+  (ms → Oboe buffer capacity + buffer size at open)
+- `video-decoder.{h,c}`: frames/bytes/lost counters + `android_chiaki_video_decoder_get_stats`
+- `chiaki-jni.c`: `sessionSetVolume`, `sessionSetAudioDevice`, `sessionSetAudioBuffer`,
+  `sessionGetStats` JNI functions
 
 When bumping upstream, diff the two directories and re-apply our additions:
 

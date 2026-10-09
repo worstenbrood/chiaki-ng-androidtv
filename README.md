@@ -12,14 +12,16 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
 
 - **Console discovery** — automatically finds PS4/PS5 consoles on the LAN
 - **Console registration** — PIN-based pairing flow (8-digit PIN from the console);
-  selecting an unregistered discovered console opens registration with its IP prefilled
+  selecting an unregistered discovered console opens registration with its IP and
+  console type (PS5/PS4) prefilled
 - **Remote Play** — H.264 / H.265 / H.265 HDR, up to 1080p60, auto or manual bitrate (2000–50000 kbps)
 - **Wake-on-LAN** — rest-mode console wakeup from the home screen
 - **Gamepad support** — full controller mapping incl. sticks, triggers, motion controls and rumble
 - **TV remote support** — D-pad and menu button act as controller input while streaming (toggleable)
 - **Manual hosts** — add consoles by IP when discovery is not enough
-- **Audio controls** — stream volume (applies live) and output-device selection
-  (HDMI, Bluetooth, USB, ...) with automatic fallback to the system default
+- **Audio controls** — stream volume (applies live), output-device selection
+  (HDMI, Bluetooth, USB, ...) with automatic fallback to the system default, and
+  audio buffer size (Auto or 10–100 ms in 10 ms steps, like the Qt app)
 - **In-stream HUD** — press **Share + Options** while streaming to slide up a stats bar
   (live FPS, measured bitrate, lost frames, video/audio config) with focusable controls:
   volume, output device and video quality (device & quality apply on the next session);
