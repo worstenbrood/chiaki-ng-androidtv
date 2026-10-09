@@ -48,16 +48,6 @@ private object ScreenManageHosts: Screen()
 
 class MainActivity: ComponentActivity()
 {
-	companion object
-	{
-		private val hudNavigationKeys = setOf(
-			KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
-			KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
-			KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER,
-			KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_MENU
-		)
-	}
-
 	private lateinit var preferences: Preferences
 	private lateinit var database: AppDatabase
 	private lateinit var logManager: LogManager
@@ -263,8 +253,9 @@ class MainActivity: ComponentActivity()
 	private fun disconnectStream()
 	{
 		val screen = screenStack.lastOrNull() as? ScreenStream ?: return
-		if(screen.session.state.value is StreamStateDisconnecting)
+		if(screen.session.disconnecting)
 			return
+		screen.session.disconnecting = true
 		screen.session.state.value = StreamStateDisconnecting
 		lifecycleScope.launch {
 			withContext(Dispatchers.IO) { screen.session.shutdown(StreamStateDisconnecting) }
@@ -311,9 +302,7 @@ class MainActivity: ComponentActivity()
 					disconnectStream()
 				return true
 			}
-			// While the HUD is open, navigation keys drive the HUD instead of the console
-			if(session.hudVisible.value && event.keyCode in hudNavigationKeys)
-				return super.dispatchKeyEvent(event)
+			// While the HUD is open, BACK closes it (handled above); everything else goes to the console
 			streamInput?.let { if(it.dispatchKeyEvent(event)) return true }
 		}
 		return super.dispatchKeyEvent(event)
@@ -323,8 +312,6 @@ class MainActivity: ComponentActivity()
 	{
 		if(screenStack.lastOrNull() is ScreenStream)
 		{
-			if((screenStack.last() as ScreenStream).session.hudVisible.value)
-				return false
 			streamInput?.let { if(it.onGenericMotionEvent(event)) return true }
 		}
 		return super.onGenericMotionEvent(event)

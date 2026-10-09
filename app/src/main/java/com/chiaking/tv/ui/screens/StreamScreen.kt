@@ -15,8 +15,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -30,7 +28,6 @@ import com.chiaking.tv.common.Preferences
 import com.chiaking.tv.session.*
 import com.chiaking.tv.ui.theme.*
 import kotlinx.coroutines.delay
-import kotlin.math.roundToInt
 
 private data class HudStats(val fps: Double, val kbps: Double, val framesLost: Long)
 
@@ -70,15 +67,6 @@ fun StreamScreen(
 			.distinctBy { it.second }
 	}
 	var deviceIndex by remember { mutableStateOf(audioDevices.indexOfFirst { it.second == preferences.audioDeviceId }.coerceAtLeast(0)) }
-	val hudFocus = remember { FocusRequester() }
-
-	LaunchedEffect(hudVisible)
-	{
-		if(hudVisible)
-		{
-			try { hudFocus.requestFocus() } catch(e: Exception) { }
-		}
-	}
 
 	LaunchedEffect(hudVisible)
 	{
@@ -117,7 +105,9 @@ fun StreamScreen(
 			is StreamStateLoginPinRequest -> pinDialog = state as StreamStateLoginPinRequest
 			is StreamStateQuit -> {
 				val quit = state as StreamStateQuit
-				if(quit.reason.isError)
+				if(session.disconnecting)
+					{}
+				else if(quit.reason.isError)
 					quitDialog = quit
 				else
 					onQuit()
@@ -197,31 +187,7 @@ fun StreamScreen(
 					)
 				}
 				Spacer(Modifier.height(12.dp))
-				Row(
-					horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
-					verticalAlignment = Alignment.CenterVertically
-				) {
-					Text("Volume", fontSize = 16.sp, color = Color.White)
-					Slider(
-						value = volume / 100f,
-						onValueChange = {
-							volume = (it * 100).roundToInt()
-							preferences.audioVolume = volume
-							session.setVolumePercent(volume)
-						},
-						valueRange = 0f..1f,
-						steps = 19,
-						colors = SliderDefaults.colors(
-							thumbColor = PsBlueLight,
-							activeTrackColor = PsBlueLight
-						),
-						modifier = Modifier
-							.width(300.dp)
-							.focusRequester(hudFocus)
-					)
-					Text("$volume%", fontSize = 16.sp, color = Color.White, fontWeight = FontWeight.Bold)
-					Text("Back closes HUD", fontSize = 12.sp, color = OnSurfaceMuted)
-				}
+				Text("Back closes HUD", fontSize = 12.sp, color = OnSurfaceMuted)
 			}
 		}
 	}

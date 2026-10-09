@@ -29,6 +29,7 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 	val rumbleState: MutableStateFlow<RumbleEvent> get() = _rumbleState
 	private val _hudVisible = MutableStateFlow(false)
 	val hudVisible: MutableStateFlow<Boolean> get() = _hudVisible
+	@Volatile var disconnecting = false
 
 	private var surfaceTexture: SurfaceTexture? = null
 	private var surface: Surface? = null
@@ -45,8 +46,13 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 
 	fun getStats(): LongArray? = session?.getStats()
 
+	@Volatile private var stopped = false
+
 	fun shutdown(finalState: StreamState = StreamStateIdle)
 	{
+		if(stopped)
+			return
+		stopped = true
 		session?.stop()
 		session?.dispose()
 		session = null
@@ -77,6 +83,7 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 	{
 		if(session != null)
 			return
+		stopped = false
 		try
 		{
 			val session = Session(connectInfo, logManager.createNewFile().file.absolutePath, logVerbose)
