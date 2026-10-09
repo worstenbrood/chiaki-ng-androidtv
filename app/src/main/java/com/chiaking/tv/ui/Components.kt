@@ -29,6 +29,7 @@ fun TvFocusCard(
 	focusRequester: FocusRequester? = null,
 	containerColor: Color = SurfaceCard,
 	onClick: (() -> Unit)? = null,
+	onFocusChange: (Boolean) -> Unit = {},
 	content: @Composable BoxScope.() -> Unit
 )
 {
@@ -45,7 +46,10 @@ fun TvFocusCard(
 			.then(
 				if(onClick != null) Modifier.clickable { onClick() } else Modifier.focusable()
 			)
-			.onFocusChanged { focused = it.isFocused }
+			.onFocusChanged {
+				focused = it.isFocused
+				onFocusChange(it.isFocused)
+			}
 			.background(containerColor)
 			.border(
 				BorderStroke(

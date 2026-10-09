@@ -5,7 +5,12 @@ package com.chiaking.tv.session
 import android.graphics.SurfaceTexture
 import android.util.Log
 import android.view.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import com.chiaking.tv.common.LogManager
 import com.metallic.chiaki.lib.*
 
@@ -83,7 +88,7 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 
 	fun resume()
 	{
-		if(session != null)
+		if(session != null || disconnecting)
 			return
 		stopped = false
 		try
@@ -100,6 +105,15 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 		catch(e: CreateError)
 		{
 			_state.value = StreamStateCreateError(e)
+		}
+	}
+
+	fun resumeDelayed(delayMs: Long)
+	{
+		CoroutineScope(Dispatchers.Main + SupervisorJob()).launch {
+			delay(delayMs)
+			if(!disconnecting && session == null)
+				resume()
 		}
 	}
 

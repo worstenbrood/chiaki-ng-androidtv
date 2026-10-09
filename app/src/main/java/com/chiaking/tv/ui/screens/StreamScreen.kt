@@ -187,8 +187,6 @@ fun StreamScreen(
 						sub = audioDevices[deviceIndex].first
 					)
 				}
-				Spacer(Modifier.height(12.dp))
-				Text("Back closes HUD", fontSize = 12.sp, color = OnSurfaceMuted)
 			}
 		}
 	}
@@ -236,7 +234,7 @@ fun StreamScreen(
 				TextButton(onClick = {
 					quitDialog = null
 					session.shutdown(StreamStateIdle)
-					session.resume()
+					session.resumeDelayed(1500)
 				}) { Text("Reconnect", color = PsBlueLight) }
 			},
 			dismissButton = {

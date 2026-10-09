@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -27,6 +28,7 @@ import com.chiaking.tv.discovery.serverMac
 import com.metallic.chiaki.lib.DiscoveryHost
 import com.chiaking.tv.ui.*
 import com.chiaking.tv.ui.theme.*
+import kotlinx.coroutines.delay
 
 sealed class HomeAction
 data class ConnectHost(val host: DisplayHost): HomeAction()
@@ -46,8 +48,20 @@ fun HomeScreen(
 	onAction: (HomeAction) -> Unit
 )
 {
-	val firstCard = remember { FocusRequester() }
-	var focusFirst by remember { mutableStateOf(true) }
+	val cardFocus = remember { FocusRequester() }
+	var lastFocused by rememberSaveable { mutableStateOf(0) }
+	val focusTarget = remember { lastFocused.coerceAtLeast(0) }
+	var focusRequested by remember { mutableStateOf(false) }
+
+	LaunchedEffect(hosts.size)
+	{
+		if(!focusRequested && hosts.isNotEmpty())
+		{
+			delay(100)
+			try { cardFocus.requestFocus() } catch(e: Exception) { }
+			focusRequested = true
+		}
+	}
 
 	Column(modifier = Modifier.fillMaxSize().padding(32.dp)) {
 		Row(verticalAlignment = Alignment.CenterVertically) {
@@ -108,10 +122,11 @@ fun HomeScreen(
 						.horizontalScroll(rememberScrollState())
 						.padding(vertical = 8.dp)
 				) {
-					hosts.forEach { host ->
+					hosts.forEachIndexed { index, host ->
 						ConsoleCard(
 							host = host,
-							focusRequester = if(focusFirst) { focusFirst = false; firstCard } else null,
+							focusRequester = if(index == focusTarget.coerceAtMost(hosts.lastIndex)) cardFocus else null,
+							onFocus = { focused -> if(focused) lastFocused = index },
 							onAction = onAction
 						)
 					}
@@ -127,6 +142,7 @@ fun HomeScreen(
 private fun ConsoleCard(
 	host: DisplayHost,
 	focusRequester: FocusRequester?,
+	onFocus: (Boolean) -> Unit,
 	onAction: (HomeAction) -> Unit
 )
 {
@@ -147,6 +163,7 @@ private fun ConsoleCard(
 
 	TvFocusCard(
 		focusRequester = focusRequester,
+		onFocusChange = onFocus,
 		onClick = {
 			if(host.isRegistered)
 			{
