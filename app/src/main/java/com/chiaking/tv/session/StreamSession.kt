@@ -29,6 +29,8 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 	val rumbleState: MutableStateFlow<RumbleEvent> get() = _rumbleState
 	private val _hudVisible = MutableStateFlow(false)
 	val hudVisible: MutableStateFlow<Boolean> get() = _hudVisible
+	private val _disconnectDialogVisible = MutableStateFlow(false)
+	val disconnectDialogVisible: MutableStateFlow<Boolean> get() = _disconnectDialogVisible
 	@Volatile var disconnecting = false
 
 	private var surfaceTexture: SurfaceTexture? = null
@@ -103,6 +105,8 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 
 	private fun eventCallback(event: Event)
 	{
+		if(stopped)
+			return
 		when(event)
 		{
 			is ConnectedEvent -> _state.value = StreamStateConnected
@@ -167,5 +171,21 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 	fun setLoginPin(pin: String)
 	{
 		session?.setLoginPin(pin)
+	}
+
+	fun gotoBed()
+	{
+		session?.gotoBed()
+	}
+
+	fun requestDisconnectDialog()
+	{
+		if(!disconnecting)
+			_disconnectDialogVisible.value = true
+	}
+
+	fun dismissDisconnectDialog()
+	{
+		_disconnectDialogVisible.value = false
 	}
 }

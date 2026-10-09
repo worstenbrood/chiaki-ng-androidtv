@@ -27,6 +27,7 @@ import com.metallic.chiaki.lib.RegistInfo
 import com.chiaking.tv.regist.RegistExecuteViewModel
 import com.chiaking.tv.session.StreamInput
 import com.chiaking.tv.session.StreamSession
+import com.chiaking.tv.session.StreamStateConnected
 import com.chiaking.tv.session.StreamStateDisconnecting
 import com.chiaking.tv.ui.screens.*
 import com.chiaking.tv.ui.theme.ChiakiTvTheme
@@ -298,8 +299,19 @@ class MainActivity: ComponentActivity()
 						session.hudVisible.value = false
 					return true
 				}
+				if(session.disconnectDialogVisible.value)
+				{
+					if(event.action == KeyEvent.ACTION_UP)
+						session.dismissDisconnectDialog()
+					return true
+				}
 				if(event.action == KeyEvent.ACTION_UP)
-					disconnectStream()
+				{
+					if(session.state.value is StreamStateConnected)
+						session.requestDisconnectDialog()
+					else
+						disconnectStream()
+				}
 				return true
 			}
 			// While the HUD is open, BACK closes it (handled above); everything else goes to the console

@@ -40,6 +40,7 @@ fun StreamScreen(
 {
 	val state by session.state.collectAsState()
 	val hudVisible by session.hudVisible.collectAsState()
+	val disconnectDialogVisible by session.disconnectDialogVisible.collectAsState()
 	var hudStats by remember { mutableStateOf<HudStats?>(null) }
 	var pinDialog by remember { mutableStateOf<StreamStateLoginPinRequest?>(null) }
 	var quitDialog by remember { mutableStateOf<StreamStateQuit?>(null) }
@@ -240,6 +241,28 @@ fun StreamScreen(
 			},
 			dismissButton = {
 				TextButton(onClick = onQuit) { Text("Quit", color = OnSurfaceMuted) }
+			}
+		)
+	}
+
+	if(disconnectDialogVisible)
+	{
+		AlertDialog(
+			onDismissRequest = { session.dismissDisconnectDialog() },
+			title = { Text("Disconnect") },
+			text = { Text("Do you want the Console to go into sleep mode?") },
+			confirmButton = {
+				TextButton(onClick = {
+					session.dismissDisconnectDialog()
+					session.gotoBed()
+					onQuit()
+				}) { Text("Sleep", color = PsBlueLight) }
+			},
+			dismissButton = {
+				TextButton(onClick = {
+					session.dismissDisconnectDialog()
+					onQuit()
+				}) { Text("Disconnect", color = OnSurfaceMuted) }
 			}
 		)
 	}
