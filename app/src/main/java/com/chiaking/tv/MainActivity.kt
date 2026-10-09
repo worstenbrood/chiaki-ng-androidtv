@@ -57,7 +57,7 @@ class MainActivity: ComponentActivity()
 	private val exportLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
 		if(uri == null) return@registerForActivityResult
 		lifecycleScope.launch {
-			val json = exportAllSettings(database)
+			val json = exportAllSettings(database, preferences)
 			contentResolver.openOutputStream(uri)?.use { out ->
 				out.write(json.toByteArray())
 			}
@@ -71,7 +71,7 @@ class MainActivity: ComponentActivity()
 				val settings = contentResolver.openInputStream(uri)!!.source().buffer().use {
 					parseSettingsImport(it)
 				}
-				importSettings(database, settings)
+				importSettings(database, preferences, settings)
 			} catch(e: Exception) {
 				// surfaced via toast-less UI; log for debugging
 				android.util.Log.e("MainActivity", "Import failed", e)

@@ -3,10 +3,12 @@
 package com.chiaking.tv.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -94,22 +96,26 @@ fun HomeScreen(
 		}
 		else
 		{
-			LazyRow(
-				horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally),
-				contentPadding = PaddingValues(vertical = 8.dp),
-				modifier = Modifier.weight(1f)
+			Box(
+				modifier = Modifier
+					.fillMaxWidth()
+					.weight(1f),
+				contentAlignment = Alignment.Center
 			) {
-				items(hosts, key = { it.host + (it.registeredHost?.id ?: 0L) }) { host ->
-					ConsoleCard(
-						host = host,
-						focusRequester = if(focusFirst) { focusFirst = false; firstCard } else null,
-						onAction = onAction
-					)
-				}
-				item {
+				Row(
+					horizontalArrangement = Arrangement.spacedBy(20.dp),
+					modifier = Modifier
+						.horizontalScroll(rememberScrollState())
+						.padding(vertical = 8.dp)
+				) {
+					hosts.forEach { host ->
+						ConsoleCard(
+							host = host,
+							focusRequester = if(focusFirst) { focusFirst = false; firstCard } else null,
+							onAction = onAction
+						)
+					}
 					AddCard("Register Console", Icons.Default.AddCircleOutline) { onAction(RegisterNew) }
-				}
-				item {
 					AddCard("Add Manual Host", Icons.Default.Language) { onAction(AddManualHost) }
 				}
 			}
