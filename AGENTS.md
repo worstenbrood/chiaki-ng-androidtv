@@ -18,6 +18,7 @@ app/                      Android TV app (namespace com.chiaking.tv)
                           JNI bindings — package MUST stay `com.metallic.chiaki.lib`
                           (chiaki-jni.h hardcodes BASE_PACKAGE "com/metallic/chiaki/lib")
 external/chiaki-ng        git submodule = upstream C core + JNI (do not edit casually)
+native/                   Our CMake entry point + copy of the JNI layer (with audio volume/device additions)
 docker/Dockerfile.build   Linux build image (SDK 35, NDK 28.2, protoc, perl, python)
 docs/UPSTREAM_SYNC.md     How to integrate new upstream chiaki-ng commits — READ before syncing
 ```
@@ -44,9 +45,15 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
 
 ## Architecture rules
 
-- **Native layer is read-through**: `external/chiaki-ng/lib` (C core) and
-  `external/chiaki-ng/android/app/src/main/cpp` (JNI, MediaCodec, Oboe) are compiled
-  as-is via CMake. Upstream changes apply automatically on submodule bump.
+- **Native layer**: `external/chiaki-ng/lib` (C core) is compiled as-is via CMake — upstream
+  changes apply automatically on submodule bump. The **JNI layer is our own copy** in
+  `native/jni/` (copied from `external/chiaki-ng/android/app/src/main/cpp`) with local
+  additions: audio **volume** and **output device** selection (`sessionSetVolume`,
+  `sessionSetAudioDevice` in `chiaki-jni.c` + `audio-output.cpp`). When bumping upstream,
+  diff and re-apply our changes to those files.
+- **CMake entry point** is `native/CMakeLists.txt` (a trimmed copy of upstream's root
+  CMakeLists: third-party + lib + our `native/jni`). It must keep `CHIAKI_ENABLE_ANDROID=ON`
+  semantics and the `CHIAKI_LIB_*_EXTERNAL_PROJECT` includes.
 - **Kotlin layer is a manual port** of `external/chiaki-ng/android/app/src/main/java`.
   It is NOT kept in sync automatically — see `docs/UPSTREAM_SYNC.md` for the file-by-file
   mapping and the list of intentional divergences (StateFlow instead of LiveData,

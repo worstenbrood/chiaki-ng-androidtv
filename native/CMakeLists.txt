@@ -1,0 +1,49 @@
+cmake_minimum_required(VERSION 3.10)
+
+project(chiaki-tv)
+
+# Top-level CMake for the Chiaki TV app.
+# Mirrors the Android-relevant parts of external/chiaki-ng/CMakeLists.txt,
+# but builds OUR copy of the JNI layer (native/jni) which adds audio
+# volume/device selection on top of upstream's chiaki-jni.
+
+set(CHIAKI_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../external/chiaki-ng")
+
+# lib/CMakeLists.txt checks this to skip desktop-only deps (libevent)
+set(CHIAKI_ENABLE_ANDROID ON)
+
+option(CHIAKI_LIB_ENABLE_OPUS "Use Opus as part of Chiaki Lib" OFF)
+option(CHIAKI_LIB_OPENSSL_EXTERNAL_PROJECT "Use OpenSSL as CMake external project" OFF)
+option(CHIAKI_LIB_JSONC_EXTERNAL_PROJECT "Build json-c from source via FetchContent" OFF)
+option(CHIAKI_LIB_MINIUPNPC_EXTERNAL_PROJECT "Build miniupnpc from source via FetchContent" OFF)
+
+set(CHIAKI_VERSION_MAJOR 1)
+set(CHIAKI_VERSION_MINOR 10)
+set(CHIAKI_VERSION_PATCH 0)
+set(CHIAKI_VERSION ${CHIAKI_VERSION_MAJOR}.${CHIAKI_VERSION_MINOR}.${CHIAKI_VERSION_PATCH})
+
+set(CMAKE_CXX_STANDARD 14)
+
+list(APPEND CMAKE_MODULE_PATH "${CHIAKI_ROOT}/cmake")
+
+find_package(PythonInterp 3 REQUIRED) # Make sure nanopb doesn't find Python 2.7
+
+if(CHIAKI_LIB_OPENSSL_EXTERNAL_PROJECT)
+	include(OpenSSLExternalProject)
+endif()
+
+add_subdirectory(${CHIAKI_ROOT}/third-party third-party)
+
+add_definitions(-DCHIAKI_VERSION_MAJOR=${CHIAKI_VERSION_MAJOR} -DCHIAKI_VERSION_MINOR=${CHIAKI_VERSION_MINOR} -DCHIAKI_VERSION_PATCH=${CHIAKI_VERSION_PATCH} -DCHIAKI_VERSION=\"${CHIAKI_VERSION}\")
+
+if(CHIAKI_LIB_JSONC_EXTERNAL_PROJECT)
+	include(JsoncExternalProject)
+endif()
+
+if(CHIAKI_LIB_MINIUPNPC_EXTERNAL_PROJECT)
+	include(MiniupnpcExternalProject)
+endif()
+
+add_subdirectory(${CHIAKI_ROOT}/lib lib)
+
+add_subdirectory(jni)

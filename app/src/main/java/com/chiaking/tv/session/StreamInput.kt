@@ -13,6 +13,11 @@ import com.metallic.chiaki.lib.ControllerState
 class StreamInput(val context: Context, val preferences: Preferences)
 {
 	var controllerStateChangedCallback: ((ControllerState) -> Unit)? = null
+	var hudToggleCallback: (() -> Unit)? = null
+
+	private var sharePressed = false
+	private var optionsPressed = false
+	private var hudComboFired = false
 
 	val controllerState: ControllerState get()
 	{
@@ -135,6 +140,25 @@ class StreamInput(val context: Context, val preferences: Preferences)
 			KeyEvent.KEYCODE_BUTTON_R2 -> {
 				keyControllerState.r2State = if(event.action == KeyEvent.ACTION_DOWN) UByte.MAX_VALUE else 0U
 				return true
+			}
+			KeyEvent.KEYCODE_BUTTON_SELECT, KeyEvent.KEYCODE_BUTTON_START -> {
+				if(event.action == KeyEvent.ACTION_DOWN)
+				{
+					if(event.keyCode == KeyEvent.KEYCODE_BUTTON_SELECT) sharePressed = true
+					else optionsPressed = true
+					if(sharePressed && optionsPressed && !hudComboFired)
+					{
+						hudComboFired = true
+						hudToggleCallback?.invoke()
+					}
+				}
+				else
+				{
+					if(event.keyCode == KeyEvent.KEYCODE_BUTTON_SELECT) sharePressed = false
+					else optionsPressed = false
+					if(!sharePressed || !optionsPressed)
+						hudComboFired = false
+				}
 			}
 		}
 

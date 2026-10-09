@@ -7,7 +7,6 @@ plugins {
 }
 
 def chiakiRoot = "${rootDir}/external/chiaki-ng"
-
 android {
     namespace "com.chiaking.tv"
     compileSdk 35
@@ -65,7 +64,7 @@ android {
     externalNativeBuild {
         cmake {
             version "3.22.1"
-            path "${chiakiRoot}/CMakeLists.txt"
+            path "${rootDir}/native/CMakeLists.txt"
         }
     }
 

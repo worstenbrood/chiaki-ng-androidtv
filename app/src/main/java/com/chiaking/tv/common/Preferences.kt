@@ -53,6 +53,9 @@ class Preferences(context: Context)
 		const val swapCrossMoonKey = "swap_cross_moon"
 		const val dpadAsControllerKey = "dpad_as_controller"
 		const val displayModeKey = "display_mode"
+		const val audioVolumeKey = "audio_volume"
+		const val audioDeviceIdKey = "audio_device_id"
+		const val audioDeviceNameKey = "audio_device_name"
 
 		val resolutionDefault = Resolution.RES_1080P
 		val fpsDefault = FPS.FPS_60
@@ -94,6 +97,18 @@ class Preferences(context: Context)
 	var dpadAsController
 		get() = sharedPreferences.getBoolean(dpadAsControllerKey, true)
 		set(value) { sharedPreferences.edit().putBoolean(dpadAsControllerKey, value).apply() }
+
+	var audioVolume
+		get() = sharedPreferences.getInt(audioVolumeKey, 100)
+		set(value) { sharedPreferences.edit().putInt(audioVolumeKey, value.coerceIn(0, 100)).apply() }
+
+	var audioDeviceId
+		get() = sharedPreferences.getInt(audioDeviceIdKey, 0)
+		set(value) { sharedPreferences.edit().putInt(audioDeviceIdKey, value).apply() }
+
+	var audioDeviceName
+		get() = sharedPreferences.getString(audioDeviceNameKey, "Default") ?: "Default"
+		set(value) { sharedPreferences.edit().putString(audioDeviceNameKey, value).apply() }
 
 	var resolution
 		get() = sharedPreferences.getString(resolutionDefaultKey, resolutionDefault.value)?.let { value ->

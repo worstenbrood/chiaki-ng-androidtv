@@ -40,6 +40,29 @@ fun SettingsScreen(
 	var swapCrossMoon by remember { mutableStateOf(preferences.swapCrossMoon) }
 	var dpadAsController by remember { mutableStateOf(preferences.dpadAsController) }
 	var logVerbose by remember { mutableStateOf(preferences.logVerbose) }
+	var volume by remember { mutableStateOf(preferences.audioVolume) }
+
+	val ctx = androidx.compose.ui.platform.LocalContext.current
+	val audioDevices = remember {
+		val am = ctx.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+		val types = setOf(
+			android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER,
+			android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE,
+			android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+			android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET,
+			android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+			android.media.AudioDeviceInfo.TYPE_HDMI,
+			android.media.AudioDeviceInfo.TYPE_HDMI_ARC,
+			android.media.AudioDeviceInfo.TYPE_HDMI_EARC,
+			android.media.AudioDeviceInfo.TYPE_USB_DEVICE,
+			android.media.AudioDeviceInfo.TYPE_USB_HEADSET
+		)
+		listOf("Default" to 0) + am.getDevices(android.media.AudioManager.GET_DEVICES_OUTPUTS)
+			.filter { it.isSink && types.contains(it.type) }
+			.map { (it.productName?.toString() ?: "Device ${it.type}") to it.id }
+			.distinctBy { it.second }
+	}
+	var deviceIndex by remember { mutableStateOf(audioDevices.indexOfFirst { it.second == preferences.audioDeviceId }.coerceAtLeast(0)) }
 
 	Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 24.dp)) {
 		Row(
@@ -90,6 +113,27 @@ fun SettingsScreen(
 						else -> null
 					}
 					preferences.bitrate = bitrate
+				}
+			)
+		}
+
+		SectionHeader("Audio")
+		SettingsCard {
+			TvCycleRow(
+				title = "Volume",
+				value = "$volume%",
+				onNext = {
+					volume = if(volume >= 100) 0 else volume + 25
+					preferences.audioVolume = volume
+				}
+			)
+			TvCycleRow(
+				title = "Output Device",
+				value = audioDevices[deviceIndex].first,
+				onNext = {
+					deviceIndex = (deviceIndex + 1) % audioDevices.size
+					preferences.audioDeviceId = audioDevices[deviceIndex].second
+					preferences.audioDeviceName = audioDevices[deviceIndex].first
 				}
 			)
 		}

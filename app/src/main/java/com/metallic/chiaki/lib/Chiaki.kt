@@ -91,6 +91,9 @@ private class ChiakiNative
 		@JvmStatic external fun sessionStop(ptr: Long): Int
 		@JvmStatic external fun sessionJoin(ptr: Long): Int
 		@JvmStatic external fun sessionSetSurface(ptr: Long, surface: Surface?)
+		@JvmStatic external fun sessionSetVolume(ptr: Long, volume: Float)
+		@JvmStatic external fun sessionSetAudioDevice(ptr: Long, deviceId: Int)
+		@JvmStatic external fun sessionGetStats(ptr: Long, out: LongArray)
 		@JvmStatic external fun sessionSetControllerState(ptr: Long, controllerState: ControllerState)
 		@JvmStatic external fun sessionSetLoginPin(ptr: Long, pin: String)
 		@JvmStatic external fun discoveryServiceCreate(result: CreateResult, options: DiscoveryServiceOptions, javaService: DiscoveryService)
@@ -380,6 +383,23 @@ class Session(connectInfo: ConnectInfo, logFile: String?, logVerbose: Boolean)
 	fun setSurface(surface: Surface?)
 	{
 		ChiakiNative.sessionSetSurface(nativePtr, surface)
+	}
+
+	fun setVolume(volume: Float)
+	{
+		ChiakiNative.sessionSetVolume(nativePtr, volume)
+	}
+
+	fun setAudioDevice(deviceId: Int)
+	{
+		ChiakiNative.sessionSetAudioDevice(nativePtr, deviceId)
+	}
+
+	fun getStats(): LongArray
+	{
+		val out = LongArray(3)
+		ChiakiNative.sessionGetStats(nativePtr, out)
+		return out
 	}
 
 	fun setControllerState(controllerState: ControllerState)

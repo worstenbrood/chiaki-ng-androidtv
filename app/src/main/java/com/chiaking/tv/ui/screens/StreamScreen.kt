@@ -4,6 +4,9 @@ package com.chiaking.tv.ui.screens
 
 import android.view.SurfaceView
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -18,21 +21,58 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.metallic.chiaki.lib.Codec
 import com.metallic.chiaki.lib.ConnectInfo
 import com.chiaking.tv.session.*
 import com.chiaking.tv.ui.TvButton
 import com.chiaking.tv.ui.theme.*
+import kotlinx.coroutines.delay
+
+private data class HudStats(val fps: Double, val kbps: Double, val framesLost: Long)
 
 @Composable
 fun StreamScreen(
 	session: StreamSession,
+	audioVolume: Int,
+	audioDeviceName: String,
 	onQuit: () -> Unit
 )
 {
 	val state by session.state.collectAsState()
+	val hudVisible by session.hudVisible.collectAsState()
+	var hudStats by remember { mutableStateOf<HudStats?>(null) }
 	var pinDialog by remember { mutableStateOf<StreamStateLoginPinRequest?>(null) }
 	var quitDialog by remember { mutableStateOf<StreamStateQuit?>(null) }
 	var createError by remember { mutableStateOf<StreamStateCreateError?>(null) }
+
+	LaunchedEffect(hudVisible)
+	{
+		if(!hudVisible)
+		{
+			hudStats = null
+			return@LaunchedEffect
+		}
+		var lastStats: LongArray? = null
+		var lastTime = 0L
+		while(hudVisible)
+		{
+			val now = System.nanoTime()
+			val stats = session.getStats()
+			if(stats != null && lastStats != null && lastTime != 0L)
+			{
+				val dt = (now - lastTime) / 1_000_000_000.0
+				if(dt > 0.0)
+					hudStats = HudStats(
+						(stats[0] - lastStats[0]) / dt,
+						(stats[1] - lastStats[1]) * 8.0 / dt / 1000.0,
+						stats[2]
+					)
+			}
+			lastStats = stats
+			lastTime = now
+			delay(1000)
+		}
+	}
 
 	BackHandler(onBack = onQuit)
 
@@ -75,6 +115,52 @@ fun StreamScreen(
 				}
 			}
 			else -> {}
+		}
+
+		AnimatedVisibility(
+			visible = hudVisible,
+			enter = slideInVertically(initialOffsetY = { it }),
+			exit = slideOutVertically(targetOffsetY = { it }),
+			modifier = Modifier.align(Alignment.BottomCenter)
+		) {
+			val vp = session.connectInfo.videoProfile
+			val codecLabel = when(vp.codec)
+			{
+				Codec.CODEC_H264 -> "H.264"
+				Codec.CODEC_H265 -> "H.265"
+				Codec.CODEC_H265_HDR -> "H.265 HDR"
+			}
+			Row(
+				modifier = Modifier
+					.fillMaxWidth()
+					.background(Color(0xE60B0E17))
+					.padding(horizontal = 40.dp, vertical = 16.dp),
+				horizontalArrangement = Arrangement.spacedBy(36.dp, Alignment.CenterHorizontally)
+			) {
+				HudItem(
+					label = if(session.connectInfo.ps5) "PS5" else "PS4",
+					value = session.connectInfo.host,
+					sub = if(state is StreamStateConnected) "Connected" else "Connecting"
+				)
+				HudDivider()
+				HudItem(
+					label = "Video",
+					value = "${vp.width}x${vp.height} @ ${vp.maxFPS} fps",
+					sub = "$codecLabel • ${vp.bitrate / 1000} Mbps target"
+				)
+				HudDivider()
+				HudItem(
+					label = "Stream",
+					value = hudStats?.let { String.format("%.0f fps", it.fps) } ?: "—",
+					sub = hudStats?.let { String.format("%.1f Mbps • %d lost", it.kbps / 1000.0, it.framesLost) } ?: ""
+				)
+				HudDivider()
+				HudItem(
+					label = "Audio",
+					value = "$audioVolume%",
+					sub = audioDeviceName
+				)
+			}
 		}
 	}
 
@@ -138,4 +224,33 @@ fun StreamScreen(
 			confirmButton = { TextButton(onClick = onQuit) { Text("Quit", color = OnSurfaceMuted) } }
 		)
 	}
+}
+
+@Composable
+private fun HudItem(label: String, value: String, sub: String)
+{
+	Column(horizontalAlignment = Alignment.CenterHorizontally) {
+		Text(
+			label.uppercase(),
+			fontSize = 11.sp,
+			color = PsBlueLight,
+			letterSpacing = 2.sp,
+			fontWeight = FontWeight.SemiBold
+		)
+		Spacer(Modifier.height(2.dp))
+		Text(value, fontSize = 17.sp, color = Color.White, fontWeight = FontWeight.Bold)
+		if(sub.isNotEmpty())
+			Text(sub, fontSize = 12.sp, color = OnSurfaceMuted)
+	}
+}
+
+@Composable
+private fun HudDivider()
+{
+	Box(
+		Modifier
+			.width(1.dp)
+			.height(44.dp)
+			.background(Color.White.copy(alpha = 0.15f))
+	)
 }

@@ -26,6 +26,8 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 	val state: MutableStateFlow<StreamState> get() = _state
 	private val _rumbleState = MutableStateFlow(RumbleEvent(0U, 0U))
 	val rumbleState: MutableStateFlow<RumbleEvent> get() = _rumbleState
+	private val _hudVisible = MutableStateFlow(false)
+	val hudVisible: MutableStateFlow<Boolean> get() = _hudVisible
 
 	private var surfaceTexture: SurfaceTexture? = null
 	private var surface: Surface? = null
@@ -35,7 +37,12 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 		input.controllerStateChangedCallback = {
 			session?.setControllerState(it)
 		}
+		input.hudToggleCallback = {
+			_hudVisible.value = !_hudVisible.value
+		}
 	}
+
+	fun getStats(): LongArray? = session?.getStats()
 
 	fun shutdown()
 	{
@@ -49,6 +56,13 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 	fun pause()
 	{
 		shutdown()
+	}
+
+	fun applyAudioSettings(volumePercent: Int, deviceId: Int)
+	{
+		session?.setVolume(volumePercent / 100f)
+		if(deviceId != 0)
+			session?.setAudioDevice(deviceId)
 	}
 
 	fun resume()

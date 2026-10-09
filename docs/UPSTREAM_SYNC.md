@@ -31,19 +31,33 @@ Then follow the integration checklist below and rebuild (see "Verify").
 
 ## What is picked up automatically
 
-These are built directly from `external/chiaki-ng` via CMake
-(`app/build.gradle` → `externalNativeBuild`), so a submodule bump applies them
-with **no app changes**:
+The C core is built directly from `external/chiaki-ng` via CMake
+(`native/CMakeLists.txt` → `add_subdirectory(external/chiaki-ng/lib)`), so a submodule
+bump applies it with **no app changes**:
 
 | Area | Upstream location |
 |---|---|
 | C core (session, takion, ctrl, discovery, regist, FEC, RPCrypt, ...) | `external/chiaki-ng/lib/` |
-| JNI bridge, MediaCodec video decoder, Oboe audio | `external/chiaki-ng/android/app/src/main/cpp/` |
-| Build options | `external/chiaki-ng/CMakeLists.txt` |
+| Build options | `external/chiaki-ng/CMakeLists.txt` (mirrored in `native/CMakeLists.txt`) |
 
-**Exception:** if upstream adds/renames a CMake option, mirror it in the
-`externalNativeBuild { cmake { arguments ... } }` block of `app/build.gradle`.
-Compare against upstream's own flags in `external/chiaki-ng/android/app/build.gradle`.
+**Exception:** if upstream adds/renames a CMake option, mirror it in
+`native/CMakeLists.txt` and the `externalNativeBuild { cmake { arguments ... } }` block
+of `app/build.gradle`.
+
+## JNI layer — manual sync
+
+The JNI layer is **not** compiled from the submodule. `native/jni/` is a copy of
+`external/chiaki-ng/android/app/src/main/cpp/` with local additions:
+
+- `audio-output.{h,cpp}`: volume (`setVolume` on the Oboe stream) and output-device
+  selection (`setDeviceId` with fallback to the default device)
+- `chiaki-jni.c`: `sessionSetVolume`, `sessionSetAudioDevice` JNI functions
+
+When bumping upstream, diff the two directories and re-apply our additions:
+
+```powershell
+git diff --no-index external/chiaki-ng/android/app/src/main/cpp native/jni
+```
 
 ## What must be ported manually
 

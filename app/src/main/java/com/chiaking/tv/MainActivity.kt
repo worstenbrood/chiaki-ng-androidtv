@@ -127,6 +127,7 @@ class MainActivity: ComponentActivity()
 							}
 							is DeleteManualHost -> viewModel.deleteManualHost(action.manualHost)
 							RegisterNew -> screenStack.add(ScreenRegist(null))
+							is RegisterHost -> screenStack.add(ScreenRegist(action.host))
 							AddManualHost -> {
 								editingManualHost = null
 								showManualHostDialog = true
@@ -180,7 +181,7 @@ class MainActivity: ComponentActivity()
 				}
 			}
 
-			is ScreenStream -> StreamScreen(screen.session, onQuit = {
+			is ScreenStream -> StreamScreen(screen.session, preferences.audioVolume, preferences.audioDeviceName, onQuit = {
 				screenStack.removeAt(screenStack.size - 1)
 			})
 
@@ -218,6 +219,7 @@ class MainActivity: ComponentActivity()
 		streamInput = input
 		currentStreamSession = session
 		session.resume()
+		session.applyAudioSettings(preferences.audioVolume, preferences.audioDeviceId)
 
 		if(preferences.rumbleEnabled)
 		{

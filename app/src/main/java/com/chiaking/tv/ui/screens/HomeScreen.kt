@@ -32,6 +32,7 @@ data class WakeupHost(val host: DisplayHost): HomeAction()
 data class EditManualHost(val manualHost: ManualHost): HomeAction()
 data class DeleteManualHost(val manualHost: ManualHost): HomeAction()
 object RegisterNew: HomeAction()
+data class RegisterHost(val host: String): HomeAction()
 object AddManualHost: HomeAction()
 object OpenSettings: HomeAction()
 object ToggleDiscovery: HomeAction()
@@ -94,7 +95,7 @@ fun HomeScreen(
 		else
 		{
 			LazyRow(
-				horizontalArrangement = Arrangement.spacedBy(20.dp),
+				horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally),
 				contentPadding = PaddingValues(vertical = 8.dp),
 				modifier = Modifier.weight(1f)
 			) {
@@ -146,7 +147,7 @@ private fun ConsoleCard(
 				if(standby) onAction(WakeupHost(host)) else onAction(ConnectHost(host))
 			}
 			else
-				onAction(RegisterNew)
+				onAction(RegisterHost(host.host))
 		}
 	) {
 		Column(

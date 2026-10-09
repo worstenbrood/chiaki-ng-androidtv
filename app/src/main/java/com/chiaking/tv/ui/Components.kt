@@ -93,12 +93,12 @@ fun TvButton(
 @Composable
 private fun Modifier.tvRow(focused: MutableState<Boolean>, onClick: () -> Unit): Modifier =
 	this
-		.padding(horizontal = 8.dp, vertical = 2.dp)
-		.clip(RoundedCornerShape(14.dp))
+		.padding(vertical = 2.dp)
+		.clip(CardShape)
 		.background(if(focused.value) PsBlue.copy(alpha = 0.40f) else Color.Transparent)
 		.onFocusChanged { focused.value = it.isFocused }
 		.clickable(onClick = onClick)
-		.padding(horizontal = 16.dp, vertical = 12.dp)
+		.padding(horizontal = 20.dp, vertical = 12.dp)
 
 @Composable
 fun TvSwitchRow(
