@@ -90,7 +90,9 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
 - Shield TV intercepts the gamepad **PS button** (KEYCODE_BUTTON_MODE/HOME) at system level — the app
   never sees it. The DualSense **Create** button arrives as `KEYCODE_BACK` from the gamepad device;
   `StreamInput` maps gamepad-sourced BACK to `BUTTON_PS` (check `event.device` vendor 0x054c /
-  SOURCE_GAMEPAD). Remote-sourced BACK still opens the Sleep/Disconnect dialog.
+  SOURCE_GAMEPAD). Remote-sourced BACK still opens the Sleep/Disconnect dialog. The DualSense
+  **touchpad click** arrives as `KEYCODE_BUTTON_SELECT` and is sent as a real touchpad click
+  (`BUTTON_TOUCHPAD` + center touch), not Create/Share.
 - While the stream HUD is visible, `MainActivity.dispatchKeyEvent` skips `streamInput` so D-pad/A
   navigate the HUD (✕ disconnect item auto-focuses) instead of the game.
 

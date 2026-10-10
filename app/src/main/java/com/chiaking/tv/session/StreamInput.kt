@@ -9,6 +9,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.OnLifecycleEvent
 import com.chiaking.tv.common.Preferences
 import com.metallic.chiaki.lib.ControllerState
+import com.metallic.chiaki.lib.ControllerTouch
 
 class StreamInput(val context: Context, val preferences: Preferences)
 {
@@ -168,6 +169,26 @@ class StreamInput(val context: Context, val preferences: Preferences)
 						hudComboFired = false
 				}
 			}
+			KeyEvent.KEYCODE_BUTTON_SELECT -> {
+				// Touchpad click arrives as BUTTON_SELECT; send it as a real touchpad click
+				// (button flag + a touch in the middle of the touchpad) instead of Create/Share
+				if(event.action == KeyEvent.ACTION_DOWN)
+				{
+					keyControllerState.buttons = keyControllerState.buttons or ControllerState.BUTTON_TOUCHPAD
+					keyControllerState.touches[0] = ControllerTouch(
+						x = (ControllerState.TOUCHPAD_WIDTH / 2U).toUShort(),
+						y = (ControllerState.TOUCHPAD_HEIGHT / 2U).toUShort(),
+						id = 0
+					)
+				}
+				else
+				{
+					keyControllerState.buttons = keyControllerState.buttons and ControllerState.BUTTON_TOUCHPAD.inv()
+					keyControllerState.touches[0] = ControllerTouch(id = -1)
+				}
+				controllerStateUpdated()
+				return true
+			}
 			KeyEvent.KEYCODE_BACK -> {
 				// Android remaps the DualSense Create button to BACK; when it comes from the
 				// gamepad itself, forward it to the console as the PS button instead.
@@ -224,7 +245,6 @@ class StreamInput(val context: Context, val preferences: Preferences)
 			KeyEvent.KEYCODE_BUTTON_R1 -> ControllerState.BUTTON_R1
 			KeyEvent.KEYCODE_BUTTON_THUMBL -> ControllerState.BUTTON_L3
 			KeyEvent.KEYCODE_BUTTON_THUMBR -> ControllerState.BUTTON_R3
-			KeyEvent.KEYCODE_BUTTON_SELECT -> ControllerState.BUTTON_SHARE
 			KeyEvent.KEYCODE_BUTTON_START -> ControllerState.BUTTON_OPTIONS
 			KeyEvent.KEYCODE_BUTTON_C -> ControllerState.BUTTON_PS
 			KeyEvent.KEYCODE_BUTTON_MODE -> ControllerState.BUTTON_PS
