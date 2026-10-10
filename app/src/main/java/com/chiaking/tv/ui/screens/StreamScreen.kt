@@ -36,7 +36,8 @@ private data class HudStats(val fps: Double, val kbps: Double, val framesLost: L
 fun StreamScreen(
 	session: StreamSession,
 	preferences: Preferences,
-	onQuit: () -> Unit
+	onQuit: () -> Unit,
+	onSleep: () -> Unit
 )
 {
 	val state by session.state.collectAsState()
@@ -236,7 +237,7 @@ fun StreamScreen(
 				TextButton(onClick = {
 					session.dismissDisconnectDialog()
 					session.gotoBed()
-					onQuit()
+					onSleep()
 				}) { Text("Sleep", color = PsBlueLight) }
 			},
 			dismissButton = {

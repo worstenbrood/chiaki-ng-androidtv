@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.lifecycleScope
 import com.chiaking.tv.common.*
 import com.metallic.chiaki.lib.ConnectInfo
+import com.metallic.chiaki.lib.DiscoveryHost
 import com.metallic.chiaki.lib.RegistInfo
 import com.chiaking.tv.regist.RegistExecuteViewModel
 import com.chiaking.tv.session.StreamInput
@@ -54,6 +55,7 @@ class MainActivity: ComponentActivity()
 	private lateinit var logManager: LogManager
 	private var streamInput: StreamInput? = null
 	private var currentStreamSession: StreamSession? = null
+	private var currentStreamDisplayHost: DisplayHost? = null
 
 	private val screenStack = mutableStateListOf<Screen>()
 	private var showManualHostDialog by mutableStateOf(false)
@@ -194,7 +196,15 @@ class MainActivity: ComponentActivity()
 				}
 			}
 
-			is ScreenStream -> StreamScreen(screen.session, preferences, onQuit = { disconnectStream() })
+			is ScreenStream -> StreamScreen(screen.session, preferences,
+				onQuit = { disconnectStream() },
+				onSleep =
+				{
+					currentStreamDisplayHost?.registeredHost?.serverMac?.let {
+						LastSeenHosts.markState(it, DiscoveryHost.State.STANDBY)
+					}
+					disconnectStream()
+				})
 
 			ScreenLogs -> LogsScreen(logManager) { screenStack.removeAt(screenStack.size - 1) }
 
@@ -229,6 +239,7 @@ class MainActivity: ComponentActivity()
 		val session = StreamSession(connectInfo, logManager, preferences.logVerbose, input)
 		streamInput = input
 		currentStreamSession = session
+		currentStreamDisplayHost = host
 		session.resume()
 		session.applyAudioSettings(preferences.audioVolume, preferences.audioDeviceId, preferences.audioBufferMs)
 
@@ -261,7 +272,10 @@ class MainActivity: ComponentActivity()
 		lifecycleScope.launch {
 			withContext(Dispatchers.IO) { screen.session.shutdown(StreamStateDisconnecting) }
 			if(currentStreamSession === screen.session)
+			{
 				currentStreamSession = null
+				currentStreamDisplayHost = null
+			}
 			if(screenStack.lastOrNull() === screen)
 				screenStack.removeAt(screenStack.size - 1)
 		}

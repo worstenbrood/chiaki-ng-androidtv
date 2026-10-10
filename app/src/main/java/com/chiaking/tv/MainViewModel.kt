@@ -23,17 +23,11 @@ class MainViewModel(val database: AppDatabase, val preferences: Preferences): Vi
 		}
 	}
 
-	private val lastSeenHosts = MutableStateFlow<Map<MacAddress, DiscoveryHost>>(emptyMap())
-
 	init
 	{
 		viewModelScope.launch {
 			discoveryManager.discoveredHosts.collect { hosts ->
-				if(hosts.isEmpty())
-					return@collect
-				val cur = lastSeenHosts.value.toMutableMap()
-				hosts.forEach { h -> h.serverMac?.let { cur[it] = h } }
-				lastSeenHosts.value = cur
+				LastSeenHosts.update(hosts)
 			}
 		}
 	}
@@ -43,7 +37,7 @@ class MainViewModel(val database: AppDatabase, val preferences: Preferences): Vi
 			database.manualHostDao().getAll(),
 			database.registeredHostDao().getAll(),
 			discoveryManager.discoveredHosts,
-			lastSeenHosts
+			LastSeenHosts.hosts
 		) { manualHosts, registeredHosts, discoveredHosts, lastSeen ->
 			val macRegisteredHosts = registeredHosts.associateBy { it.serverMac }
 			val idRegisteredHosts = registeredHosts.associateBy { it.id }

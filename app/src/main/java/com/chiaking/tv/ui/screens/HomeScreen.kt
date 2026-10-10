@@ -146,9 +146,8 @@ private fun ConsoleCard(
 	onAction: (HomeAction) -> Unit
 )
 {
-	val cached = host is DiscoveredDisplayHost && host.cached
-	val standby = !cached && host is DiscoveredDisplayHost && host.discoveredHost.state == DiscoveryHost.State.STANDBY
-	val ready = !cached && host is DiscoveredDisplayHost && host.discoveredHost.state == DiscoveryHost.State.READY
+	val standby = host is DiscoveredDisplayHost && host.discoveredHost.state == DiscoveryHost.State.STANDBY
+	val ready = host is DiscoveredDisplayHost && host.discoveredHost.state == DiscoveryHost.State.READY
 	val stateColor = when {
 		ready -> SuccessGreen
 		standby -> WarningAmber
