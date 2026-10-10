@@ -3,11 +3,12 @@
 package com.chiaking.tv.ui.screens
 
 import android.view.SurfaceView
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -15,6 +16,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusEvent
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +56,7 @@ fun StreamScreen(
 	var pinDialog by remember { mutableStateOf<StreamStateLoginPinRequest?>(null) }
 	var quitDialog by remember { mutableStateOf<StreamStateQuit?>(null) }
 	var createError by remember { mutableStateOf<StreamStateCreateError?>(null) }
+	val disconnectFocus = remember { FocusRequester() }
 
 	var volume by remember { mutableStateOf(preferences.audioVolume) }
 	val ctx = LocalContext.current
@@ -82,7 +92,14 @@ fun StreamScreen(
 		}
 	}
 
-	BackHandler(onBack = onQuit)
+	LaunchedEffect(hudVisible)
+	{
+		if(hudVisible)
+		{
+			delay(400)
+			try { disconnectFocus.requestFocus() } catch(e: Exception) {}
+		}
+	}
 
 	LaunchedEffect(state) {
 		when(state)
@@ -170,6 +187,36 @@ fun StreamScreen(
 						value = "$volume%",
 						sub = deviceName
 					)
+					HudDivider()
+					var disconnectFocused by remember { mutableStateOf(false) }
+					Column(
+						horizontalAlignment = Alignment.CenterHorizontally,
+						modifier = Modifier
+							.focusRequester(disconnectFocus)
+							.focusable()
+							.onFocusEvent { disconnectFocused = it.isFocused }
+							.onKeyEvent { ev ->
+								if(ev.key == Key.ButtonA && ev.type == KeyEventType.KeyUp)
+								{
+									session.requestDisconnectDialog()
+									true
+								}
+								else
+									false
+							}
+							.clickable { session.requestDisconnectDialog() }
+							.padding(horizontal = 12.dp, vertical = 6.dp)
+					) {
+						Text(
+							"DISCONNECT",
+							fontSize = 11.sp,
+							color = if(disconnectFocused) Color.White else PsBlueLight,
+							letterSpacing = 2.sp,
+							fontWeight = FontWeight.SemiBold
+						)
+						Spacer(Modifier.height(2.dp))
+						Text("Sleep or disconnect", fontSize = 12.sp, color = OnSurfaceMuted)
+					}
 				}
 			}
 		}
