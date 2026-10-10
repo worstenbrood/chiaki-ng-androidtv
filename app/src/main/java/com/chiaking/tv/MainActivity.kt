@@ -307,26 +307,29 @@ class MainActivity: ComponentActivity()
 			val session = (screenStack.last() as ScreenStream).session
 			if(event.keyCode == KeyEvent.KEYCODE_BACK)
 			{
-				if(session.disconnectDialogVisible.value)
-				{
-					if(event.action == KeyEvent.ACTION_UP)
-						session.dismissDisconnectDialog()
-					return true
-				}
 				if(session.hudVisible.value)
 				{
 					if(event.action == KeyEvent.ACTION_UP)
 						session.hudVisible.value = false
 					return true
 				}
-				if(event.action == KeyEvent.ACTION_UP && session.state.value !is StreamStateConnected)
-					disconnectStream()
-				// While connected, disconnect is only possible via the stream HUD
+				if(session.disconnectDialogVisible.value)
+				{
+					if(event.action == KeyEvent.ACTION_UP)
+						session.dismissDisconnectDialog()
+					return true
+				}
+				if(event.action == KeyEvent.ACTION_UP)
+				{
+					if(session.state.value is StreamStateConnected)
+						session.requestDisconnectDialog()
+					else
+						disconnectStream()
+				}
 				return true
 			}
-			// While the HUD is open, keys navigate the HUD instead of the console
-			if(!session.hudVisible.value)
-				streamInput?.let { if(it.dispatchKeyEvent(event)) return true }
+			// While the HUD is open, BACK closes it (handled above); everything else goes to the console
+			streamInput?.let { if(it.dispatchKeyEvent(event)) return true }
 		}
 		return super.dispatchKeyEvent(event)
 	}
