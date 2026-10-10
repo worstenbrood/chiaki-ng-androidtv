@@ -15,8 +15,8 @@ class StreamInput(val context: Context, val preferences: Preferences)
 	var controllerStateChangedCallback: ((ControllerState) -> Unit)? = null
 	var hudToggleCallback: (() -> Unit)? = null
 
-	private var sharePressed = false
-	private var optionsPressed = false
+	private var l3Pressed = false
+	private var r3Pressed = false
 	private var hudComboFired = false
 
 	val controllerState: ControllerState get()
@@ -125,6 +125,14 @@ class StreamInput(val context: Context, val preferences: Preferences)
 		controllerStateChangedCallback?.let { it(controllerState) }
 	}
 
+	private fun isGamepadEvent(event: KeyEvent): Boolean
+	{
+		val device = event.device ?: return false
+		if(device.vendorId == 0x054c) // Sony Interactive Entertainment (DualShock/DualSense)
+			return true
+		return device.sources and (InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_JOYSTICK) != 0
+	}
+
 	fun dispatchKeyEvent(event: KeyEvent): Boolean
 	{
 		//Log.i("StreamSession", "key event $event")
@@ -141,12 +149,12 @@ class StreamInput(val context: Context, val preferences: Preferences)
 				keyControllerState.r2State = if(event.action == KeyEvent.ACTION_DOWN) UByte.MAX_VALUE else 0U
 				return true
 			}
-			KeyEvent.KEYCODE_BUTTON_SELECT, KeyEvent.KEYCODE_BUTTON_START -> {
+			KeyEvent.KEYCODE_BUTTON_THUMBL, KeyEvent.KEYCODE_BUTTON_THUMBR -> {
 				if(event.action == KeyEvent.ACTION_DOWN)
 				{
-					if(event.keyCode == KeyEvent.KEYCODE_BUTTON_SELECT) sharePressed = true
-					else optionsPressed = true
-					if(sharePressed && optionsPressed && !hudComboFired)
+					if(event.keyCode == KeyEvent.KEYCODE_BUTTON_THUMBL) l3Pressed = true
+					else r3Pressed = true
+					if(l3Pressed && r3Pressed && !hudComboFired)
 					{
 						hudComboFired = true
 						hudToggleCallback?.invoke()
@@ -154,11 +162,26 @@ class StreamInput(val context: Context, val preferences: Preferences)
 				}
 				else
 				{
-					if(event.keyCode == KeyEvent.KEYCODE_BUTTON_SELECT) sharePressed = false
-					else optionsPressed = false
-					if(!sharePressed || !optionsPressed)
+					if(event.keyCode == KeyEvent.KEYCODE_BUTTON_THUMBL) l3Pressed = false
+					else r3Pressed = false
+					if(!l3Pressed || !r3Pressed)
 						hudComboFired = false
 				}
+			}
+			KeyEvent.KEYCODE_BACK -> {
+				// Android remaps the DualSense Create button to BACK; when it comes from the
+				// gamepad itself, forward it to the console as the PS button instead.
+				if(!isGamepadEvent(event))
+					return false
+				keyControllerState.buttons = keyControllerState.buttons.run {
+					when(event.action)
+					{
+						KeyEvent.ACTION_DOWN -> this or ControllerState.BUTTON_PS
+						else -> this and ControllerState.BUTTON_PS.inv()
+					}
+				}
+				controllerStateUpdated()
+				return true
 			}
 		}
 

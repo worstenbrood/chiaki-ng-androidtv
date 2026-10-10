@@ -8,14 +8,27 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -47,6 +60,7 @@ fun StreamScreen(
 	var pinDialog by remember { mutableStateOf<StreamStateLoginPinRequest?>(null) }
 	var quitDialog by remember { mutableStateOf<StreamStateQuit?>(null) }
 	var createError by remember { mutableStateOf<StreamStateCreateError?>(null) }
+	val disconnectFocus = remember { FocusRequester() }
 
 	var volume by remember { mutableStateOf(preferences.audioVolume) }
 	val ctx = LocalContext.current
@@ -79,6 +93,15 @@ fun StreamScreen(
 			lastStats = stats
 			lastTime = now
 			delay(1000)
+		}
+	}
+
+	LaunchedEffect(hudVisible)
+	{
+		if(hudVisible)
+		{
+			delay(400)
+			try { disconnectFocus.requestFocus() } catch(e: Exception) {}
 		}
 	}
 
@@ -170,6 +193,37 @@ fun StreamScreen(
 						value = "$volume%",
 						sub = deviceName
 					)
+					HudDivider()
+					var disconnectFocused by remember { mutableStateOf(false) }
+					Box(
+						contentAlignment = Alignment.Center,
+						modifier = Modifier
+							.focusRequester(disconnectFocus)
+							.focusable()
+							.onFocusEvent { disconnectFocused = it.isFocused }
+							.onKeyEvent { ev ->
+								if(ev.key == Key.ButtonA && ev.type == KeyEventType.KeyUp)
+								{
+									session.requestDisconnectDialog()
+									true
+								}
+								else
+									false
+							}
+							.clickable { session.requestDisconnectDialog() }
+							.padding(8.dp)
+							.background(
+								if(disconnectFocused) PsBlue.copy(alpha = 0.7f) else Color.Transparent,
+								RoundedCornerShape(8.dp)
+							)
+					) {
+						Icon(
+							Icons.Default.Close,
+							contentDescription = "Disconnect",
+							tint = if(disconnectFocused) Color.White else OnSurfaceMuted,
+							modifier = Modifier.size(22.dp)
+						)
+					}
 				}
 			}
 		}

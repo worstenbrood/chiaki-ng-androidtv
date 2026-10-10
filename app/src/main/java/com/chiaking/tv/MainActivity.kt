@@ -319,6 +319,10 @@ class MainActivity: ComponentActivity()
 						session.dismissDisconnectDialog()
 					return true
 				}
+				// BACK from the gamepad (Create button) goes to the console as the PS button;
+				// BACK from the remote opens the Sleep/Disconnect dialog
+				if(session.state.value is StreamStateConnected)
+					streamInput?.let { if(it.dispatchKeyEvent(event)) return true }
 				if(event.action == KeyEvent.ACTION_UP)
 				{
 					if(session.state.value is StreamStateConnected)
@@ -328,8 +332,9 @@ class MainActivity: ComponentActivity()
 				}
 				return true
 			}
-			// While the HUD is open, BACK closes it (handled above); everything else goes to the console
-			streamInput?.let { if(it.dispatchKeyEvent(event)) return true }
+			// While the HUD is open, keys navigate the HUD instead of the console
+			if(!session.hudVisible.value)
+				streamInput?.let { if(it.dispatchKeyEvent(event)) return true }
 		}
 		return super.dispatchKeyEvent(event)
 	}

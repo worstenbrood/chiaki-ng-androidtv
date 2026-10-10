@@ -22,11 +22,12 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
 - **Audio controls** — stream volume (applies live), output-device selection
   (HDMI, Bluetooth, USB, ...) with automatic fallback to the system default, and
   audio buffer size (Auto or 10–100 ms in 10 ms steps, like the Qt app)
-- **In-stream HUD** — press **Share + Options** while streaming to slide up a stats bar
+- **In-stream HUD** — press **L3 + R3** while streaming to slide up a stats bar
   with live FPS, measured bitrate, lost frames and the current video/audio config;
-  Back closes it, the D-pad keeps controlling the game
-- **Clean disconnect** — Back shows a "Disconnecting" spinner and returns to the main
-  screen once the session has fully shut down
+  the bar ends with a **✕** button (auto-focused, select with D-pad + A/Enter) that opens
+  the Sleep/Disconnect dialog; Back closes the HUD
+- **Clean disconnect** — Back (TV remote) or the HUD ✕ shows a "Disconnecting" spinner
+  and returns to the main screen once the session has fully shut down
 - **Settings** — resolution, FPS, codec, bitrate, audio, controller options, verbose logging, session log viewer
 - **Backup** — export/import registered + manual hosts as JSON (compatible with chiaki-ng's format)
 
@@ -46,8 +47,13 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
 3. Open Chiaki TV — discovered consoles appear as cards. Select one and enter the 8-digit
    pairing PIN shown on screen (or use *Register Console*).
 4. Select the registered console to start streaming. Rest-mode consoles offer a wakeup option.
-5. While streaming, press **Share + Options** on the controller to open the in-stream HUD
-   (live FPS, bitrate, lost frames, video/audio config).
+5. While streaming, press **L3 + R3** on the controller to open the in-stream HUD
+   (live FPS, bitrate, lost frames, video/audio config). The **✕** at the end of the bar
+   disconnects (or puts the console to sleep).
+
+> **Note (Shield TV):** the system intercepts the controller's **PS button** as HOME, so it
+> cannot be forwarded to the console. The **Create/Share** button (which Android remaps to
+> Back) is forwarded to the console as the PS button instead.
 
 ## Building
 
