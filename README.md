@@ -53,7 +53,8 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
 
 > **Note (Shield TV):** the system intercepts the controller's **PS button** as HOME, so it
 > cannot be forwarded to the console. The **Create/Share** button (which Android remaps to
-> Back) is forwarded to the console as the PS button instead.
+> Back) is forwarded to the console as the PS button instead. The **touchpad click** is
+> sent as a real touchpad click (not Create/Share).
 
 ## Building
 
