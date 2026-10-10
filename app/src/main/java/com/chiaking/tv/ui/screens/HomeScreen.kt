@@ -83,39 +83,33 @@ fun HomeScreen(
 
 		Spacer(Modifier.height(24.dp))
 
-		if(hosts.isEmpty())
-		{
-			Column(
-				modifier = Modifier.fillMaxSize().weight(1f),
-				horizontalAlignment = Alignment.CenterHorizontally,
-				verticalArrangement = Arrangement.Center
-			) {
-				Icon(
-					Icons.Default.Search,
-					null,
-					tint = PsBlueLight,
-					modifier = Modifier.size(72.dp)
-				)
-				Spacer(Modifier.height(16.dp))
-				Text(
-					if(discoveryActive)
-						"No consoles discovered yet.\nMake sure your console is in rest mode or on, and on the same network."
-					else
-						"Discovery is off.\nRegister a console or add one manually.",
-					textAlign = TextAlign.Center,
-					color = OnSurfaceMuted,
-					fontSize = 16.sp
-				)
-			}
-		}
-		else
-		{
-			Box(
-				modifier = Modifier
-					.fillMaxWidth()
-					.weight(1f),
-				contentAlignment = Alignment.Center
-			) {
+		Box(
+			modifier = Modifier
+				.fillMaxWidth()
+				.weight(1f),
+			contentAlignment = Alignment.Center
+		) {
+			Column(horizontalAlignment = Alignment.CenterHorizontally) {
+				if(hosts.isEmpty())
+				{
+					Icon(
+						Icons.Default.Search,
+						null,
+						tint = PsBlueLight,
+						modifier = Modifier.size(72.dp)
+					)
+					Spacer(Modifier.height(16.dp))
+					Text(
+						if(discoveryActive)
+							"No consoles discovered yet.\nMake sure your console is in rest mode or on, and on the same network."
+						else
+							"Discovery is off.\nRegister a console or add one manually.",
+						textAlign = TextAlign.Center,
+						color = OnSurfaceMuted,
+						fontSize = 16.sp
+					)
+					Spacer(Modifier.height(32.dp))
+				}
 				Row(
 					horizontalArrangement = Arrangement.spacedBy(20.dp),
 					modifier = Modifier
