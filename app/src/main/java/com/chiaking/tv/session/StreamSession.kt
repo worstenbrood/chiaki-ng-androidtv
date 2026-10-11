@@ -3,6 +3,7 @@
 package com.chiaking.tv.session
 
 import android.graphics.SurfaceTexture
+import android.os.SystemClock
 import android.util.Log
 import android.view.*
 import kotlinx.coroutines.CoroutineScope
@@ -37,6 +38,17 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 	private val _disconnectDialogVisible = MutableStateFlow(false)
 	val disconnectDialogVisible: MutableStateFlow<Boolean> get() = _disconnectDialogVisible
 	@Volatile var disconnecting = false
+
+	private companion object
+	{
+		const val RETRY_WINDOW_MS = 20000L
+		const val RETRY_DELAY_MS = 2000L
+	}
+
+	private val mainScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+	@Volatile private var connected = false
+	@Volatile private var startTime = 0L
+	@Volatile private var retryUsed = false
 
 	private var surfaceTexture: SurfaceTexture? = null
 	private var surface: Surface? = null
@@ -91,6 +103,8 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 		if(session != null || disconnecting)
 			return
 		stopped = false
+		connected = false
+		startTime = SystemClock.elapsedRealtime()
 		try
 		{
 			val session = Session(connectInfo, logManager.createNewFile().file.absolutePath, logVerbose)
@@ -110,6 +124,7 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 
 	fun resumeDelayed(delayMs: Long)
 	{
+		retryUsed = false
 		CoroutineScope(Dispatchers.Main + SupervisorJob()).launch {
 			delay(delayMs)
 			if(!disconnecting && session == null)
@@ -123,11 +138,31 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 			return
 		when(event)
 		{
-			is ConnectedEvent -> _state.value = StreamStateConnected
-			is QuitEvent -> _state.value = StreamStateQuit(
-					event.reason,
-					event.reasonString
-				)
+			is ConnectedEvent ->
+			{
+				connected = true
+				retryUsed = false
+				_state.value = StreamStateConnected
+			}
+			is QuitEvent ->
+			{
+				val elapsed = SystemClock.elapsedRealtime() - startTime
+				if(!connected && !retryUsed && !disconnecting && event.reason.isError && elapsed < RETRY_WINDOW_MS)
+				{
+					retryUsed = true
+					mainScope.launch {
+						shutdown(StreamStateConnecting)
+						delay(RETRY_DELAY_MS)
+						if(!disconnecting && session == null)
+							resume()
+					}
+				}
+				else
+					_state.value = StreamStateQuit(
+							event.reason,
+							event.reasonString
+						)
+			}
 			is LoginPinRequestEvent -> _state.value = StreamStateLoginPinRequest(
 				event.pinIncorrect
 			)
