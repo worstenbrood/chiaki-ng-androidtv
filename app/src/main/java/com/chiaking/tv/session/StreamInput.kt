@@ -134,6 +134,34 @@ class StreamInput(val context: Context, val preferences: Preferences)
 		return device.sources and (InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_JOYSTICK) != 0
 	}
 
+	fun onHudComboKeyEvent(event: KeyEvent): Boolean
+	{
+		if(event.keyCode != KeyEvent.KEYCODE_BUTTON_THUMBL && event.keyCode != KeyEvent.KEYCODE_BUTTON_THUMBR)
+			return false
+		if(event.action == KeyEvent.ACTION_DOWN)
+		{
+			if(event.keyCode == KeyEvent.KEYCODE_BUTTON_THUMBL) l3Pressed = true
+			else r3Pressed = true
+			if(l3Pressed && r3Pressed && !hudComboFired)
+			{
+				hudComboFired = true
+				keyControllerState.buttons = keyControllerState.buttons and
+					(ControllerState.BUTTON_L3 or ControllerState.BUTTON_R3).inv()
+				controllerStateUpdated()
+				hudToggleCallback?.invoke()
+				return true
+			}
+		}
+		else
+		{
+			if(event.keyCode == KeyEvent.KEYCODE_BUTTON_THUMBL) l3Pressed = false
+			else r3Pressed = false
+			if(!l3Pressed || !r3Pressed)
+				hudComboFired = false
+		}
+		return false
+	}
+
 	fun dispatchKeyEvent(event: KeyEvent): Boolean
 	{
 		//Log.i("StreamSession", "key event $event")
@@ -149,25 +177,6 @@ class StreamInput(val context: Context, val preferences: Preferences)
 			KeyEvent.KEYCODE_BUTTON_R2 -> {
 				keyControllerState.r2State = if(event.action == KeyEvent.ACTION_DOWN) UByte.MAX_VALUE else 0U
 				return true
-			}
-			KeyEvent.KEYCODE_BUTTON_THUMBL, KeyEvent.KEYCODE_BUTTON_THUMBR -> {
-				if(event.action == KeyEvent.ACTION_DOWN)
-				{
-					if(event.keyCode == KeyEvent.KEYCODE_BUTTON_THUMBL) l3Pressed = true
-					else r3Pressed = true
-					if(l3Pressed && r3Pressed && !hudComboFired)
-					{
-						hudComboFired = true
-						hudToggleCallback?.invoke()
-					}
-				}
-				else
-				{
-					if(event.keyCode == KeyEvent.KEYCODE_BUTTON_THUMBL) l3Pressed = false
-					else r3Pressed = false
-					if(!l3Pressed || !r3Pressed)
-						hudComboFired = false
-				}
 			}
 			KeyEvent.KEYCODE_BUTTON_SELECT -> {
 				// Touchpad click arrives as BUTTON_SELECT; send it as a real touchpad click

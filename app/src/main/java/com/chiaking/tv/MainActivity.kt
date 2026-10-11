@@ -334,6 +334,9 @@ class MainActivity: ComponentActivity()
 				}
 				return true
 			}
+			// L3+R3 always toggles the HUD, even while it is open (and never reaches the console)
+			if(streamInput?.onHudComboKeyEvent(event) == true)
+				return true
 			// While the HUD is open, keys navigate the HUD instead of the console
 			if(!session.hudVisible.value)
 				streamInput?.let { if(it.dispatchKeyEvent(event)) return true }
