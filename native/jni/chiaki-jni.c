@@ -439,8 +439,11 @@ JNIEXPORT void JNICALL JNI_FCN(sessionGetStats)(JNIEnv *env, jobject obj, jlong 
 	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
 	uint64_t frames, bytes, lost;
 	android_chiaki_video_decoder_get_stats(&session->video_decoder, &frames, &bytes, &lost);
-	jlong vals[3] = {(jlong)frames, (jlong)bytes, (jlong)lost};
-	E->SetLongArrayRegion(env, out, 0, 3, vals);
+	double packet_loss = session->session.stream_connection.congestion_control.packet_loss;
+	uint64_t packet_loss_ppm = (uint64_t)(packet_loss * 1000000.0);
+	uint64_t rtt_us = session->session.rtt_us;
+	jlong vals[5] = {(jlong)frames, (jlong)bytes, (jlong)lost, (jlong)packet_loss_ppm, (jlong)rtt_us};
+	E->SetLongArrayRegion(env, out, 0, 5, vals);
 }
 
 JNIEXPORT void JNICALL JNI_FCN(sessionSetControllerState)(JNIEnv *env, jobject obj, jlong ptr, jobject controller_state_java)

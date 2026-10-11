@@ -41,7 +41,7 @@ import com.chiaking.tv.session.*
 import com.chiaking.tv.ui.theme.*
 import kotlinx.coroutines.delay
 
-private data class HudStats(val fps: Double, val kbps: Double, val framesLost: Long)
+private data class HudStats(val fps: Double, val kbps: Double, val framesLost: Long, val packetLossPct: Double, val rttMs: Long)
 
 @Composable
 fun StreamScreen(
@@ -83,7 +83,9 @@ fun StreamScreen(
 					hudStats = HudStats(
 						(stats[0] - lastStats[0]) / dt,
 						(stats[1] - lastStats[1]) * 8.0 / dt / 1000.0,
-						stats[2]
+						stats[2],
+						stats[3] / 10000.0,
+						stats[4] / 1000
 					)
 			}
 			lastStats = stats
@@ -181,7 +183,13 @@ fun StreamScreen(
 					HudItem(
 						label = "Stream",
 						value = hudStats?.let { String.format("%.0f fps", it.fps) } ?: "—",
-						sub = hudStats?.let { String.format("%.1f Mbps • %d lost", it.kbps / 1000.0, it.framesLost) } ?: ""
+						sub = hudStats?.let { String.format("%.1f Mbps", it.kbps / 1000.0) } ?: ""
+					)
+					HudDivider()
+					HudItem(
+						label = "Network",
+						value = hudStats?.let { String.format("%.1f%% loss", it.packetLossPct) } ?: "—",
+						sub = hudStats?.let { String.format("ping %d ms • %d lost", it.rttMs, it.framesLost) } ?: ""
 					)
 					HudDivider()
 					HudItem(

@@ -409,7 +409,7 @@ class Session(connectInfo: ConnectInfo, logFile: String?, logVerbose: Boolean)
 
 	fun getStats(): LongArray
 	{
-		val out = LongArray(3)
+		val out = LongArray(5)
 		ChiakiNative.sessionGetStats(nativePtr, out)
 		return out
 	}
