@@ -34,8 +34,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import com.metallic.chiaki.lib.Codec
 import com.metallic.chiaki.lib.ConnectInfo
+import com.chiaking.tv.common.AudioDevices
 import com.chiaking.tv.common.Preferences
 import com.chiaking.tv.session.*
 import com.chiaking.tv.ui.theme.*
@@ -61,7 +64,14 @@ fun StreamScreen(
 	val disconnectFocus = remember { FocusRequester() }
 
 	var volume by remember { mutableStateOf(preferences.audioVolume) }
-	val deviceName = preferences.audioDeviceName.ifEmpty { "Default" }
+	val ctx = LocalContext.current
+	val audioDevices = remember { AudioDevices.outputDevices(ctx) }
+	var deviceIndex by remember { mutableStateOf(
+		(audioDevices.indexOfFirst { it.first == preferences.audioDeviceName }
+			.takeIf { it >= 0 }
+			?: audioDevices.indexOfFirst { it.second == preferences.audioDeviceId })
+			.coerceAtLeast(0)) }
+	val deviceName = audioDevices[deviceIndex].first
 
 	LaunchedEffect(hudVisible)
 	{
@@ -195,7 +205,19 @@ fun StreamScreen(
 					HudItem(
 						label = "Audio",
 						value = "$volume%",
-						sub = deviceName
+						sub = deviceName,
+						onClick = {
+							deviceIndex = (deviceIndex + 1) % audioDevices.size
+							val (name, id) = audioDevices[deviceIndex]
+							preferences.audioDeviceName = name
+							preferences.audioDeviceId = id
+							session.setAudioDevice(id)
+						},
+						onVertical = { dir ->
+							volume = (volume + dir * 5).coerceIn(0, 100)
+							preferences.audioVolume = volume
+							session.setVolumePercent(volume)
+						}
 					)
 					HudDivider()
 					var disconnectFocused by remember { mutableStateOf(false) }
@@ -216,10 +238,10 @@ fun StreamScreen(
 							}
 							.clickable { session.requestDisconnectDialog() }
 							.padding(8.dp)
-							.background(
-								if(disconnectFocused) PsBlue.copy(alpha = 0.7f) else Color.Transparent,
-								RoundedCornerShape(8.dp)
-							)
+						.background(
+							if(disconnectFocused) Color.White.copy(alpha = 0.16f) else Color.Transparent,
+							RoundedCornerShape(10.dp)
+						)
 					) {
 						Icon(
 							Icons.Default.Close,
@@ -334,9 +356,42 @@ private fun HudSpinner(text: String)
 }
 
 @Composable
-private fun HudItem(label: String, value: String, sub: String)
+private fun HudItem(
+	label: String,
+	value: String,
+	sub: String,
+	onClick: (() -> Unit)? = null,
+	onVertical: ((Int) -> Unit)? = null
+)
 {
-	Column(horizontalAlignment = Alignment.CenterHorizontally) {
+	var focused by remember { mutableStateOf(false) }
+	Column(
+		horizontalAlignment = Alignment.CenterHorizontally,
+		modifier = Modifier
+			.padding(horizontal = 4.dp)
+			.clip(RoundedCornerShape(10.dp))
+			.background(if(focused) Color.White.copy(alpha = 0.16f) else Color.Transparent)
+			.then(
+				if(onClick != null)
+					Modifier
+						.onFocusEvent { focused = it.isFocused }
+						.onKeyEvent { ev ->
+							if(ev.type != KeyEventType.KeyDown || onVertical == null)
+								false
+							else
+								when(ev.key)
+								{
+									Key.DirectionUp -> { onVertical(1); true }
+									Key.DirectionDown -> { onVertical(-1); true }
+									else -> false
+								}
+						}
+						.clickable { onClick() }
+				else
+					Modifier
+			)
+			.padding(horizontal = 12.dp, vertical = 6.dp)
+	) {
 		Text(
 			label.uppercase(),
 			fontSize = 11.sp,
