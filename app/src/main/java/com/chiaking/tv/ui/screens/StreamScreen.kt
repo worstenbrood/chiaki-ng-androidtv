@@ -29,7 +29,6 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -37,7 +36,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.metallic.chiaki.lib.Codec
 import com.metallic.chiaki.lib.ConnectInfo
-import com.chiaking.tv.common.AudioDevices
 import com.chiaking.tv.common.Preferences
 import com.chiaking.tv.session.*
 import com.chiaking.tv.ui.theme.*
@@ -63,9 +61,7 @@ fun StreamScreen(
 	val disconnectFocus = remember { FocusRequester() }
 
 	var volume by remember { mutableStateOf(preferences.audioVolume) }
-	val ctx = LocalContext.current
-	val deviceName = remember(ctx) { AudioDevices.outputDevices(ctx) }
-		.firstOrNull { it.second == preferences.audioDeviceId }?.first ?: "Default"
+	val deviceName = preferences.audioDeviceName.ifEmpty { "Default" }
 
 	LaunchedEffect(hudVisible)
 	{

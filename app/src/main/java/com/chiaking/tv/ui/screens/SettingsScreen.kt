@@ -46,7 +46,11 @@ fun SettingsScreen(
 
 	val ctx = androidx.compose.ui.platform.LocalContext.current
 	val audioDevices = remember { AudioDevices.outputDevices(ctx) }
-	var deviceIndex by remember { mutableStateOf(audioDevices.indexOfFirst { it.second == preferences.audioDeviceId }.coerceAtLeast(0)) }
+	var deviceIndex by remember { mutableStateOf(
+		(audioDevices.indexOfFirst { it.first == preferences.audioDeviceName }
+			.takeIf { it >= 0 }
+			?: audioDevices.indexOfFirst { it.second == preferences.audioDeviceId })
+			.coerceAtLeast(0)) }
 
 	Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 24.dp)) {
 		ScreenHeader("Settings", onBack, modifier = Modifier.padding(horizontal = 32.dp))
@@ -110,6 +114,7 @@ fun SettingsScreen(
 				onNext = {
 					deviceIndex = (deviceIndex + 1) % audioDevices.size
 					preferences.audioDeviceId = audioDevices[deviceIndex].second
+					preferences.audioDeviceName = audioDevices[deviceIndex].first
 				}
 			)
 			TvCycleRow(

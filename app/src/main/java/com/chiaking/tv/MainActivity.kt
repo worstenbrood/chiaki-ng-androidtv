@@ -241,7 +241,9 @@ class MainActivity: ComponentActivity()
 		currentStreamSession = session
 		currentStreamDisplayHost = host
 		session.resume()
-		session.applyAudioSettings(preferences.audioVolume, preferences.audioDeviceId, preferences.audioBufferMs)
+		session.applyAudioSettings(preferences.audioVolume,
+			AudioDevices.resolveDeviceId(this, preferences.audioDeviceName, preferences.audioDeviceId),
+			preferences.audioBufferMs)
 
 		if(preferences.rumbleEnabled)
 		{

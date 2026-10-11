@@ -29,4 +29,18 @@ object AudioDevices
 			.map { (it.productName?.toString() ?: "Device ${it.type}") to it.id }
 			.distinctBy { it.second }
 	}
+
+	/**
+	 * Audio device ids are not stable across reconnects/reboots, so the saved name is the
+	 * source of truth; resolve it to the device's current id. Falls back to the legacy saved
+	 * id when no name was ever stored, and to the system default when the device is gone.
+	 */
+	fun resolveDeviceId(context: Context, name: String, fallbackId: Int): Int
+	{
+		if(name.isEmpty())
+			return fallbackId
+		if(name == "Default")
+			return 0
+		return outputDevices(context).firstOrNull { it.first == name }?.second ?: 0
+	}
 }
