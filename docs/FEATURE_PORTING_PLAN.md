@@ -261,7 +261,9 @@ fields, so the badge works there. Console-side limitation, nothing more to do.
 - **TV angle**: TV mics are far-field/noisy; AEC (speexdsp) not compiled in our build. Native work: expose `chiaki_session_connect_microphone`/opusencoder via JNI + AudioRecord capture in Kotlin.
 - **Verdict**: MAYBE — only if a concrete use case (PS5 voice chat with TV headset mic) is desired. L effort.
 
-### 6.3 Audio device hot-switch during stream — **PORT (small, verify)**
+### 6.3 Audio device hot-switch during stream — **DONE** (`audio-output.cpp` reopens the Oboe
+stream on `set_device_id` when already running (mutex-guarded, default-device fallback kept);
+HUD Audio item is focusable — OK cycles output devices live, persisted to Preferences)
 - We set device at start only. `native/jni/audio-output.cpp` is ours — check if `sessionSetAudioDevice` can restart Oboe stream live; if yes expose in stream menu (2.2).
 - **Effort**: S-M.
 

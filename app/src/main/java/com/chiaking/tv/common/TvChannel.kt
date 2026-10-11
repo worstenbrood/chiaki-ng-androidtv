@@ -5,9 +5,11 @@ package com.chiaking.tv.common
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
-import android.media.tv.TvContract
 import android.net.Uri
 import android.util.Log
+import androidx.tvprovider.media.tv.Channel
+import androidx.tvprovider.media.tv.PreviewProgram
+import androidx.tvprovider.media.tv.TvContractCompat
 import com.chiaking.tv.MainActivity
 import com.chiaking.tv.R
 
@@ -24,19 +26,17 @@ object TvChannel
 			var channelId = preferences.tvChannelId
 			if(channelId <= 0L)
 			{
-				val builder = TvContract.Channels.Builder()
+				val builder = Channel.Builder()
 					.setDisplayName("Chiaki TV")
 					.setDescription("Stream your registered PlayStation consoles")
-					.setInternalIntent(Intent(context, MainActivity::class.java))
-					.setAppIconUri(resUri(context, R.mipmap.ic_launcher))
-					.setBannerUri(resUri(context, R.drawable.tv_banner))
-				val uri = resolver.insert(TvContract.Channels.CONTENT_URI, builder.build()) ?: return
+					.setType(TvContractCompat.Channels.TYPE_PREVIEW)
+				val uri = resolver.insert(TvContractCompat.Channels.CONTENT_URI, builder.build().toContentValues()) ?: return
 				channelId = ContentUris.parseId(uri)
 				preferences.tvChannelId = channelId
 			}
 
-			resolver.delete(TvContract.Programs.CONTENT_URI,
-				TvContract.Programs.FIELD_CHANNEL_ID + "=?", arrayOf(channelId.toString()))
+			resolver.delete(TvContractCompat.PreviewPrograms.CONTENT_URI,
+				TvContractCompat.PreviewPrograms.COLUMN_CHANNEL_ID + "=?", arrayOf(channelId.toString()))
 
 			for(host in hosts)
 			{
@@ -45,15 +45,16 @@ object TvChannel
 				val intent = Intent(context, MainActivity::class.java)
 					.putExtra(MainActivity.EXTRA_AUTO_CONNECT_MAC, host.serverMac.toString())
 					.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-				val program = TvContract.Programs.Builder()
+				val program = PreviewProgram.Builder()
 					.setChannelId(channelId)
+					.setType(TvContractCompat.PreviewPrograms.TYPE_GAME)
 					.setTitle(title)
 					.setDescription(if(host.target.isPS5) "Connect to PS5" else "Connect to PS4")
-					.setInternalIntent(intent)
-					.setPosterUri(resUri(context, R.mipmap.ic_launcher))
-					.setPosterAspectRatio(2, 3)
+					.setIntent(intent)
+					.setPosterArtUri(resUri(context, R.mipmap.ic_launcher))
+					.setPosterArtAspectRatio(2)
 					.build()
-				resolver.insert(TvContract.Programs.CONTENT_URI, program)
+				resolver.insert(TvContractCompat.PreviewPrograms.CONTENT_URI, program.toContentValues())
 			}
 		}
 		catch(e: Exception)

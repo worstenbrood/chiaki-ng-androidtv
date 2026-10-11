@@ -9,6 +9,8 @@
 
 #include <oboe/Oboe.h>
 
+#include <mutex>
+
 #define BUFFER_CHUNK_SIZE 1024
 #define BUFFER_CHUNKS_COUNT 32
 
@@ -37,6 +39,9 @@ struct AudioOutput
 	float volume = 1.0f;
 	int32_t device_id = 0;
 	int32_t buffer_ms = 0;
+	uint32_t channels = 0;
+	uint32_t rate = 0;
+	std::mutex mutex;
 
 	AudioOutput() : stream_callback(this) {}
 };
@@ -57,19 +62,17 @@ extern "C" void android_chiaki_audio_output_free(void *audio_output)
 	delete ao;
 }
 
-extern "C" void android_chiaki_audio_output_settings(uint32_t channels, uint32_t rate, void *audio_output)
+static void open_stream(AudioOutput *ao)
 {
-	auto ao = reinterpret_cast<AudioOutput *>(audio_output);
-
 	oboe::AudioStreamBuilder builder;
 	builder.setPerformanceMode(oboe::PerformanceMode::LowLatency)
 		->setSharingMode(oboe::SharingMode::Exclusive)
 		->setFormat(oboe::AudioFormat::I16)
-		->setChannelCount(channels)
-		->setSampleRate(rate)
+		->setChannelCount(ao->channels)
+		->setSampleRate(ao->rate)
 		->setCallback(&ao->stream_callback);
 	if(ao->buffer_ms > 0)
-		builder.setBufferCapacityInFrames(static_cast<int32_t>(ao->buffer_ms) * static_cast<int32_t>(rate) / 1000);
+		builder.setBufferCapacityInFrames(static_cast<int32_t>(ao->buffer_ms) * static_cast<int32_t>(ao->rate) / 1000);
 
 	if(ao->device_id != 0)
 	{
@@ -85,11 +88,11 @@ extern "C" void android_chiaki_audio_output_settings(uint32_t channels, uint32_t
 			fallback_builder.setPerformanceMode(oboe::PerformanceMode::LowLatency)
 				->setSharingMode(oboe::SharingMode::Exclusive)
 				->setFormat(oboe::AudioFormat::I16)
-				->setChannelCount(channels)
-				->setSampleRate(rate)
+				->setChannelCount(ao->channels)
+				->setSampleRate(ao->rate)
 				->setCallback(&ao->stream_callback);
 			if(ao->buffer_ms > 0)
-				fallback_builder.setBufferCapacityInFrames(static_cast<int32_t>(ao->buffer_ms) * static_cast<int32_t>(rate) / 1000);
+				fallback_builder.setBufferCapacityInFrames(static_cast<int32_t>(ao->buffer_ms) * static_cast<int32_t>(ao->rate) / 1000);
 			result = fallback_builder.openManagedStream(ao->stream);
 			if(result != oboe::Result::OK)
 			{
@@ -127,6 +130,15 @@ extern "C" void android_chiaki_audio_output_settings(uint32_t channels, uint32_t
 		CHIAKI_LOGE(ao->log, "Audio Output failed to start Oboe stream: %s", oboe::convertToText(result));
 }
 
+extern "C" void android_chiaki_audio_output_settings(uint32_t channels, uint32_t rate, void *audio_output)
+{
+	auto ao = reinterpret_cast<AudioOutput *>(audio_output);
+	std::lock_guard<std::mutex> lock(ao->mutex);
+	ao->channels = channels;
+	ao->rate = rate;
+	open_stream(ao);
+}
+
 extern "C" void android_chiaki_audio_output_set_volume(void *audio_output, float volume)
 {
 	auto ao = reinterpret_cast<AudioOutput *>(audio_output);
@@ -140,7 +152,15 @@ extern "C" void android_chiaki_audio_output_set_volume(void *audio_output, float
 extern "C" void android_chiaki_audio_output_set_device_id(void *audio_output, int32_t device_id)
 {
 	auto ao = reinterpret_cast<AudioOutput *>(audio_output);
+	std::lock_guard<std::mutex> lock(ao->mutex);
+	if(ao->device_id == device_id)
+		return;
 	ao->device_id = device_id;
+	if(ao->channels == 0 || ao->rate == 0)
+		return;
+	CHIAKI_LOGI(ao->log, "Audio Output switching output device live");
+	ao->stream = nullptr;
+	open_stream(ao);
 }
 
 extern "C" void android_chiaki_audio_output_set_buffer_ms(void *audio_output, int32_t buffer_ms)
