@@ -56,6 +56,7 @@ class Preferences(context: Context)
 		const val audioVolumeKey = "audio_volume"
 		const val audioDeviceIdKey = "audio_device_id"
 		const val audioDeviceNameKey = "audio_device_name"
+		const val tvChannelIdKey = "tv_channel_id"
 		const val audioBufferMsKey = "audio_buffer_ms"
 
 		val resolutionDefault = Resolution.RES_1080P
@@ -110,6 +111,10 @@ class Preferences(context: Context)
 	var audioDeviceName
 		get() = sharedPreferences.getString(audioDeviceNameKey, "") ?: ""
 		set(value) { sharedPreferences.edit().putString(audioDeviceNameKey, value).apply() }
+
+	var tvChannelId
+		get() = sharedPreferences.getLong(tvChannelIdKey, 0L)
+		set(value) { sharedPreferences.edit().putLong(tvChannelIdKey, value).apply() }
 
 	var audioBufferMs
 		get() = sharedPreferences.getInt(audioBufferMsKey, 0)

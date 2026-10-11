@@ -34,6 +34,7 @@ import com.chiaking.tv.ui.screens.*
 import com.chiaking.tv.ui.theme.ChiakiTvTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okio.buffer
@@ -50,6 +51,11 @@ private object ScreenManageHosts: Screen()
 
 class MainActivity: ComponentActivity()
 {
+	companion object
+	{
+		const val EXTRA_AUTO_CONNECT_MAC = "com.chiaking.tv.AUTO_CONNECT_MAC"
+	}
+
 	private lateinit var preferences: Preferences
 	private lateinit var database: AppDatabase
 	private lateinit var logManager: LogManager
@@ -105,6 +111,44 @@ class MainActivity: ComponentActivity()
 					Navigation()
 				}
 			}
+		}
+
+		lifecycleScope.launch {
+			database.registeredHostDao().getAll().collect { hosts ->
+				withContext(Dispatchers.IO) { TvChannel.sync(this@MainActivity, preferences, hosts) }
+			}
+		}
+		handleAutoConnect(intent)
+	}
+
+	override fun onNewIntent(intent: Intent)
+	{
+		super.onNewIntent(intent)
+		handleAutoConnect(intent)
+	}
+
+	private fun handleAutoConnect(intent: Intent?)
+	{
+		val macStr = intent?.getStringExtra(EXTRA_AUTO_CONNECT_MAC) ?: return
+		intent.removeExtra(EXTRA_AUTO_CONNECT_MAC)
+		val mac = try { MacAddress(macStr) } catch(e: IllegalArgumentException) { return }
+		lifecycleScope.launch {
+			val hosts = withContext(Dispatchers.IO) { database.registeredHostDao().getAll().first() }
+			val reg = hosts.firstOrNull { it.serverMac == mac } ?: return@launch
+			if(screenStack.lastOrNull() is ScreenStream)
+				return@launch
+			var discovered: DiscoveryHost? = null
+			val deadline = android.os.SystemClock.elapsedRealtime() + 15000L
+			while(discovered == null && android.os.SystemClock.elapsedRealtime() < deadline)
+			{
+				discovered = LastSeenHosts.hosts.value[mac]?.takeIf { !it.hostAddr.isNullOrEmpty() }
+				if(discovered == null)
+					kotlinx.coroutines.delay(500)
+			}
+			discovered ?: return@launch
+			if(screenStack.lastOrNull() is ScreenStream)
+				return@launch
+			startStream(DiscoveredDisplayHost(reg, discovered))
 		}
 	}
 
