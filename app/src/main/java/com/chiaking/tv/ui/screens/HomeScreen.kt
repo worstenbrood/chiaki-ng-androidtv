@@ -142,6 +142,12 @@ private fun ConsoleCard(
 {
 	val standby = host is DiscoveredDisplayHost && host.discoveredHost.state == DiscoveryHost.State.STANDBY
 	val ready = host is DiscoveredDisplayHost && host.discoveredHost.state == DiscoveryHost.State.READY
+	val runningApp = (host as? DiscoveredDisplayHost)?.takeIf {
+		!it.cached && it.discoveredHost.state == DiscoveryHost.State.READY
+	}?.discoveredHost?.let {
+		it.runningAppName?.takeIf { n -> n.isNotBlank() }
+			?: it.runningAppTitleid?.takeIf { t -> t.isNotBlank() }
+	}
 	val stateColor = when {
 		ready -> SuccessGreen
 		standby -> WarningAmber
@@ -197,6 +203,21 @@ private fun ConsoleCard(
 				Text(stateText, fontSize = 14.sp, color = stateColor)
 				Spacer(Modifier.weight(1f))
 				Text(if(host.isPS5) "PS5" else "PS4", fontSize = 13.sp, color = OnSurfaceMuted)
+			}
+			if(runningApp != null)
+			{
+				Spacer(Modifier.height(12.dp))
+				Row(verticalAlignment = Alignment.CenterVertically) {
+					Icon(Icons.Default.PlayArrow, null, tint = SuccessGreen, modifier = Modifier.size(16.dp))
+					Spacer(Modifier.width(6.dp))
+					Text(
+						runningApp,
+						fontSize = 13.sp,
+						color = OnSurfaceMuted,
+						maxLines = 1,
+						overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+					)
+				}
 			}
 			if(host is ManualDisplayHost)
 			{

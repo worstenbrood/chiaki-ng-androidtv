@@ -157,7 +157,14 @@ start without ever connecting; allowance resets on connect and manual Reconnect)
 - **How**: `Preferences.hiddenMacs: MutableSet<String>` (SharedPreferences string set); filter in `MainViewModel` host list; card long-press → "Hide"; SettingsScreen row cycling hidden entries with Unhide.
 - **Effort**: S.
 
-### 3.4 Running-app / title-ID display — **MAYBE**
+### 3.4 Running-app / title-ID display — **DONE** (no JNI work needed — `runningAppName`/
+`runningAppTitleid` already flow through; HomeScreen card shows "▶ <name>" (title-ID fallback)
+for READY, non-cached hosts).
+**Caveat (verified 2026-10):** PS5 (fw 14.10) does NOT include `running-app-titleid`/
+`running-app-name` in its SRCH discovery reply — logcat shows both null even with a game
+running. Qt does the exact same thing (same lib, same SRCH on 9302/00030010; exposes the
+fields at `qmlbackend.cpp:788-789`) and would show nothing on PS5 either. PS4 sends the
+fields, so the badge works there. Console-side limitation, nothing more to do.
 - **What**: discovery packets carry running-app title ID; Qt shows "playing X" (`discoverymanager.h:14-25`).
 - **Blocker**: `DiscoveryHost` in `Chiaki.kt` may not expose `running_app`/`rustype` fields — check `native/jni` discovery callback; title-ID→name mapping needs a database (Qt ships none; it shows the raw title ID).
 - **How**: expose `runningApp` in JNI discovery event → show "In-Game"/title ID badge. Name lookup out of scope.
