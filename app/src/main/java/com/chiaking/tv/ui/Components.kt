@@ -19,6 +19,11 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -162,6 +167,54 @@ fun TvCycleRow(title: String, value: String, onNext: () -> Unit)
 		verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
 	) {
 		Text(title, fontSize = 18.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+		Spacer(Modifier.width(12.dp))
+		Box(
+			modifier = Modifier
+				.clip(RoundedCornerShape(10.dp))
+				.background(if(focused.value) PsBlueLight else PsBlue.copy(alpha = 0.30f))
+				.padding(horizontal = 14.dp, vertical = 5.dp)
+		) {
+			Text(
+				value,
+				fontSize = 15.sp,
+				fontWeight = FontWeight.Bold,
+				color = if(focused.value) Color(0xFF0B0E17) else PsBlueLight
+			)
+		}
+	}
+}
+
+@Composable
+fun TvStepperRow(
+	title: String,
+	value: String,
+	summary: String?,
+	onStep: (Int) -> Unit,
+	onReset: () -> Unit
+)
+{
+	val focused = remember { mutableStateOf(false) }
+	Row(
+		modifier = Modifier
+			.fillMaxWidth()
+			.onKeyEvent { ev ->
+				if(!focused.value)
+					return@onKeyEvent false
+				val mult = if(ev.nativeKeyEvent.repeatCount >= 8) 5 else 1
+				when {
+					ev.key == Key.DirectionLeft && ev.type == KeyEventType.KeyDown -> { onStep(-mult); true }
+					ev.key == Key.DirectionRight && ev.type == KeyEventType.KeyDown -> { onStep(mult); true }
+					else -> false
+				}
+			}
+			.tvRow(focused, onReset),
+		verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+	) {
+		Column(modifier = Modifier.weight(1f)) {
+			Text(title, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+			if(summary != null)
+				Text(summary, fontSize = 13.sp, color = OnSurfaceMuted)
+		}
 		Spacer(Modifier.width(12.dp))
 		Box(
 			modifier = Modifier

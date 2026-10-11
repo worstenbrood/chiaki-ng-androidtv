@@ -81,18 +81,17 @@ fun SettingsScreen(
 					preferences.codec = codec
 				}
 			)
-			TvCycleRow(
+			TvStepperRow(
 				title = "Bitrate",
 				value = if(bitrate == null) "Auto (${preferences.bitrateAuto} kbps)" else "$bitrate kbps",
-				onNext = {
-					bitrate = when(bitrate)
-					{
-						null -> 5000
-						5000 -> 10000
-						10000 -> 20000
-						20000 -> 50000
-						else -> null
-					}
+				summary = "Left / Right adjusts by 500 kbps (hold to go faster), OK toggles Auto",
+				onStep = { steps ->
+					val base = bitrate ?: preferences.bitrateAuto
+					bitrate = (base + steps * 500).coerceIn(2000, 50000)
+					preferences.bitrate = bitrate
+				},
+				onReset = {
+					bitrate = if(bitrate == null) preferences.bitrateAuto else null
 					preferences.bitrate = bitrate
 				}
 			)

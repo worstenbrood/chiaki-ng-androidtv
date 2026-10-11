@@ -48,7 +48,8 @@ per-session log files (keep 5) + LogsScreen, settings export/import (SAF), scree
   5. `SerializedSettings.kt`: bump envelope version, migrate old flat keys on import.
 - **Effort**: S-M. No native changes.
 
-### 1.2 Finer bitrate control — **PORT**
+### 1.2 Finer bitrate control — **DONE** (new `TvStepperRow`: D-pad left/right ±500 kbps,
+hold ≥8 repeats → ×5 step, OK toggles Auto; clamped 2000–50000)
 - **What**: Qt uses a continuous slider (kbps) per profile; we cycle Auto→5k→10k→20k→50k.
 - **Status**: coarse cycle in `SettingsScreen.kt`.
 - **How**: replace cycle row with a +/- stepper row (D-pad friendly: left/right decrement/increment by 500 or 1000 kbps, long-press faster). Keep Auto as first stop.
