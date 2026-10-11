@@ -23,9 +23,10 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
   (HDMI, Bluetooth, USB, ...) with automatic fallback to the system default, and
   audio buffer size (Auto or 10–100 ms in 10 ms steps, like the Qt app)
 - **In-stream HUD** — press **L3 + R3** while streaming to slide up a stats bar
-  with live FPS, measured bitrate, lost frames and the current video/audio config;
-  the bar ends with a **✕** button (auto-focused, select with D-pad + A/Enter) that opens
-  the Sleep/Disconnect dialog; Back closes the HUD
+  with live FPS, measured bitrate, packet loss %, ping, lost frames and the current
+  video/audio config; **L3 + R3 is also how you disconnect**: the bar ends with a **✕**
+  button (auto-focused, select with D-pad + A/Enter) that opens the Sleep/Disconnect
+  dialog; Back closes the HUD
 - **Clean disconnect** — Back (TV remote) or the HUD ✕ shows a "Disconnecting" spinner
   and returns to the main screen once the session has fully shut down
 - **Settings** — resolution, FPS, codec, bitrate, audio, controller options, verbose logging, session log viewer
@@ -48,8 +49,9 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
    pairing PIN shown on screen (or use *Register Console*).
 4. Select the registered console to start streaming. Rest-mode consoles offer a wakeup option.
 5. While streaming, press **L3 + R3** on the controller to open the in-stream HUD
-   (live FPS, bitrate, lost frames, video/audio config). The **✕** at the end of the bar
-   disconnects (or puts the console to sleep).
+   (live FPS, bitrate, packet loss, ping, lost frames, video/audio config). The **✕** at
+   the end of the bar is auto-focused — press A/Enter to disconnect (or put the console
+   to sleep).
 
 > **Note (Shield TV):** the system intercepts the controller's **PS button** as HOME, so it
 > cannot be forwarded to the console. The **Create/Share** button (which Android remaps to

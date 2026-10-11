@@ -82,7 +82,8 @@ per-session log files (keep 5) + LogsScreen, settings export/import (SAF), scree
 
 ## 2. Session HUD & stream menu
 
-### 2.1 Richer stats HUD — **PORT**
+### 2.1 Richer stats HUD — **DONE** (packet loss % + ping added: `sessionGetStats` now returns
+[frames, bytes, lost, packet_loss_ppm, rtt_us]; HUD has Network item)
 - **What**: Qt overlay shows Mbps, avg packet loss %, dropped/lost frames, queue depth
   (`qmlmainwindow.cpp:104-289` StatsOverlayWidget; `streamsession.cpp:669-693, 2752-2760` 200 ms polling of congestion control + `chiaki_session_request_idr`).
 - **Status**: HUD shows fps/Mbps/total-lost only (`StreamScreen.kt`, 1 s poll).
@@ -113,7 +114,8 @@ per-session log files (keep 5) + LogsScreen, settings export/import (SAF), scree
 - **How**: Preferences key `disconnect_action` (ASK/SLEEP/NOTHING); branch in `StreamScreen` disconnect dialog trigger / `MainActivity.disconnectStream`.
 - **Effort**: S.
 
-### 2.5 Auto-reconnect on early error — **PORT**
+### 2.5 Auto-reconnect on early error — **DONE** (one retry after 2 s if error quit <20 s after
+start without ever connecting; allowance resets on connect and manual Reconnect)
 - **What**: if session quits with an error before connecting within 20 s, retry automatically
   (`streamsession.cpp:2336-2345`, `SESSION_RETRY_SECONDS=20`).
 - **How**: in `StreamSession` QuitEvent handling: if quit happened < 20 s after start and reason is error → auto `shutdown + resumeDelayed(2000)` once (add `retried` flag). Keep manual Reconnect button as fallback.
