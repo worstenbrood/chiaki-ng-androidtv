@@ -15,8 +15,40 @@ import com.chiaking.tv.R
 
 object TvChannel
 {
+	private val TV_PACKAGES = listOf("com.google.android.tv", "com.android.tv", "com.google.android.leanbacklauncher")
+
 	private fun resUri(context: Context, resId: Int): Uri =
 		Uri.parse("android.resource://${context.packageName}/$resId")
+
+	private fun previewVideoUri(context: Context): Uri?
+	{
+		return try
+		{
+			val dir = java.io.File(context.cacheDir, "tv")
+			dir.mkdirs()
+			val dst = java.io.File(dir, "preview.mp4")
+			if(!dst.exists() || dst.length() == 0L)
+				context.resources.openRawResource(R.raw.tv_preview).use { input ->
+					dst.outputStream().use { out -> input.copyTo(out) }
+				}
+			val uri = androidx.core.content.FileProvider.getUriForFile(context,
+				"${context.packageName}.fileprovider", dst)
+			for(pkg in TV_PACKAGES)
+			{
+				try
+				{
+					context.grantUriPermission(pkg, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+				}
+				catch(_: Exception) {}
+			}
+			uri
+		}
+		catch(e: Exception)
+		{
+			Log.e("TvChannel", "Failed to prepare preview video", e)
+			null
+		}
+	}
 
 	fun sync(context: Context, preferences: Preferences, hosts: List<RegisteredHost>)
 	{
@@ -38,6 +70,8 @@ object TvChannel
 			resolver.delete(TvContractCompat.PreviewPrograms.CONTENT_URI,
 				TvContractCompat.PreviewPrograms.COLUMN_CHANNEL_ID + "=?", arrayOf(channelId.toString()))
 
+			val previewUri = previewVideoUri(context)
+
 			for(host in hosts)
 			{
 				val title = host.serverNickname?.takeIf { it.isNotBlank() }
@@ -53,6 +87,7 @@ object TvChannel
 					.setIntent(intent)
 					.setPosterArtUri(resUri(context, R.mipmap.ic_launcher))
 					.setPosterArtAspectRatio(2)
+					.apply { if(previewUri != null) setPreviewVideoUri(previewUri) }
 					.build()
 				resolver.insert(TvContractCompat.PreviewPrograms.CONTENT_URI, program.toContentValues())
 			}

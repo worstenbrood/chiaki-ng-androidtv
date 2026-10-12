@@ -167,7 +167,7 @@ fun StreamScreen(
 				modifier = Modifier
 					.fillMaxWidth()
 					.background(Color(0xE60B0E17))
-					.padding(horizontal = 40.dp, vertical = 14.dp),
+					.padding(horizontal = 40.dp, vertical = 8.dp),
 				horizontalAlignment = Alignment.CenterHorizontally
 			) {
 				Row(
@@ -368,7 +368,6 @@ private fun HudItem(
 	Column(
 		horizontalAlignment = Alignment.CenterHorizontally,
 		modifier = Modifier
-			.padding(horizontal = 4.dp)
 			.clip(RoundedCornerShape(10.dp))
 			.background(if(focused) Color.White.copy(alpha = 0.16f) else Color.Transparent)
 			.then(
@@ -387,10 +386,10 @@ private fun HudItem(
 								}
 						}
 						.clickable { onClick() }
+						.padding(horizontal = 10.dp, vertical = 4.dp)
 				else
 					Modifier
 			)
-			.padding(horizontal = 12.dp, vertical = 6.dp)
 	) {
 		Text(
 			label.uppercase(),
@@ -402,7 +401,14 @@ private fun HudItem(
 		Spacer(Modifier.height(2.dp))
 		Text(value, fontSize = 17.sp, color = Color.White, fontWeight = FontWeight.Bold)
 		if(sub.isNotEmpty())
-			Text(sub, fontSize = 12.sp, color = OnSurfaceMuted)
+			Text(
+				sub,
+				fontSize = 12.sp,
+				color = OnSurfaceMuted,
+				maxLines = 1,
+				overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+				modifier = Modifier.widthIn(max = 160.dp)
+			)
 	}
 }
 
