@@ -20,15 +20,16 @@ object TvChannel
 	private fun resUri(context: Context, resId: Int): Uri =
 		Uri.parse("android.resource://${context.packageName}/$resId")
 
-	private fun previewVideoUri(context: Context): Uri?
+	private fun previewVideoUri(context: Context, ps5: Boolean): Uri?
 	{
 		return try
 		{
 			val dir = java.io.File(context.cacheDir, "tv")
 			dir.mkdirs()
-			val dst = java.io.File(dir, "preview.mp4")
+			val dst = java.io.File(dir, if(ps5) "preview_ps5.mp4" else "preview_ps4.mp4")
 			if(!dst.exists() || dst.length() == 0L)
-				context.resources.openRawResource(R.raw.tv_preview).use { input ->
+				context.resources.openRawResource(
+					if(ps5) R.raw.tv_preview_ps5 else R.raw.tv_preview_ps4).use { input ->
 					dst.outputStream().use { out -> input.copyTo(out) }
 				}
 			val uri = androidx.core.content.FileProvider.getUriForFile(context,
@@ -70,10 +71,9 @@ object TvChannel
 			resolver.delete(TvContractCompat.PreviewPrograms.CONTENT_URI,
 				TvContractCompat.PreviewPrograms.COLUMN_CHANNEL_ID + "=?", arrayOf(channelId.toString()))
 
-			val previewUri = previewVideoUri(context)
-
 			for(host in hosts)
 			{
+				val previewUri = previewVideoUri(context, host.target.isPS5)
 				val title = host.serverNickname?.takeIf { it.isNotBlank() }
 					?: if(host.target.isPS5) "PlayStation 5" else "PlayStation 4"
 				val intent = Intent(context, MainActivity::class.java)
