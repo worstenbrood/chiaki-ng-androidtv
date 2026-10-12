@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.WindowManager
@@ -54,6 +55,15 @@ class MainActivity: ComponentActivity()
 	companion object
 	{
 		const val EXTRA_AUTO_CONNECT_MAC = "com.chiaking.tv.AUTO_CONNECT_MAC"
+
+		private val HUD_SWALLOWED_KEYS = setOf(
+			KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y, KeyEvent.KEYCODE_BUTTON_B,
+			KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1,
+			KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_R2,
+			KeyEvent.KEYCODE_BUTTON_SELECT, KeyEvent.KEYCODE_BUTTON_START,
+			KeyEvent.KEYCODE_BUTTON_MODE,
+			KeyEvent.KEYCODE_BUTTON_THUMBL, KeyEvent.KEYCODE_BUTTON_THUMBR
+		)
 	}
 
 	private lateinit var preferences: Preferences
@@ -381,11 +391,23 @@ class MainActivity: ComponentActivity()
 			// L3+R3 always toggles the HUD, even while it is open (and never reaches the console)
 			if(streamInput?.onHudComboKeyEvent(event) == true)
 				return true
-			// While the HUD is open, keys navigate the HUD instead of the console
-			if(!session.hudVisible.value)
+			// While the HUD is open, only cross/DPad navigate it — swallow other gamepad buttons
+			if(session.hudVisible.value)
+			{
+				if(event.keyCode in HUD_SWALLOWED_KEYS)
+					return true
+			}
+			else
 				streamInput?.let { if(it.dispatchKeyEvent(event)) return true }
 		}
 		return super.dispatchKeyEvent(event)
+	}
+
+	override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean
+	{
+		if(screenStack.lastOrNull() is ScreenStream && hudStickNavigate(event))
+			return true
+		return super.dispatchGenericMotionEvent(event)
 	}
 
 	override fun onGenericMotionEvent(event: MotionEvent): Boolean
@@ -395,6 +417,42 @@ class MainActivity: ComponentActivity()
 			streamInput?.let { if(it.onGenericMotionEvent(event)) return true }
 		}
 		return super.onGenericMotionEvent(event)
+	}
+
+	private var hudStickDir = 0
+
+	private fun hudStickNavigate(event: MotionEvent): Boolean
+	{
+		if(event.source and (InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_JOYSTICK) == 0)
+			return false
+		val session = (screenStack.last() as ScreenStream).session
+		if(!session.hudVisible.value)
+		{
+			hudStickDir = 0
+			return false
+		}
+		val x = event.getAxisValue(MotionEvent.AXIS_X) + event.getAxisValue(MotionEvent.AXIS_HAT_X)
+		val y = event.getAxisValue(MotionEvent.AXIS_Y) + event.getAxisValue(MotionEvent.AXIS_HAT_Y)
+		val dir = when
+		{
+			y < -0.5f -> KeyEvent.KEYCODE_DPAD_UP
+			y > 0.5f -> KeyEvent.KEYCODE_DPAD_DOWN
+			x < -0.5f -> KeyEvent.KEYCODE_DPAD_LEFT
+			x > 0.5f -> KeyEvent.KEYCODE_DPAD_RIGHT
+			else -> 0
+		}
+		if(dir == 0)
+		{
+			hudStickDir = 0
+			return false
+		}
+		if(dir == hudStickDir)
+			return true
+		hudStickDir = dir
+		android.util.Log.i("HudNav", "stick/hat dir=$dir x=$x y=$y src=${event.source}")
+		dispatchKeyEvent(KeyEvent(event.eventTime, event.eventTime, KeyEvent.ACTION_DOWN, dir, 0))
+		dispatchKeyEvent(KeyEvent(event.eventTime, event.eventTime, KeyEvent.ACTION_UP, dir, 0))
+		return true
 	}
 }
 

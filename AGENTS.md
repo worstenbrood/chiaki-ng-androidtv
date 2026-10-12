@@ -36,11 +36,12 @@ git -C external/chiaki-ng submodule update --init third-party/nanopb third-party
 # build image (once):
 docker build --platform linux/amd64 -f docker/Dockerfile.build -t chiaki-tv-build-amd64 docker/
 
-# build APK (~30 min cold, faster incrementally):
-docker run --rm --platform linux/amd64 -v "${PWD}:/src" -w /src chiaki-tv-build-amd64 sh gradlew assembleDebug
+# build APK — use build.ps1 (mounts .docker-cache/gradle so dependencies persist between builds):
+.\build.ps1                          # assembleDebug
+.\build.ps1 assembleRelease          # release APK (signed with the repo debug.keystore)
 
-# build release APK (signed with the repo debug.keystore, CMake Release native libs):
-docker run --rm --platform linux/amd64 -v "${PWD}:/src" -w /src chiaki-tv-build-amd64 sh gradlew assembleRelease
+# equivalent raw command:
+docker run --rm --platform linux/amd64 -v "${PWD}:/src" -v "${PWD}/.docker-cache/gradle:/root/.gradle" -w /src chiaki-tv-build-amd64 sh gradlew assembleDebug
 ```
 
 APK output: `app/build/outputs/apk/debug/app-debug.apk` or `app/build/outputs/apk/release/app-release.apk`

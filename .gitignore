@@ -8,6 +8,7 @@ local.properties
 
 # Docker build cache artifacts
 docker/cache/
+.docker-cache/
 
 # Logs
 *.log

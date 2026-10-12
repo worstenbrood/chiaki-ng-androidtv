@@ -68,8 +68,13 @@ object TvChannel
 				preferences.tvChannelId = channelId
 			}
 
-			resolver.delete(TvContractCompat.PreviewPrograms.CONTENT_URI,
-				TvContractCompat.PreviewPrograms.COLUMN_CHANNEL_ID + "=?", arrayOf(channelId.toString()))
+			resolver.query(TvContractCompat.PreviewPrograms.CONTENT_URI,
+				arrayOf(TvContractCompat.PreviewPrograms._ID), null, null, null)?.use { c ->
+				val ids = generateSequence { if(c.moveToNext()) c.getLong(0) else null }.toList()
+				for(id in ids)
+					resolver.delete(ContentUris.withAppendedId(
+						TvContractCompat.PreviewPrograms.CONTENT_URI, id), null, null)
+			}
 
 			for(host in hosts)
 			{
@@ -85,7 +90,8 @@ object TvChannel
 					.setTitle(title)
 					.setDescription(if(host.target.isPS5) "Connect to PS5" else "Connect to PS4")
 					.setIntent(intent)
-					.setPosterArtUri(resUri(context, R.mipmap.ic_launcher))
+					.setPosterArtUri(resUri(context,
+						if(host.target.isPS5) R.drawable.tv_ps5 else R.drawable.tv_ps4))
 					.setPosterArtAspectRatio(2)
 					.apply { if(previewUri != null) setPreviewVideoUri(previewUri) }
 					.build()

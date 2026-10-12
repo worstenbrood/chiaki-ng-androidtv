@@ -8,14 +8,18 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -61,7 +65,9 @@ fun StreamScreen(
 	var pinDialog by remember { mutableStateOf<StreamStateLoginPinRequest?>(null) }
 	var quitDialog by remember { mutableStateOf<StreamStateQuit?>(null) }
 	var createError by remember { mutableStateOf<StreamStateCreateError?>(null) }
-	val disconnectFocus = remember { FocusRequester() }
+	val hudScroll = rememberScrollState()
+	val hudFocus = remember { FocusRequester() }
+	var hudFocusIdx by remember { mutableStateOf(0) }
 
 	var volume by remember { mutableStateOf(preferences.audioVolume) }
 	val ctx = LocalContext.current
@@ -109,7 +115,9 @@ fun StreamScreen(
 		if(hudVisible)
 		{
 			delay(400)
-			try { disconnectFocus.requestFocus() } catch(e: Exception) {}
+			hudFocusIdx = 0
+			try { hudFocus.requestFocus() } catch(e: Exception)
+			{ android.util.Log.e("StreamScreen", "HUD focus request failed", e) }
 		}
 	}
 
@@ -167,11 +175,14 @@ fun StreamScreen(
 				modifier = Modifier
 					.fillMaxWidth()
 					.background(Color(0xE60B0E17))
-					.padding(horizontal = 40.dp, vertical = 8.dp),
+					.padding(horizontal = 16.dp, vertical = 8.dp),
 				horizontalAlignment = Alignment.CenterHorizontally
 			) {
+				Box(Modifier.fillMaxWidth()) {
 				Row(
-					horizontalArrangement = Arrangement.spacedBy(36.dp, Alignment.CenterHorizontally)
+					horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+					verticalAlignment = Alignment.CenterVertically,
+					modifier = Modifier.horizontalScroll(hudScroll)
 				) {
 					HudItem(
 						label = if(session.connectInfo.ps5) "PS5" else "PS4",
@@ -181,25 +192,34 @@ fun StreamScreen(
 							is StreamStateConnected -> "Connected"
 							is StreamStateDisconnecting -> "Disconnecting"
 							else -> "Connecting"
-						}
+						},
+						focusReq = hudFocus,
+						selected = hudFocusIdx == 0,
+						onSelect = { if(it) hudFocusIdx = 0 }
 					)
 					HudDivider()
 					HudItem(
 						label = "Video",
 						value = "${vp.width}x${vp.height} @ ${vp.maxFPS} fps",
-						sub = "$codecLabel • ${vp.bitrate / 1000} Mbps target"
+						sub = "$codecLabel • ${vp.bitrate / 1000} Mbps target",
+						selected = hudFocusIdx == 1,
+						onSelect = { if(it) hudFocusIdx = 1 }
 					)
 					HudDivider()
 					HudItem(
 						label = "Stream",
 						value = hudStats?.let { String.format("%.0f fps", it.fps) } ?: "—",
-						sub = hudStats?.let { String.format("%.1f Mbps", it.kbps / 1000.0) } ?: ""
+						sub = hudStats?.let { String.format("%.1f Mbps", it.kbps / 1000.0) } ?: "",
+						selected = hudFocusIdx == 2,
+						onSelect = { if(it) hudFocusIdx = 2 }
 					)
 					HudDivider()
 					HudItem(
 						label = "Network",
 						value = hudStats?.let { String.format("%.1f%% loss", it.packetLossPct) } ?: "—",
-						sub = hudStats?.let { String.format("ping %d ms • %d lost", it.rttMs, it.framesLost) } ?: ""
+						sub = hudStats?.let { String.format("ping %d ms • %d lost", it.rttMs, it.framesLost) } ?: "",
+						selected = hudFocusIdx == 3,
+						onSelect = { if(it) hudFocusIdx = 3 }
 					)
 					HudDivider()
 					HudItem(
@@ -217,16 +237,18 @@ fun StreamScreen(
 							volume = (volume + dir * 5).coerceIn(0, 100)
 							preferences.audioVolume = volume
 							session.setVolumePercent(volume)
-						}
+						},
+						selected = hudFocusIdx == 4,
+						onSelect = { if(it) hudFocusIdx = 4 }
 					)
 					HudDivider()
-					var disconnectFocused by remember { mutableStateOf(false) }
 					Box(
 						contentAlignment = Alignment.Center,
 						modifier = Modifier
-							.focusRequester(disconnectFocus)
-							.focusable()
-							.onFocusEvent { disconnectFocused = it.isFocused }
+							.widthIn(min = 140.dp)
+							.clip(RoundedCornerShape(10.dp))
+							.background(if(hudFocusIdx == 5) Color.White.copy(alpha = 0.16f) else Color.Transparent)
+							.onFocusEvent { if(it.isFocused) hudFocusIdx = 5 }
 							.onKeyEvent { ev ->
 								if(ev.key == Key.ButtonA && ev.type == KeyEventType.KeyUp)
 								{
@@ -237,19 +259,30 @@ fun StreamScreen(
 									false
 							}
 							.clickable { session.requestDisconnectDialog() }
-							.padding(8.dp)
-						.background(
-							if(disconnectFocused) Color.White.copy(alpha = 0.16f) else Color.Transparent,
-							RoundedCornerShape(10.dp)
-						)
+							.padding(horizontal = 10.dp, vertical = 14.dp)
 					) {
 						Icon(
 							Icons.Default.Close,
 							contentDescription = "Disconnect",
-							tint = if(disconnectFocused) Color.White else OnSurfaceMuted,
+							tint = if(hudFocusIdx == 5) Color.White else OnSurfaceMuted,
 							modifier = Modifier.size(22.dp)
 						)
 					}
+				}
+				if(hudScroll.value > 0)
+					Icon(
+						Icons.Default.KeyboardArrowLeft,
+						contentDescription = null,
+						tint = Color.White,
+						modifier = Modifier.align(Alignment.CenterStart).size(36.dp)
+					)
+				if(hudScroll.value < hudScroll.maxValue)
+					Icon(
+						Icons.Default.KeyboardArrowRight,
+						contentDescription = null,
+						tint = Color.White,
+						modifier = Modifier.align(Alignment.CenterEnd).size(36.dp)
+					)
 				}
 			}
 		}
@@ -361,35 +394,38 @@ private fun HudItem(
 	value: String,
 	sub: String,
 	onClick: (() -> Unit)? = null,
-	onVertical: ((Int) -> Unit)? = null
+	onVertical: ((Int) -> Unit)? = null,
+	focusReq: FocusRequester? = null,
+	selected: Boolean = false,
+	onSelect: (Boolean) -> Unit = {}
 )
 {
-	var focused by remember { mutableStateOf(false) }
 	Column(
 		horizontalAlignment = Alignment.CenterHorizontally,
 		modifier = Modifier
+			.widthIn(min = 140.dp)
 			.clip(RoundedCornerShape(10.dp))
-			.background(if(focused) Color.White.copy(alpha = 0.16f) else Color.Transparent)
-			.then(
-				if(onClick != null)
-					Modifier
-						.onFocusEvent { focused = it.isFocused }
-						.onKeyEvent { ev ->
-							if(ev.type != KeyEventType.KeyDown || onVertical == null)
-								false
-							else
-								when(ev.key)
-								{
-									Key.DirectionUp -> { onVertical(1); true }
-									Key.DirectionDown -> { onVertical(-1); true }
-									else -> false
-								}
-						}
-						.clickable { onClick() }
-						.padding(horizontal = 10.dp, vertical = 4.dp)
+			.background(if(selected) Color.White.copy(alpha = 0.16f) else Color.Transparent)
+			.then(if(focusReq != null) Modifier.focusRequester(focusReq) else Modifier)
+			.onFocusEvent { onSelect(it.isFocused) }
+			.onKeyEvent { ev ->
+				if(ev.key == Key.ButtonA && ev.type == KeyEventType.KeyUp)
+				{
+					onClick?.invoke()
+					true
+				}
+				else if(ev.type != KeyEventType.KeyDown || onVertical == null)
+					false
 				else
-					Modifier
-			)
+					when(ev.key)
+					{
+						Key.DirectionUp -> { onVertical(1); true }
+						Key.DirectionDown -> { onVertical(-1); true }
+						else -> false
+					}
+			}
+			.clickable { onClick?.invoke() }
+			.padding(horizontal = 10.dp, vertical = 4.dp)
 	) {
 		Text(
 			label.uppercase(),
