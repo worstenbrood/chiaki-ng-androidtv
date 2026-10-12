@@ -24,6 +24,11 @@ set(CHIAKI_VERSION ${CHIAKI_VERSION_MAJOR}.${CHIAKI_VERSION_MINOR}.${CHIAKI_VERS
 
 set(CMAKE_CXX_STANDARD 14)
 
+# Extra optimization for release builds (NDK default is -O2); appended so the
+# stock "-O2 -DNDEBUG" is kept and -O3 wins as the later flag.
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -flto=thin")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -flto=thin")
+
 list(APPEND CMAKE_MODULE_PATH "${CHIAKI_ROOT}/cmake")
 
 find_package(PythonInterp 3 REQUIRED) # Make sure nanopb doesn't find Python 2.7

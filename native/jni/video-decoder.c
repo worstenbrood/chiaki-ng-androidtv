@@ -10,7 +10,7 @@
 
 #include <string.h>
 
-#define INPUT_BUFFER_TIMEOUT_MS 10
+#define INPUT_BUFFER_TIMEOUT_MS 0
 
 static void *android_chiaki_video_decoder_output_thread_func(void *user);
 
@@ -160,7 +160,7 @@ bool android_chiaki_video_decoder_video_sample(uint8_t *buf, size_t buf_size, in
 		ssize_t codec_buf_index = AMediaCodec_dequeueInputBuffer(decoder->codec, INPUT_BUFFER_TIMEOUT_MS * 1000);
 		if(codec_buf_index < 0)
 		{
-			CHIAKI_LOGE(decoder->log, "Failed to get input buffer");
+			CHIAKI_LOGV(decoder->log, "Codec input full, dropping video frame");
 			r = false;
 			goto beach;
 		}

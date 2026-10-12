@@ -9,6 +9,7 @@
 
 #include <oboe/Oboe.h>
 
+#include <atomic>
 #include <mutex>
 
 #define BUFFER_CHUNK_SIZE 1024
@@ -36,7 +37,7 @@ struct AudioOutput
 	oboe::ManagedStream stream;
 	AudioOutputCallback stream_callback;
 	AudioBuffer buf;
-	float volume = 1.0f;
+	std::atomic<float> volume{1.0f};
 	int32_t device_id = 0;
 	int32_t buffer_ms = 0;
 	uint32_t channels = 0;
@@ -146,7 +147,7 @@ extern "C" void android_chiaki_audio_output_set_volume(void *audio_output, float
 		volume = 0.0f;
 	if(volume > 1.0f)
 		volume = 1.0f;
-	ao->volume = volume;
+	ao->volume.store(volume, std::memory_order_relaxed);
 }
 
 extern "C" void android_chiaki_audio_output_set_device_id(void *audio_output, int32_t device_id)
@@ -200,7 +201,7 @@ oboe::DataCallbackResult AudioOutputCallback::onAudioReady(oboe::AudioStream *st
 		memset(buf + buf_size_delivered, 0, buf_size_requested - buf_size_delivered);
 	}
 
-	float vol = audio_output->volume;
+	float vol = audio_output->volume.load(std::memory_order_relaxed);
 	if(vol != 1.0f)
 	{
 		auto samples = reinterpret_cast<int16_t *>(audio_data);
