@@ -19,7 +19,7 @@ app/                      Android TV app (namespace com.chiaking.tv)
                           JNI bindings — package MUST stay `com.metallic.chiaki.lib`
                           (chiaki-jni.h hardcodes BASE_PACKAGE "com/metallic/chiaki/lib")
 external/chiaki-ng        git submodule = upstream C core + JNI (do not edit casually)
-native/                   Our CMake entry point + copy of the JNI layer (audio volume/device/buffer + video stats additions)
+native/                   Our CMake entry point + copy of the JNI layer (audio volume/device/buffer/restart + video stats + surface keep-alive additions)
 docker/Dockerfile.build   Linux build image (SDK 35, NDK 28.2, protoc, perl, python)
 docs/UPSTREAM_SYNC.md     How to integrate new upstream chiaki-ng commits — READ before syncing
 docs/FEATURE_PORTING_PLAN.md  Qt→TV feature port roadmap (status per feature)
@@ -57,15 +57,25 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   additions: audio **volume** (software gain in the Oboe callback), **output device**
   selection with default-device fallback, audio **buffer size** (ms → Oboe buffer capacity),
   video **stats counters** (frames/bytes/lost for the HUD), `CHIAKI_EVENT_MOTION_RESET`
-  forwarding, the `sessionRequestIDR` JNI function and a **deadlock fix** in `video-decoder.c`
-  (`kill_decoder_locked` — upstream `set_surface(null)` double-locks the non-recursive
-  `codec_mutex`, ANR'ing whenever the surface is destroyed while a session is alive) in
-  `chiaki-jni.c` + `audio-output.cpp` / `video-decoder.c`. When bumping upstream, diff and
-  re-apply our changes to those files.
+  forwarding and the `sessionRequestIDR` / `sessionRestartAudio` JNI functions.
+  **Keep-alive rework** in `video-decoder.c` (required by StreamManager — do not revert):
+  `set_surface(null)` no longer kills the codec (upstream did, and double-locked the
+  non-recursive `codec_mutex` → ANR); it sets `surface_valid=false` +
+  `AMediaCodec_setOutputSurface(NULL)` and keeps decoding with render-off, and a new surface
+  swaps via `setOutputSurface` (+ `requestIDR()` from Kotlin as insurance). `fini` releases
+  the window ref (upstream leaked it). In `audio-output.cpp`: `AudioOutput` is `shared_ptr`-
+  managed, `restart()` drains + reopens the Oboe stream, and `onErrorAfterClose` schedules a
+  delayed auto-reopen (the audio server kills the track while the app is backgrounded, and a
+  stream opened right at `onResume` gets killed again ~80 ms later). When bumping upstream,
+  diff and re-apply our changes to those files (details in `docs/UPSTREAM_SYNC.md`).
 - **StreamManager** (`session/StreamManager.kt`) is the process-wide owner of the active
   `StreamSession` (survives Activity recreation + backgrounding; `MainActivity` reads
   `StreamManager.session/input/displayHost`). Keep-alive across backgrounding depends on the
-  `video-decoder.c` deadlock fix above — do not revert it.
+  `video-decoder.c` keep-alive rework above — do not revert it. `onPause` with a live stream
+  mutes + arms the 60 s away timer (`sleep_console_on_exit` pref Never/Ask/Always → goto-bed
+  via the live session, or via a short-lived reconnect session if it died); `onResume`
+  restores volume + `restartAudio()`. Never call `session.pause()`/shutdown while the surface
+  may still be attached from another thread — teardown races the surface callbacks.
 - **CMake entry point** is `native/CMakeLists.txt` (a trimmed copy of upstream's root
   CMakeLists: third-party + lib + our `native/jni`). It must keep `CHIAKI_ENABLE_ANDROID=ON`
   semantics and the `CHIAKI_LIB_*_EXTERNAL_PROJECT` includes.

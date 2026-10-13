@@ -14,7 +14,13 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
 - **Console registration** — PIN-based pairing flow (8-digit PIN from the console);
   selecting an unregistered discovered console opens registration with its IP and
   console type (PS5/PS4) prefilled
-- **Remote Play** — H.264 / H.265 / H.265 HDR, up to 1080p60, auto or manual bitrate (2000–50000 kbps)
+- **Remote Play** — H.264 / H.265 / H.265 HDR, up to 1080p60, auto or manual bitrate (2000–50000 kbps),
+  display modes Fit / Zoom / Stretch (*Settings → Video → Display Mode*, also live on the HUD)
+- **Session keep-alive** — leaving the app during a stream keeps the session connected (muted);
+  returning resumes instantly without a reconnect, even after the app was recreated
+- **Sleep console on exit** — *Settings → General → Sleep Console on Exit* (Never/Ask/Always):
+  leaving the app during a stream for over a minute can put the console to rest automatically
+  (Ask prompts you when you come back)
 - **Wake-on-connect** — selecting a rest-mode console wakes it and auto-connects once it comes online
 - **Auto-connect on startup** — pick a console in Settings; the app wakes and connects to it automatically on launch
 - **Google TV home channel** — registered consoles appear as programs on a "Chiaki TV" preview
@@ -30,9 +36,9 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
   FPS, measured bitrate, packet loss %, ping, lost frames and the current video/audio config.
   Navigate the chips with the **D-pad** (gamepad D-pad *and* left stick are both understood):
   the **Audio** chip cycles the output device with **cross** and adjusts volume with **D-pad
-  up/down**; the bar ends with a **✕** chip that opens the Sleep/Disconnect dialog. While the
-  HUD is open only D-pad + cross are captured — every other button/stick still goes to the game.
-  Back closes the HUD
+  up/down**, the **Display** chip cycles Fit/Zoom/Stretch; the bar ends with a **✕** chip that
+  opens the Sleep/Disconnect dialog. While the HUD is open only D-pad + cross are captured —
+  every other button/stick still goes to the game. Back closes the HUD
 - **Clean disconnect** — Back (TV remote) or the HUD ✕ shows a "Disconnecting" spinner
   and returns to the main screen once the session has fully shut down
 - **Settings** — resolution, FPS, codec, bitrate, audio, controller options, verbose logging, session log viewer
@@ -95,7 +101,8 @@ Other ABIs: append `-Pabis=arm64-v8a,armeabi-v7a`.
 app/                    Android TV app (Kotlin + Compose, namespace com.chiaking.tv)
 external/chiaki-ng      git submodule — upstream chiaki-ng (C core, built via CMake)
 native/                 CMake entry point + our copy of the JNI layer
-                        (adds audio volume, output-device and stream-stats on top of upstream)
+                        (adds audio volume/device/buffer, stream stats and surface keep-alive
+                        on top of upstream)
 docker/                 Docker build image definition
 docs/UPSTREAM_SYNC.md   How to integrate new upstream chiaki-ng commits
 AGENTS.md               Build/architecture notes for AI agents and contributors
