@@ -148,8 +148,8 @@ suspend fun parseSettingsImport(source: okio.BufferedSource): SerializedSettings
 	}
 }
 
-suspend fun importSettings(db: AppDatabase, settings: SerializedSettings) = withContext(Dispatchers.IO) {
-	db.importDao().importAll(settings)
+suspend fun importSettings(db: AppDatabase, settings: SerializedSettings, replace: Boolean) = withContext(Dispatchers.IO) {
+	db.importDao().importAll(settings, replace)
 }
 
 @Dao
@@ -161,14 +161,26 @@ abstract class ImportDao
 	@Insert
 	abstract fun insertManualHosts(hosts: List<ManualHost>)
 
+	@Query("DELETE FROM manual_host")
+	abstract fun deleteAllManualHosts()
+
+	@Query("DELETE FROM registered_host")
+	abstract fun deleteAllRegisteredHosts()
+
 	class IdWithMac(val id: Long, val mac: MacAddress)
 
 	@Query("SELECT id, server_mac AS mac FROM registered_host WHERE server_mac IN (:macs)")
 	abstract fun registeredHostsByMac(macs: List<MacAddress>): List<IdWithMac>
 
 	@Transaction
-	open fun importAll(settings: SerializedSettings)
+	open fun importAll(settings: SerializedSettings, replace: Boolean)
 	{
+		if(replace)
+		{
+			deleteAllManualHosts()
+			deleteAllRegisteredHosts()
+		}
+
 		insertRegisteredHosts(
 			settings.registeredHosts.map {
 				RegisteredHost(

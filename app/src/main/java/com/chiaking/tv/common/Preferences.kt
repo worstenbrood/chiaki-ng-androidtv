@@ -58,6 +58,13 @@ class Preferences(context: Context)
 		ALWAYS("always", "Always")
 	}
 
+	enum class DisconnectAction(val value: String, val title: String)
+	{
+		ASK("ask", "Ask"),
+		SLEEP("sleep", "Sleep Console"),
+		NOTHING("nothing", "Do Nothing")
+	}
+
 	companion object
 	{
 		const val PREFS_NAME = "chiaki_tv_preferences"
@@ -83,6 +90,7 @@ class Preferences(context: Context)
 		const val autoConnectMacKey = "auto_connect_mac"
 		const val menuShortcutKey = "menu_shortcut"
 		const val sleepConsoleOnExitKey = "sleep_console_on_exit"
+		const val disconnectActionKey = "disconnect_action"
 
 		val resolutionDefault = Resolution.RES_1080P
 		val fpsDefault = FPS.FPS_60
@@ -164,6 +172,10 @@ class Preferences(context: Context)
 	var sleepConsoleOnExit
 		get() = SleepConsoleOnExit.values().firstOrNull { it.value == sharedPreferences.getString(sleepConsoleOnExitKey, SleepConsoleOnExit.ASK.value) } ?: SleepConsoleOnExit.ASK
 		set(value) { sharedPreferences.edit().putString(sleepConsoleOnExitKey, value.value).apply() }
+
+	var disconnectAction
+		get() = DisconnectAction.values().firstOrNull { it.value == sharedPreferences.getString(disconnectActionKey, DisconnectAction.ASK.value) } ?: DisconnectAction.ASK
+		set(value) { sharedPreferences.edit().putString(disconnectActionKey, value.value).apply() }
 
 	var resolution
 		get() = sharedPreferences.getString(resolutionDefaultKey, resolutionDefault.value)?.let { value ->

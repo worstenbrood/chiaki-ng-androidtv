@@ -71,6 +71,15 @@ fun StreamScreen(
 	val hudFocus = remember { FocusRequester() }
 	var hudFocusIdx by remember { mutableStateOf(0) }
 
+	val closeAction: () -> Unit = {
+		when(preferences.disconnectAction)
+		{
+			Preferences.DisconnectAction.SLEEP -> { session.gotoBed(); onSleep() }
+			Preferences.DisconnectAction.NOTHING -> onQuit()
+			Preferences.DisconnectAction.ASK -> session.requestDisconnectDialog()
+		}
+	}
+
 	var volume by remember { mutableStateOf(preferences.audioVolume) }
 	val ctx = LocalContext.current
 	val audioDevices = remember { AudioDevices.outputDevices(ctx) }
@@ -288,13 +297,13 @@ fun StreamScreen(
 							.onKeyEvent { ev ->
 								if(ev.key == Key.ButtonA && ev.type == KeyEventType.KeyUp)
 								{
-									session.requestDisconnectDialog()
+									closeAction()
 									true
 								}
 								else
 									false
 							}
-							.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { session.requestDisconnectDialog() }
+							.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { closeAction() }
 							.padding(horizontal = 10.dp, vertical = 4.dp)
 					) {
 						Text(

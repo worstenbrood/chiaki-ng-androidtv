@@ -93,6 +93,8 @@ class MainActivity: ComponentActivity()
 		}
 	}
 
+	private var pendingImport by mutableStateOf<SerializedSettings?>(null)
+
 	private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
 		if(uri == null) return@registerForActivityResult
 		lifecycleScope.launch {
@@ -100,10 +102,25 @@ class MainActivity: ComponentActivity()
 				val settings = contentResolver.openInputStream(uri)!!.source().buffer().use {
 					parseSettingsImport(it)
 				}
-				importSettings(database, settings)
+				pendingImport = settings
 			} catch(e: Exception) {
-				// surfaced via toast-less UI; log for debugging
 				android.util.Log.e("MainActivity", "Import failed", e)
+				android.widget.Toast.makeText(this@MainActivity, "Import failed: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+			}
+		}
+	}
+
+	private fun doImport(replace: Boolean)
+	{
+		val settings = pendingImport ?: return
+		pendingImport = null
+		lifecycleScope.launch {
+			try {
+				importSettings(database, settings, replace)
+				android.widget.Toast.makeText(this@MainActivity, "Imported ${settings.registeredHosts.size} console(s)", android.widget.Toast.LENGTH_SHORT).show()
+			} catch(e: Exception) {
+				android.util.Log.e("MainActivity", "Import failed", e)
+				android.widget.Toast.makeText(this@MainActivity, "Import failed: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
 			}
 		}
 	}
@@ -125,7 +142,24 @@ class MainActivity: ComponentActivity()
 					modifier = Modifier.fillMaxSize(),
 					color = Color(0xFF0B0E17)
 				) {
-					Navigation()
+					Box {
+						Navigation()
+						pendingImport?.let {
+							androidx.compose.material3.AlertDialog(
+								onDismissRequest = { pendingImport = null },
+								title = { androidx.compose.material3.Text("Import Settings") },
+								text = { androidx.compose.material3.Text("Replace all existing consoles with the imported ones, or merge them into the existing list?") },
+								confirmButton = {
+									androidx.compose.material3.TextButton(onClick = { doImport(true) })
+									{ androidx.compose.material3.Text("Replace") }
+								},
+								dismissButton = {
+									androidx.compose.material3.TextButton(onClick = { doImport(false) })
+									{ androidx.compose.material3.Text("Merge") }
+								}
+							)
+						}
+					}
 				}
 			}
 		}
@@ -578,7 +612,12 @@ class MainActivity: ComponentActivity()
 				if(event.action == KeyEvent.ACTION_UP)
 				{
 					if(session.state.value is StreamStateConnected)
-						session.requestDisconnectDialog()
+						when(preferences.disconnectAction)
+						{
+							Preferences.DisconnectAction.SLEEP -> sleepConsoleAway()
+							Preferences.DisconnectAction.NOTHING -> disconnectStream()
+							Preferences.DisconnectAction.ASK -> session.requestDisconnectDialog()
+						}
 					else
 						disconnectStream()
 				}

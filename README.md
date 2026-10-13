@@ -21,6 +21,9 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
 - **Sleep console on exit** — *Settings → General → Sleep Console on Exit* (Never/Ask/Always):
   leaving the app during a stream for over a minute can put the console to rest automatically
   (Ask prompts you when you come back)
+- **On Close action** — *Settings → General → On Close* (Ask / Sleep Console / Do Nothing):
+  decides what the HUD ✕ chip and the remote's Back button do while streaming —
+  show the Sleep/Disconnect dialog, sleep the console immediately, or just disconnect
 - **Wake-on-connect** — selecting a rest-mode console wakes it and auto-connects once it comes online
 - **Auto-connect on startup** — pick a console in Settings; the app wakes and connects to it automatically on launch
 - **Google TV home channel** — registered consoles appear as programs on a "Chiaki TV" preview
@@ -36,13 +39,15 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
   FPS, measured bitrate, packet loss %, ping, lost frames and the current video/audio config.
   Navigate the chips with the **D-pad** (gamepad D-pad *and* left stick are both understood):
   the **Audio** chip cycles the output device with **cross** and adjusts volume with **D-pad
-  up/down**, the **Display** chip cycles Fit/Zoom/Stretch; the bar ends with a **✕** chip that
-  opens the Sleep/Disconnect dialog. While the HUD is open only D-pad + cross are captured —
-  every other button/stick still goes to the game. Back closes the HUD
-- **Clean disconnect** — Back (TV remote) or the HUD ✕ shows a "Disconnecting" spinner
-  and returns to the main screen once the session has fully shut down
+   up/down**, the **Display** chip cycles Fit/Zoom/Stretch; the bar ends with a **✕** chip that
+   closes the stream per the *On Close* setting. While the HUD is open only D-pad + cross are captured —
+   every other button/stick still goes to the game. Back closes the HUD
+- **Clean disconnect** — closing the stream (HUD ✕ or remote Back, per the *On Close* setting)
+   shows a "Disconnecting" spinner and returns to the main screen once the session has fully shut down
 - **Settings** — resolution, FPS, codec, bitrate, audio, controller options, verbose logging, session log viewer
-- **Backup** — export/import registered + manual hosts as JSON (compatible with chiaki-ng's format)
+- **Backup** — export/import registered + manual hosts as JSON (compatible with chiaki-ng's format);
+  import asks to **Replace** or **Merge** with existing consoles and reports failures instead of
+  silently ignoring them
 
 ## Requirements
 
@@ -55,7 +60,8 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
 
 ## Getting started
 
-1. Install the APK on your TV (`adb connect <tv-ip>` then `adb install app-debug.apk`).
+1. Install the APK on your TV (`adb connect <tv-ip>:5555` then
+   `adb install app/build/outputs/apk/release/app-release.apk` — or the debug APK from the same tree).
 2. Enable Remote Play on the console (PS5: *Settings → System → Remote Play*; PS4: *Settings → Remote Play Connection Settings*).
 3. Open Chiaki TV — discovered consoles appear as cards. Select one and enter the 8-digit
    pairing PIN shown on screen (or use *Register Console*).
@@ -64,7 +70,8 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
 5. Optional: *Settings → General → Auto-connect on Startup* + pick a console — launching the app
    (or selecting its program on the "Chiaki TV" Google TV channel) then wakes and connects by itself.
 6. While streaming, press **L3 + R3** on the controller to open the in-stream HUD
-   (stats, live audio device/volume, and the **✕** disconnect chip).
+   (stats, live audio device/volume, and the **✕** chip that disconnects — and sleeps the console
+   too if *On Close* is set to Sleep Console).
 
 > **Note (Shield TV):** the system intercepts the controller's **PS button** as HOME, so it
 > cannot be forwarded to the console. The **Create/Share** button (which Android remaps to
@@ -97,7 +104,7 @@ Other ABIs: append `-Pabis=arm64-v8a,armeabi-v7a`.
 
 ## Project layout
 
-```
+```text
 app/                    Android TV app (Kotlin + Compose, namespace com.chiaking.tv)
 external/chiaki-ng      git submodule — upstream chiaki-ng (C core, built via CMake)
 native/                 CMake entry point + our copy of the JNI layer

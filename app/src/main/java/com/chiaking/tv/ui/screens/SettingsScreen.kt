@@ -53,6 +53,7 @@ fun SettingsScreen(
 	var menuShortcut by remember { mutableStateOf(preferences.menuShortcut) }
 	var displayMode by remember { mutableStateOf(preferences.displayMode) }
 	var sleepConsoleOnExit by remember { mutableStateOf(preferences.sleepConsoleOnExit) }
+	var disconnectAction by remember { mutableStateOf(preferences.disconnectAction) }
 	var autoConnectIndex by remember { mutableStateOf(
 		(registeredHosts.indexOfFirst { it.serverMac.toString() == preferences.autoConnectMac } + 1).coerceAtLeast(0)) }
 
@@ -191,6 +192,15 @@ fun SettingsScreen(
 					val values = Preferences.SleepConsoleOnExit.values()
 					sleepConsoleOnExit = values[(sleepConsoleOnExit.ordinal + 1) % values.size]
 					preferences.sleepConsoleOnExit = sleepConsoleOnExit
+				}
+			)
+			TvCycleRow(
+				title = "On Close",
+				value = disconnectAction.title,
+				onNext = {
+					val values = Preferences.DisconnectAction.values()
+					disconnectAction = values[(disconnectAction.ordinal + 1) % values.size]
+					preferences.disconnectAction = disconnectAction
 				}
 			)
 			TvCycleRow(

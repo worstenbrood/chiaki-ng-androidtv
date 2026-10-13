@@ -110,10 +110,9 @@ hold ≥8 repeats → ×5 step, OK toggles Auto; clamped 2000–50000)
 - **How**: JNI: add `sessionGoHome` in `native/jni/chiaki-jni.c` next to `sessionGotoBed`; Kotlin wrapper; menu item "Go Home". Trivial.
 - **Effort**: S.
 
-### 2.4 Quit-action preference (`disconnectAction`: Ask / Sleep / Do Nothing) — **PORT**
-- **What**: on disconnect, optionally auto-sleep console or never ask (`settings.h:498`, `qmlbackend.cpp:1240-1264`).
-- **How**: Preferences key `disconnect_action` (ASK/SLEEP/NOTHING); branch in `StreamScreen` disconnect dialog trigger / `MainActivity.disconnectStream`.
-- **Effort**: S.
+### 2.4 Quit-action preference (`disconnectAction`: Ask / Sleep / Do Nothing) — **DONE**
+(`disconnect_action` pref, "On Close" setting row; HUD CLOSE chip and remote-BACK both branch:
+Ask → dialog, Sleep → gotoBed+disconnect, Do Nothing → plain disconnect)
 
 ### 2.5 Auto-reconnect on early error — **DONE** (up to 3 retries, 3 s apart, if error quit <20 s
 after start without ever connecting; budget resets on connect, `resume()` and manual Reconnect —
@@ -184,10 +183,9 @@ fields, so the badge works there. Console-side limitation, nothing more to do.
 - **How (if ever)**: profile = suffix on SharedPreferences name + Room DB filename; selector on HomeScreen header. Defer until core list is done.
 - **Effort**: L.
 
-### 3.6 Import semantics fix (Qt parity) — **PORT (small)**
-- Qt import replaces settings; ours is additive-only and silently swallows errors (`SerializedSettings.kt`).
-- **How**: add "Replace existing?" choice on import; surface parse failures via a snackbar/dialog.
-- **Effort**: S.
+### 3.6 Import semantics fix (Qt parity) — **DONE** (import now asks Replace / Merge;
+replace wipes manual+registered hosts first; parse/import failures surfaced via toast,
+success toast shows imported console count)
 
 ---
 
