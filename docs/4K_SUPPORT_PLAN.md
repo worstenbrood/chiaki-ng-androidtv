@@ -1,6 +1,23 @@
 # 4K (2160p) support plan
 
-Status: **planned / experimental** — not implemented yet.
+Status: **CLOSED — not feasible.** Reverse-engineering the official app proved there is no 4K
+negotiation to reverse: the official PS Remote Play app itself never streams above 1080p.
+
+## RE findings (official TV app `com.playstation.remoteplay.tv` 9.5.0, jadx decompile)
+
+- Protocol core = `com.playstation.newcore.RpNativeCoreLibrary` (native, string-encrypted).
+- Stream resolution enum `RPCoreResolutionType` = {360, 540, 720, **1080**} — no 2160 value exists.
+- Quality presets (decompiled): low=360p@2M, standard=540p@6M, high=720p@10M,
+  **very_high=1080p@15M** — Sony's own max is 1080p @ 15 Mbps.
+- `RP_CORE_CLIENT_TELEMETRY_MAX_RESOLUTION_TYPE_1440P/_2160P` exist but are *telemetry-only*
+  (client display capability reporting), never used for stream requests.
+- Conclusion: the console's Remote Play encoder caps at 1080p on all official clients;
+  4K Remote Play does not exist in the protocol. chiaki-ng's 50 Mbps @ 1080p already
+  exceeds the official quality ceiling. "4K" on a 4K TV = 1080p stream + TV upscaling.
+
+---
+
+*(original plan below, kept for reference)*
 
 ## Background / findings
 
