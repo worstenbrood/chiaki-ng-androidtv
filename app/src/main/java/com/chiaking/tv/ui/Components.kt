@@ -256,6 +256,21 @@ fun TvActionRow(
 }
 
 @Composable
+fun TvInfoRow(title: String, value: String)
+{
+	Row(
+		modifier = Modifier
+			.fillMaxWidth()
+			.padding(horizontal = 20.dp, vertical = 12.dp),
+		verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+	) {
+		Text(title, fontSize = 18.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+		Spacer(Modifier.width(12.dp))
+		Text(value, fontSize = 15.sp, color = OnSurfaceMuted)
+	}
+}
+
+@Composable
 fun SectionHeader(text: String)
 {
 	Text(

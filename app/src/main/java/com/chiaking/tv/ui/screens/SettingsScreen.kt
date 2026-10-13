@@ -14,11 +14,15 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chiaking.tv.BuildConfig
 import com.chiaking.tv.common.AudioDevices
 import com.chiaking.tv.common.Preferences
 import com.chiaking.tv.common.RegisteredHost
 import com.chiaking.tv.ui.*
 import com.chiaking.tv.ui.theme.*
+
+// Keep in sync with CHIAKI_VERSION in external/chiaki-ng/CMakeLists.txt (see docs/UPSTREAM_SYNC.md)
+const val UPSTREAM_CHIAKI_VERSION = "1.10.0"
 
 @Composable
 fun SettingsScreen(
@@ -48,6 +52,7 @@ fun SettingsScreen(
 	var autoConnect by remember { mutableStateOf(preferences.autoConnectEnabled) }
 	var menuShortcut by remember { mutableStateOf(preferences.menuShortcut) }
 	var displayMode by remember { mutableStateOf(preferences.displayMode) }
+	var sleepConsoleOnExit by remember { mutableStateOf(preferences.sleepConsoleOnExit) }
 	var autoConnectIndex by remember { mutableStateOf(
 		(registeredHosts.indexOfFirst { it.serverMac.toString() == preferences.autoConnectMac } + 1).coerceAtLeast(0)) }
 
@@ -180,6 +185,15 @@ fun SettingsScreen(
 			TvSwitchRow("Auto-connect on Startup", "Wake and connect to a console automatically when the app starts", autoConnect)
 			{ autoConnect = it; preferences.autoConnectEnabled = it }
 			TvCycleRow(
+				title = "Sleep Console on Exit",
+				value = sleepConsoleOnExit.title,
+				onNext = {
+					val values = Preferences.SleepConsoleOnExit.values()
+					sleepConsoleOnExit = values[(sleepConsoleOnExit.ordinal + 1) % values.size]
+					preferences.sleepConsoleOnExit = sleepConsoleOnExit
+				}
+			)
+			TvCycleRow(
 				title = "Auto-connect Console",
 				value = autoConnectOptions.getOrNull(autoConnectIndex)?.let {
 					it.serverNickname?.takeIf { n -> n.isNotBlank() } ?: (if(it.target.isPS5) "PlayStation 5" else "PlayStation 4")
@@ -203,6 +217,12 @@ fun SettingsScreen(
 		SettingsCard {
 			TvActionRow("Export Settings", "Save registered and manual hosts to a JSON file", onExportSettings)
 			TvActionRow("Import Settings", "Restore hosts from a chiaki-settings.json file", onImportSettings)
+		}
+
+		SectionHeader("About")
+		SettingsCard {
+			TvInfoRow("Chiaki TV", BuildConfig.VERSION_NAME)
+			TvInfoRow("chiaki-ng core", UPSTREAM_CHIAKI_VERSION)
 		}
 
 		Spacer(Modifier.height(32.dp))

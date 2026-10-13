@@ -42,13 +42,14 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 	private companion object
 	{
 		const val RETRY_WINDOW_MS = 20000L
-		const val RETRY_DELAY_MS = 2000L
+		const val RETRY_DELAY_MS = 3000L
+		const val MAX_RETRIES = 3
 	}
 
 	private val mainScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 	@Volatile private var connected = false
 	@Volatile private var startTime = 0L
-	@Volatile private var retryUsed = false
+	@Volatile private var retryCount = 0
 
 	private var surfaceTexture: SurfaceTexture? = null
 	private var surface: Surface? = null
@@ -103,12 +104,18 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 		session?.setVolume(volumePercent / 100f)
 	}
 
+	fun restartAudio()
+	{
+		session?.restartAudio()
+	}
+
 	fun resume()
 	{
 		if(session != null || disconnecting)
 			return
 		stopped = false
 		connected = false
+		retryCount = 0
 		startTime = SystemClock.elapsedRealtime()
 		try
 		{
@@ -118,7 +125,10 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 			session.start()
 			val surface = surface
 			if(surface != null)
+			{
 				session.setSurface(surface)
+				session.requestIDR()
+			}
 			this.session = session
 		}
 		catch(e: CreateError)
@@ -129,7 +139,7 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 
 	fun resumeDelayed(delayMs: Long)
 	{
-		retryUsed = false
+		retryCount = 0
 		CoroutineScope(Dispatchers.Main + SupervisorJob()).launch {
 			delay(delayMs)
 			if(!disconnecting && session == null)
@@ -146,15 +156,15 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 			is ConnectedEvent ->
 			{
 				connected = true
-				retryUsed = false
+				retryCount = 0
 				_state.value = StreamStateConnected
 			}
 			is QuitEvent ->
 			{
 				val elapsed = SystemClock.elapsedRealtime() - startTime
-				if(!connected && !retryUsed && !disconnecting && event.reason.isError && elapsed < RETRY_WINDOW_MS)
+				if(!connected && retryCount < MAX_RETRIES && !disconnecting && event.reason.isError && elapsed < RETRY_WINDOW_MS)
 				{
-					retryUsed = true
+					retryCount++
 					mainScope.launch {
 						shutdown(StreamStateConnecting)
 						delay(RETRY_DELAY_MS)
@@ -186,6 +196,7 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 				val surface = holder.surface
 				this@StreamSession.surface = surface
 				session?.setSurface(surface)
+				session?.requestIDR()
 			}
 
 			override fun surfaceDestroyed(holder: SurfaceHolder)

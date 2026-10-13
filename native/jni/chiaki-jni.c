@@ -434,10 +434,22 @@ JNIEXPORT void JNICALL JNI_FCN(sessionSetAudioBuffer)(JNIEnv *env, jobject obj, 
 	android_chiaki_audio_output_set_buffer_ms(session->audio_output, (int32_t)buffer_ms);
 }
 
+JNIEXPORT void JNICALL JNI_FCN(sessionRestartAudio)(JNIEnv *env, jobject obj, jlong ptr)
+{
+	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
+	android_chiaki_audio_output_restart(session->audio_output);
+}
+
 JNIEXPORT jint JNICALL JNI_FCN(sessionGotoBed)(JNIEnv *env, jobject obj, jlong ptr)
 {
 	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
 	return chiaki_session_goto_bed(&session->session);
+}
+
+JNIEXPORT jint JNICALL JNI_FCN(sessionRequestIDR)(JNIEnv *env, jobject obj, jlong ptr)
+{
+	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
+	return chiaki_session_request_idr(&session->session);
 }
 
 JNIEXPORT void JNICALL JNI_FCN(sessionGetStats)(JNIEnv *env, jobject obj, jlong ptr, jlongArray out)

@@ -115,8 +115,9 @@ hold ≥8 repeats → ×5 step, OK toggles Auto; clamped 2000–50000)
 - **How**: Preferences key `disconnect_action` (ASK/SLEEP/NOTHING); branch in `StreamScreen` disconnect dialog trigger / `MainActivity.disconnectStream`.
 - **Effort**: S.
 
-### 2.5 Auto-reconnect on early error — **DONE** (one retry after 2 s if error quit <20 s after
-start without ever connecting; allowance resets on connect and manual Reconnect)
+### 2.5 Auto-reconnect on early error — **DONE** (up to 3 retries, 3 s apart, if error quit <20 s
+after start without ever connecting; budget resets on connect, `resume()` and manual Reconnect —
+covers the console still holding the old session after a background→foreground resume)
 - **What**: if session quits with an error before connecting within 20 s, retry automatically
   (`streamsession.cpp:2336-2345`, `SESSION_RETRY_SECONDS=20`).
 - **How**: in `StreamSession` QuitEvent handling: if quit happened < 20 s after start and reason is error → auto `shutdown + resumeDelayed(2000)` once (add `retried` flag). Keep manual Reconnect button as fallback.
@@ -300,10 +301,21 @@ the video buffer always fills the view bounds, so view sizing alone does it, lik
 
 ## 8. System integration
 
-### 8.1 Console sleep when TV sleeps (`suspendAction`) — **PORT**
+### 8.1 Console sleep when TV sleeps (`suspendAction`) — **DONE** (`sleep_console_on_exit` pref
+Never/Ask/Always + Settings row). `session/StreamManager.kt` (process-wide singleton) owns the
+live `StreamSession` + host + input, so the session **stays connected across backgrounding and
+Activity recreation**: `onPause` mutes + starts a 60 s timer (surface detaches normally),
+`onResume` restores volume and re-attaches the surface (instant picture, `requestIDR()` on reattach
+for a fresh keyframe). On timeout: Always → `gotoBed()` on the live session + disconnect + pop Home,
+Ask → "Console still awake" prompt on return (Sleep → gotoBed; Keep playing → restore volume).
+If the session died while away (Takion timeout), `sleepConsoleViaReconnect` (short-lived reconnect
+session) is the fallback for the sleep action. Mode Never keeps the old teardown-on-pause behavior.
+Two native changes make keep-alive work (see UPSTREAM_SYNC): the video decoder survives surface
+destruction (`setOutputSurface(NULL)` + render-off instead of killing the codec → no black screen
+waiting for an IDR; `requestIDR()` on reattach as belt-and-braces), and `restartAudio()` reopens the
+Oboe stream on resume (the AudioTrack dies server-side while backgrounded). `buildConfig true`
+enabled in `app/build.gradle` for 9.4.)
 - **What**: host going to sleep sends console to sleep (`settings.h:501`, `qmlbackend.cpp:528-538`).
-- **TV angle**: TVs don't "sleep" mid-session, but app `onStop`/process death leaves console streaming. Current behavior: session pause on stop. Add option: on `onStop` timeout (e.g. 60 s backgrounded) → `gotoBed()` + stop session. Preferences `sleep_console_on_exit` (Never / Ask / Always).
-- **Effort**: S.
 
 ### 8.2 Sleep inhibition — **DONE**
 - `FLAG_KEEP_SCREEN_ON` already set. (Qt's systemd/IOKit inhibit has no more Android equivalent.)
@@ -341,9 +353,9 @@ starts a stream of that MAC on launch — used by the TV home channel programs, 
 ### 9.3 First-run reminders — **SKIP**
 - Tied to Steam/PSN onboarding; revisit PSN one only if 4.1 lands.
 
-### 9.4 About dialog / app version row — **PORT (trivial)**
-- Add version + upstream chiaki-ng version row to SettingsScreen.
-- **Effort**: XS.
+### 9.4 About dialog / app version row — **DONE** (Settings "About" section: `BuildConfig.VERSION_NAME`
++ `UPSTREAM_CHIAKI_VERSION` const in `SettingsScreen.kt` — update it when bumping the submodule,
+noted in UPSTREAM_SYNC)
 
 ### 9.5 Translations — **SKIP**
 - Qt is effectively English-only (no translator wiring found). Out of scope.
@@ -356,7 +368,7 @@ starts a stream of that MAC on launch — used by the TV home channel programs, 
 ## Suggested phasing
 
 **Done since planning** (2026-10): 1.2, 2.1, 2.5, 2.8, 3.1, 3.2, 3.4, 5.3, 5.8, 6.1, 6.3,
-7.2, 8.4 (deep-link half), 8.5.
+7.2, 8.1, 8.4 (deep-link half), 8.5, 9.4.
 Build tooling: `build.ps1` mounts `.docker-cache/gradle` (cold build ~25 min → ~9 min incremental).
 
 **Phase 1 — polish what exists (no native changes, ~small PRs each)**

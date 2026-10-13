@@ -10,7 +10,10 @@
 #include <oboe/Oboe.h>
 
 #include <atomic>
+#include <chrono>
+#include <memory>
 #include <mutex>
+#include <thread>
 
 #define BUFFER_CHUNK_SIZE 1024
 #define BUFFER_CHUNKS_COUNT 32
@@ -38,6 +41,8 @@ struct AudioOutput
 	AudioOutputCallback stream_callback;
 	AudioBuffer buf;
 	std::atomic<float> volume{1.0f};
+	std::atomic<bool> shutting_down{false};
+	std::weak_ptr<AudioOutput> self_weak;
 	int32_t device_id = 0;
 	int32_t buffer_ms = 0;
 	uint32_t channels = 0;
@@ -49,18 +54,28 @@ struct AudioOutput
 
 extern "C" void *android_chiaki_audio_output_new(ChiakiLog *log)
 {
-	auto r = new AudioOutput();
-	r->log = log;
-	return r;
+	auto holder = new std::shared_ptr<AudioOutput>(std::make_shared<AudioOutput>());
+	(*holder)->log = log;
+	(*holder)->self_weak = *holder;
+	return holder;
 }
 
 extern "C" void android_chiaki_audio_output_free(void *audio_output)
 {
 	if(!audio_output)
 		return;
-	auto ao = reinterpret_cast<AudioOutput *>(audio_output);
-	ao->stream = nullptr;
-	delete ao;
+	auto holder = reinterpret_cast<std::shared_ptr<AudioOutput> *>(audio_output);
+	{
+		std::lock_guard<std::mutex> lock((*holder)->mutex);
+		(*holder)->shutting_down = true;
+		(*holder)->stream = nullptr;
+	}
+	delete holder;
+}
+
+static AudioOutput *get_ao(void *audio_output)
+{
+	return (*reinterpret_cast<std::shared_ptr<AudioOutput> *>(audio_output)).get();
 }
 
 static void open_stream(AudioOutput *ao)
@@ -131,9 +146,36 @@ static void open_stream(AudioOutput *ao)
 		CHIAKI_LOGE(ao->log, "Audio Output failed to start Oboe stream: %s", oboe::convertToText(result));
 }
 
+// Reopen the stream a moment after it died (e.g. the audio server disconnected it while the app
+// was backgrounded). Delayed so the server has settled; skipped if a healthy stream is alive.
+static void schedule_reopen(AudioOutput *ao)
+{
+	std::weak_ptr<AudioOutput> weak = ao->self_weak;
+	std::thread([weak]() {
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		auto ao = weak.lock();
+		if(!ao || ao->shutting_down)
+			return;
+		std::lock_guard<std::mutex> lock(ao->mutex);
+		if(ao->shutting_down || ao->channels == 0 || ao->rate == 0)
+			return;
+		if(ao->stream)
+		{
+			auto state = ao->stream->getState();
+			if(state != oboe::StreamState::Closed && state != oboe::StreamState::Disconnected)
+				return;
+			ao->stream = nullptr;
+		}
+		CHIAKI_LOGI(ao->log, "Audio Output reopening stream after error");
+		uint8_t scratch[4096];
+		while(ao->buf.Pop(scratch, sizeof(scratch)) > 0) {}
+		open_stream(ao.get());
+	}).detach();
+}
+
 extern "C" void android_chiaki_audio_output_settings(uint32_t channels, uint32_t rate, void *audio_output)
 {
-	auto ao = reinterpret_cast<AudioOutput *>(audio_output);
+	auto ao = get_ao(audio_output);
 	std::lock_guard<std::mutex> lock(ao->mutex);
 	ao->channels = channels;
 	ao->rate = rate;
@@ -142,7 +184,7 @@ extern "C" void android_chiaki_audio_output_settings(uint32_t channels, uint32_t
 
 extern "C" void android_chiaki_audio_output_set_volume(void *audio_output, float volume)
 {
-	auto ao = reinterpret_cast<AudioOutput *>(audio_output);
+	auto ao = get_ao(audio_output);
 	if(volume < 0.0f)
 		volume = 0.0f;
 	if(volume > 1.0f)
@@ -152,7 +194,7 @@ extern "C" void android_chiaki_audio_output_set_volume(void *audio_output, float
 
 extern "C" void android_chiaki_audio_output_set_device_id(void *audio_output, int32_t device_id)
 {
-	auto ao = reinterpret_cast<AudioOutput *>(audio_output);
+	auto ao = get_ao(audio_output);
 	std::lock_guard<std::mutex> lock(ao->mutex);
 	if(ao->device_id == device_id)
 		return;
@@ -166,18 +208,31 @@ extern "C" void android_chiaki_audio_output_set_device_id(void *audio_output, in
 
 extern "C" void android_chiaki_audio_output_set_buffer_ms(void *audio_output, int32_t buffer_ms)
 {
-	auto ao = reinterpret_cast<AudioOutput *>(audio_output);
+	auto ao = get_ao(audio_output);
 	ao->buffer_ms = buffer_ms;
+}
+
+extern "C" void android_chiaki_audio_output_restart(void *audio_output)
+{
+	auto ao = get_ao(audio_output);
+	std::lock_guard<std::mutex> lock(ao->mutex);
+	if(ao->channels == 0 || ao->rate == 0)
+		return;
+	CHIAKI_LOGI(ao->log, "Audio Output restarting stream (e.g. after background suspension)");
+	uint8_t scratch[4096];
+	while(ao->buf.Pop(scratch, sizeof(scratch)) > 0) {}
+	ao->stream = nullptr;
+	open_stream(ao);
 }
 
 extern "C" void android_chiaki_audio_output_frame(int16_t *buf, size_t samples_count, void *audio_output)
 {
-	auto ao = reinterpret_cast<AudioOutput *>(audio_output);
+	auto ao = get_ao(audio_output);
 
 	size_t buf_size = samples_count * sizeof(int16_t);
 	size_t pushed = ao->buf.Push(reinterpret_cast<uint8_t *>(buf), buf_size);
 	if(pushed < buf_size)
-		CHIAKI_LOGW(ao->log, "Audio Output Buffer Overflow!");
+		CHIAKI_LOGV(ao->log, "Audio Output Buffer Overflow!");
 }
 
 oboe::DataCallbackResult AudioOutputCallback::onAudioReady(oboe::AudioStream *stream, void *audio_data, int32_t num_frames)
@@ -221,4 +276,5 @@ void AudioOutputCallback::onErrorBeforeClose(oboe::AudioStream *stream, oboe::Re
 void AudioOutputCallback::onErrorAfterClose(oboe::AudioStream *stream, oboe::Result error)
 {
 	CHIAKI_LOGE(audio_output->log, "Oboe reported error after close: %s", oboe::convertToText(error));
+	schedule_reopen(audio_output);
 }

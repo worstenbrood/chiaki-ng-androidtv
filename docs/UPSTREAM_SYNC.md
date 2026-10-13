@@ -52,10 +52,22 @@ The JNI layer is **not** compiled from the submodule. `native/jni/` is a copy of
 - `audio-output.{h,cpp}`: volume (software gain in the Oboe callback), output-device
   selection (`setDeviceId` with fallback to the default device) and buffer size
   (ms → Oboe buffer capacity + buffer size at open)
-- `video-decoder.{h,c}`: frames/bytes/lost counters + `android_chiaki_video_decoder_get_stats`
+- `video-decoder.{h,c}`: frames/bytes/lost counters + `android_chiaki_video_decoder_get_stats`;
+  **keep-alive surface handling**: `set_surface(null)` no longer kills the codec (upstream did, but
+  double-locked the non-recursive `codec_mutex` → ANR; and killing loses reference frames → black
+  screen until next IDR). Ours sets `surface_valid=false` + `AMediaCodec_setOutputSurface(NULL)`
+  and keeps decoding with `releaseOutputBuffer(render=false)`; a new surface swaps via
+  `setOutputSurface` + `surface_valid=true`. `kill_decoder` split into `kill_decoder_locked`
+  (still used by `fini`). Per-frame "decoder not initialized" log downgraded to verbose.
+- `audio-output.{h,cpp}`: `android_chiaki_audio_output_restart()` — drains the ring buffer and
+  reopens the Oboe stream (the AudioTrack dies server-side when the app is backgrounded, the
+  callback thread stalls in `obtainBuffer` and never recovers); `onErrorAfterClose` schedules a
+  delayed auto-reopen (500 ms, `weak_ptr`-guarded) because a stream opened right at `onResume`
+  gets disconnected again by the audio server; `AudioOutput` is `shared_ptr`-managed for that;
+  buffer-overflow log → verbose
 - `chiaki-jni.c`: `sessionSetVolume`, `sessionSetAudioDevice`, `sessionSetAudioBuffer`,
-  `sessionGetStats` JNI functions + forwarding of `CHIAKI_EVENT_MOTION_RESET`
-  (`eventMotionReset` → re-centers `StreamInput` motion sensors)
+  `sessionGetStats`, `sessionRequestIDR`, `sessionRestartAudio` JNI functions + forwarding of
+  `CHIAKI_EVENT_MOTION_RESET` (`eventMotionReset` → re-centers `StreamInput` motion sensors)
 
 When bumping upstream, diff the two directories and re-apply our additions:
 
@@ -76,7 +88,7 @@ When upstream changes these files, diff and port by hand:
 | `android/.../session/StreamSession.kt` | `com/chiaking/tv/session/StreamSession.kt` | We use `StateFlow` instead of `LiveData` (see divergences). |
 | `android/.../regist/*` | `com/chiaking/tv/regist/` | Registration flow; `RegistExecuteViewModel` uses `StateFlow`. |
 | `android/.../common/SerializedSettings.kt` | `com/chiaking/tv/common/SerializedSettings.kt` | Import/export format. If upstream bumps `VERSION`, update ours and add a migration in `ImportDao`. |
-| `CHIAKI_VERSION_*` in `external/chiaki-ng/CMakeLists.txt` | `versionName` in `app/build.gradle` | Bump to `<major>.<minor>.<patch>-tv` on each sync. |
+| `CHIAKI_VERSION_*` in `external/chiaki-ng/CMakeLists.txt` | `versionName` in `app/build.gradle` + `UPSTREAM_CHIAKI_VERSION` in `ui/screens/SettingsScreen.kt` | Bump to `<major>.<minor>.<patch>-tv` on each sync. |
 
 UI-only upstream changes (layouts, touch controls, MainActivity) are **not**
 ported — the TV UI is Compose and independent.

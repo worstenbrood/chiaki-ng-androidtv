@@ -10,7 +10,8 @@ app/                      Android TV app (namespace com.chiaking.tv)
   build.gradle            Gradle module; wires CMake to external/chiaki-ng/CMakeLists.txt
   src/main/java/com/chiaking/tv/
     common/               Room DB, Preferences, settings import/export, MAC type
-    session/              StreamSession (StateFlow), StreamInput (gamepad + TV remote input)
+    session/              StreamManager (process-wide session owner), StreamSession (StateFlow),
+                          StreamInput (gamepad + TV remote input)
     regist/               Console registration (PIN flow)
     discovery/            UDP discovery service wrapper
     ui/                   Compose TV UI: screens/, theme/ (dark PS-blue, D-pad focus)
@@ -56,9 +57,15 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   additions: audio **volume** (software gain in the Oboe callback), **output device**
   selection with default-device fallback, audio **buffer size** (ms → Oboe buffer capacity),
   video **stats counters** (frames/bytes/lost for the HUD), `CHIAKI_EVENT_MOTION_RESET`
-  forwarding and the matching JNI functions (`sessionSetVolume`, `sessionSetAudioDevice`,
-  `sessionSetAudioBuffer`, `sessionGetStats` in `chiaki-jni.c` + `audio-output.cpp` /
-  `video-decoder.c`). When bumping upstream, diff and re-apply our changes to those files.
+  forwarding, the `sessionRequestIDR` JNI function and a **deadlock fix** in `video-decoder.c`
+  (`kill_decoder_locked` — upstream `set_surface(null)` double-locks the non-recursive
+  `codec_mutex`, ANR'ing whenever the surface is destroyed while a session is alive) in
+  `chiaki-jni.c` + `audio-output.cpp` / `video-decoder.c`. When bumping upstream, diff and
+  re-apply our changes to those files.
+- **StreamManager** (`session/StreamManager.kt`) is the process-wide owner of the active
+  `StreamSession` (survives Activity recreation + backgrounding; `MainActivity` reads
+  `StreamManager.session/input/displayHost`). Keep-alive across backgrounding depends on the
+  `video-decoder.c` deadlock fix above — do not revert it.
 - **CMake entry point** is `native/CMakeLists.txt` (a trimmed copy of upstream's root
   CMakeLists: third-party + lib + our `native/jni`). It must keep `CHIAKI_ENABLE_ANDROID=ON`
   semantics and the `CHIAKI_LIB_*_EXTERNAL_PROJECT` includes.

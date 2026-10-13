@@ -21,7 +21,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.chiaking.tv.common.*
 import com.chiaking.tv.discovery.serverMac
 import com.metallic.chiaki.lib.ConnectInfo
@@ -29,15 +31,20 @@ import com.metallic.chiaki.lib.DiscoveryHost
 import com.metallic.chiaki.lib.RegistInfo
 import com.chiaking.tv.regist.RegistExecuteViewModel
 import com.chiaking.tv.session.StreamInput
+import com.chiaking.tv.session.StreamManager
 import com.chiaking.tv.session.StreamSession
 import com.chiaking.tv.session.StreamStateConnected
 import com.chiaking.tv.session.StreamStateDisconnecting
+import com.chiaking.tv.session.StreamStateQuit
 import com.chiaking.tv.ui.screens.*
 import com.chiaking.tv.ui.theme.ChiakiTvTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import okio.buffer
 import okio.source
 
@@ -57,20 +64,20 @@ class MainActivity: ComponentActivity()
 		const val EXTRA_AUTO_CONNECT_MAC = "com.chiaking.tv.AUTO_CONNECT_MAC"
 		const val WAKE_TIMEOUT_MS = 25000L
 		const val AUTO_CONNECT_DISCOVER_GRACE_MS = 5000L
+		const val AWAY_TIMEOUT_MS = 60000L
 	}
 
 	private lateinit var preferences: Preferences
 	private lateinit var database: AppDatabase
 	private lateinit var logManager: LogManager
-	private var streamInput: StreamInput? = null
-	private var currentStreamSession: StreamSession? = null
-	private var currentStreamDisplayHost: DisplayHost? = null
 	private var wakingHost by mutableStateOf<DisplayHost?>(null)
 	private var wakeBannerText by mutableStateOf<String?>(null)
 	private var wakeJob: kotlinx.coroutines.Job? = null
 	private var autoConnectTriggered = false
 	private var deepLinkConnect = false
 	private var pendingDeepLinkMac by mutableStateOf<MacAddress?>(null)
+	private var awayJob: kotlinx.coroutines.Job? = null
+	private var awaySleepPrompt by mutableStateOf(false)
 
 	private val screenStack = mutableStateListOf<Screen>()
 	private var showManualHostDialog by mutableStateOf(false)
@@ -110,6 +117,7 @@ class MainActivity: ComponentActivity()
 		database = getDatabase(this)
 		logManager = LogManager(this)
 		screenStack.add(ScreenHome)
+		StreamManager.session?.let { screenStack.add(ScreenStream(it)) }
 
 		setContent {
 			ChiakiTvTheme {
@@ -261,15 +269,34 @@ class MainActivity: ComponentActivity()
 				}
 			}
 
-			is ScreenStream -> StreamScreen(screen.session, preferences,
-				onQuit = { disconnectStream() },
-				onSleep =
-				{
-					currentStreamDisplayHost?.registeredHost?.serverMac?.let {
-						LastSeenHosts.markState(it, DiscoveryHost.State.STANDBY)
-					}
-					disconnectStream()
-				})
+			is ScreenStream -> {
+				ObserveRumble(screen.session)
+				StreamScreen(screen.session, preferences,
+					onQuit = { disconnectStream() },
+					onSleep =
+					{
+						StreamManager.displayHost?.registeredHost?.serverMac?.let {
+							LastSeenHosts.markState(it, DiscoveryHost.State.STANDBY)
+						}
+						disconnectStream()
+					})
+				if(awaySleepPrompt)
+					androidx.compose.material3.AlertDialog(
+						onDismissRequest = { keepPlaying() },
+						title = { androidx.compose.material3.Text("Console still awake") },
+						text = { androidx.compose.material3.Text("You have been away for a while. Put the console to sleep?") },
+						confirmButton = {
+							androidx.compose.material3.TextButton(onClick = {
+								awaySleepPrompt = false
+								sleepConsoleAway()
+							}) { androidx.compose.material3.Text("Sleep console") }
+						},
+						dismissButton = {
+							androidx.compose.material3.TextButton(onClick = { keepPlaying() })
+							{ androidx.compose.material3.Text("Keep playing") }
+						}
+					)
+			}
 
 			ScreenLogs -> LogsScreen(logManager) { screenStack.removeAt(screenStack.size - 1) }
 
@@ -364,28 +391,144 @@ class MainActivity: ComponentActivity()
 	private fun startStream(host: DisplayHost)
 	{
 		cancelWakeup()
-		val registeredHost = host.registeredHost ?: return
-		val connectInfo = ConnectInfo(
-			host.isPS5,
-			host.host,
-			registeredHost.rpRegistKey,
-			registeredHost.rpKey,
-			preferences.videoProfile
-		)
-		val input = StreamInput(this, preferences)
-		val session = StreamSession(connectInfo, logManager, preferences.logVerbose, input)
-		streamInput = input
-		currentStreamSession = session
-		currentStreamDisplayHost = host
-		session.resume()
-		session.applyAudioSettings(preferences.audioVolume,
-			AudioDevices.resolveDeviceId(this, preferences.audioDeviceName, preferences.audioDeviceId),
-			preferences.audioBufferMs)
+		awayJob?.cancel()
+		awayJob = null
+		awaySleepPrompt = false
+		val session = StreamManager.start(this, preferences, logManager, host) ?: return
+		screenStack.add(ScreenStream(session))
+	}
 
-		if(preferences.rumbleEnabled)
+	private fun disconnectStream()
+	{
+		awayJob?.cancel()
+		awayJob = null
+		awaySleepPrompt = false
+		val screen = screenStack.lastOrNull() as? ScreenStream ?: return
+		if(screen.session.disconnecting)
+			return
+		screen.session.disconnecting = true
+		screen.session.state.value = StreamStateDisconnecting
+		StreamManager.clear(screen.session)
+		lifecycleScope.launch {
+			withContext(Dispatchers.IO) { screen.session.shutdown(StreamStateDisconnecting) }
+			if(screenStack.lastOrNull() === screen)
+				screenStack.removeAt(screenStack.size - 1)
+		}
+	}
+
+	override fun onResume()
+	{
+		super.onResume()
+		awayJob?.cancel()
+		awayJob = null
+		if(awaySleepPrompt)
+			return
+		resumeStream()
+	}
+
+	private fun resumeStream()
+	{
+		val session = StreamManager.session ?: return
+		if(screenStack.lastOrNull() !is ScreenStream)
+			return
+		if(!session.disconnecting && session.session == null)
 		{
+			session.resume()
+			session.setVolumePercent(preferences.audioVolume)
+		}
+		else
+		{
+			session.setVolumePercent(preferences.audioVolume)
+			session.restartAudio()
+		}
+	}
+
+	private fun keepPlaying()
+	{
+		awaySleepPrompt = false
+		resumeStream()
+	}
+
+	override fun onPause()
+	{
+		super.onPause()
+		val session = StreamManager.session
+		if(session != null && !session.disconnecting && session.session != null &&
+			screenStack.lastOrNull() is ScreenStream &&
+			preferences.sleepConsoleOnExit != Preferences.SleepConsoleOnExit.NEVER)
+		{
+			session.setVolumePercent(0)
+			awayJob = lifecycleScope.launch {
+				delay(AWAY_TIMEOUT_MS)
+				awayJob = null
+				if(preferences.sleepConsoleOnExit == Preferences.SleepConsoleOnExit.ALWAYS)
+					sleepConsoleAway()
+				else
+					awaySleepPrompt = true
+			}
+		}
+		else
+			session?.pause()
+	}
+
+	private fun sleepConsoleAway()
+	{
+		val session = StreamManager.session
+		if(session != null && session.session != null)
+		{
+			session.gotoBed()
+			StreamManager.displayHost?.registeredHost?.serverMac?.let {
+				LastSeenHosts.markState(it, DiscoveryHost.State.STANDBY)
+			}
+			disconnectStream()
+			return
+		}
+		sleepConsoleViaReconnect(StreamManager.displayHost)
+		StreamManager.clear()
+		if(screenStack.lastOrNull() is ScreenStream)
+			screenStack.removeAt(screenStack.size - 1)
+	}
+
+	private fun sleepConsoleViaReconnect(host: DisplayHost?)
+	{
+		val reg = host?.registeredHost ?: return
+		val addr = host.host
+		if(addr.isEmpty())
+			return
+		lifecycleScope.launch {
+			try {
+				val connectInfo = ConnectInfo(host.isPS5, addr, reg.rpRegistKey, reg.rpKey, preferences.videoProfile)
+				val s = StreamSession(connectInfo, logManager, preferences.logVerbose, StreamInput(applicationContext, preferences))
+				try
+				{
+					s.resume()
+					val reached = withTimeoutOrNull(10000L) {
+						s.state.first { it is StreamStateConnected || it is StreamStateQuit }
+					}
+					if(reached is StreamStateConnected)
+					{
+						s.gotoBed()
+						delay(500)
+					}
+					LastSeenHosts.markState(reg.serverMac, DiscoveryHost.State.STANDBY)
+				}
+				finally {
+					withContext(Dispatchers.IO) { s.shutdown() }
+				}
+			} catch(e: Exception) {
+				android.util.Log.e("MainActivity", "sleep-console reconnect failed", e)
+			}
+		}
+	}
+
+	@Composable
+	private fun ObserveRumble(session: StreamSession)
+	{
+		if(!preferences.rumbleEnabled)
+			return
+		LaunchedEffect(session) {
 			val vibrator = getSystemService(VIBRATOR_SERVICE) as Vibrator
-			lifecycleScope.launch {
+			lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
 				session.rumbleState.collectLatest { rumble ->
 					val amplitude = (rumble.left.toInt() + rumble.right.toInt()) / 2
 					vibrator.cancel()
@@ -397,46 +540,16 @@ class MainActivity: ComponentActivity()
 				}
 			}
 		}
-
-		screenStack.add(ScreenStream(session))
-	}
-
-	private fun disconnectStream()
-	{
-		val screen = screenStack.lastOrNull() as? ScreenStream ?: return
-		if(screen.session.disconnecting)
-			return
-		screen.session.disconnecting = true
-		screen.session.state.value = StreamStateDisconnecting
-		lifecycleScope.launch {
-			withContext(Dispatchers.IO) { screen.session.shutdown(StreamStateDisconnecting) }
-			if(currentStreamSession === screen.session)
-			{
-				currentStreamSession = null
-				currentStreamDisplayHost = null
-			}
-			if(screenStack.lastOrNull() === screen)
-				screenStack.removeAt(screenStack.size - 1)
-		}
-	}
-
-	override fun onResume()
-	{
-		super.onResume()
-		currentStreamSession?.let { if(screenStack.lastOrNull() is ScreenStream) it.resume() }
-	}
-
-	override fun onPause()
-	{
-		super.onPause()
-		currentStreamSession?.pause()
 	}
 
 	override fun onDestroy()
 	{
 		super.onDestroy()
-		currentStreamSession?.shutdown()
-		currentStreamSession = null
+		if(!isChangingConfigurations)
+		{
+			StreamManager.session?.shutdown()
+			StreamManager.clear()
+		}
 	}
 
 	override fun dispatchKeyEvent(event: KeyEvent): Boolean
@@ -461,7 +574,7 @@ class MainActivity: ComponentActivity()
 				// BACK from the gamepad (Create button) goes to the console as the PS button;
 				// BACK from the remote opens the Sleep/Disconnect dialog
 				if(session.state.value is StreamStateConnected)
-					streamInput?.let { if(it.dispatchKeyEvent(event)) return true }
+					StreamManager.input?.let { if(it.dispatchKeyEvent(event)) return true }
 				if(event.action == KeyEvent.ACTION_UP)
 				{
 					if(session.state.value is StreamStateConnected)
@@ -472,7 +585,7 @@ class MainActivity: ComponentActivity()
 				return true
 			}
 			// L3+R3 always toggles the HUD, even while it is open (and never reaches the console)
-			if(streamInput?.onHudComboKeyEvent(event) == true)
+			if(StreamManager.input?.onHudComboKeyEvent(event) == true)
 				return true
 			// While the HUD is open, only D-pad + cross navigate it — everything else goes to the game
 			if(session.hudVisible.value)
@@ -481,10 +594,10 @@ class MainActivity: ComponentActivity()
 					event.keyCode == KeyEvent.KEYCODE_DPAD_UP || event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN ||
 					event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
 					return super.dispatchKeyEvent(event)
-				streamInput?.let { if(it.dispatchKeyEvent(event)) return true }
+				StreamManager.input?.let { if(it.dispatchKeyEvent(event)) return true }
 			}
 			else
-				streamInput?.let { if(it.dispatchKeyEvent(event)) return true }
+				StreamManager.input?.let { if(it.dispatchKeyEvent(event)) return true }
 		}
 		return super.dispatchKeyEvent(event)
 	}
@@ -500,7 +613,7 @@ class MainActivity: ComponentActivity()
 			if(session.hudVisible.value &&
 				event.source and (InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_JOYSTICK) != 0)
 			{
-				streamInput?.onGenericMotionEvent(event)
+				StreamManager.input?.onGenericMotionEvent(event)
 				return true
 			}
 		}
@@ -511,7 +624,7 @@ class MainActivity: ComponentActivity()
 	{
 		if(screenStack.lastOrNull() is ScreenStream)
 		{
-			streamInput?.let { if(it.onGenericMotionEvent(event)) return true }
+			StreamManager.input?.let { if(it.onGenericMotionEvent(event)) return true }
 		}
 		return super.onGenericMotionEvent(event)
 	}
