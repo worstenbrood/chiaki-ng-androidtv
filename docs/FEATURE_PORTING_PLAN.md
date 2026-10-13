@@ -97,8 +97,8 @@ hold ≥8 repeats → ×5 step, OK toggles Auto; clamped 2000–50000)
 ### 2.2 Stream menu (slide-over quick settings during stream) — **PORT (high priority)**
 - **What**: Qt slide-up menu: volume slider, mic mute, zoom/stretch, video preset, display settings
   (`StreamView.qml:448-752`, `StreamMenuWindow.qml`).
-- **Status**: we only have the HUD (stats + disconnect). Volume is fixed at stream start
-  (`setVolumePercent()` exists in `StreamSession.kt` but is uncalled).
+- **Status**: HUD now carries volume + output-device controls (see 2.8/6.1/6.3). Remaining vs Qt:
+  mic mute, zoom/stretch, video preset picker, display settings in-stream.
 - **How**:
   1. Reuse HUD scaffold in `StreamScreen.kt`; add a second panel "Quick Settings" (same D-pad focus rules — remember MainActivity skips `streamInput` while overlay visible).
   2. Rows: Volume stepper → `session.setVolumePercent()` (wire the dead function); Output device (cycle, `session.setAudioDevice` live — verify Oboe device switch at runtime in `native/jni/audio-output.cpp`, else apply-on-reconnect); Audio buffer (apply-on-reconnect); toggle D-pad-as-controller; toggle motion.
@@ -135,22 +135,29 @@ start without ever connecting; allowance resets on connect and manual Reconnect)
 ### 2.7 "Can't display" notice — **SKIP/MAYBE**
 - Qt surfaces `cantDisplay` (HDR unsupported). Our HDR codec path is minimal; revisit if HDR issues appear.
 
+### 2.8 Interactive HUD chips — **DONE** (all items focusable via D-pad/hat/stick, single shared
+`hudFocusIdx` grey highlight, horizontal scroll + edge arrows, opens focused on first item)
+- HUD is no longer read-only: every item is a focusable chip; Audio chip = OK cycles output device
+  live, D-pad up/down adjusts volume ±5%; ✕ chip opens the Sleep/Disconnect dialog.
+- DualSense D-pad arrives as `HAT_X`/`HAT_Y` motion axes (not DPAD key events) — `MainActivity`
+  synthesizes DPAD key events from hat + left stick while the HUD is open, and swallows all other
+  gamepad buttons (L3/R3/circle/options…) so only cross activates.
+
 ---
 
 ## 3. Console management & automation
 
-### 3.1 Auto-connect on startup — **PORT (high priority)**
+### 3.1 Auto-connect on startup — **DONE** (`auto_connect_enabled` + `auto_connect_mac` prefs;
+Settings → General: "Auto-connect on Startup" toggle + "Auto-connect Console" cycle row;
+`MainActivity.maybeAutoConnect`: waits ≤5 s for the console in discovery, READY → connect,
+STANDBY → wake-on-connect (3.2) with "Auto-connecting to…" banner; skipped when a deep-link
+auto-connect (8.4) is active; cancel = BACK/Cancel button/re-click, once per launch)
 - **What**: pick a console (`autoConnectMac`); on launch, when discovery reports it READY (wake it if standby, wait ≤25 s), connect automatically (`qmlbackend.cpp:2351-2360, 847, 1530-1552`; `AutoConnectView.qml` "Waiting for console…" + cancel).
-- **How**:
-  1. Preferences: `auto_connect_mac: String?` + `auto_connect_enabled: Boolean`.
-  2. `MainViewModel`: after first discovery batch (or timeout ~3 s), if target found → standby? send wakeup + poll up to 25 s → navigate to stream. Show a "Waiting for console… [Cancel]" card (reuse HomeScreen empty state).
-  3. Cancel = clear for this launch only.
-- **Effort**: M. No native work (wakeup already exposed).
 
-### 3.2 Wake-on-connect for standby hosts — **PORT**
+### 3.2 Wake-on-connect for standby hosts — **DONE** (`MainActivity.wakeupAndConnect`: sends wakeup,
+polls discovery for READY ≤25 s ("Waking…" banner + Cancel, BACK cancels, re-click toggles off),
+then auto-starts the stream; only starts if still on HomeScreen)
 - **What**: Qt wakes a standby console then connects (`qmlbackend.cpp:1530-1552`). We wake but don't auto-connect after wake completes.
-- **How**: in `HomeScreen`/`MainViewModel` click handler: after `sendWakeup`, poll discovery for READY up to 25 s then start stream (same machinery as 3.1 — build 3.1's helper first).
-- **Effort**: S (with 3.1).
 
 ### 3.3 Hide discovered console — **PORT**
 - **What**: hide unregistered discovered consoles from list; unhide in settings (`settings.h:710-714`, `MainView.qml:232-233`, `SettingsDialog.qml:2096-2169`).
@@ -253,8 +260,8 @@ fields, so the badge works there. Console-side limitation, nothing more to do.
 
 ## 6. Audio
 
-### 6.1 Live volume control — **PORT**
-- Covered by 2.2 stream menu (wire `setVolumePercent`).
+### 6.1 Live volume control — **DONE** (HUD Audio chip: D-pad up/down ±5%, `setVolumePercent` live,
+persisted to Preferences)
 
 ### 6.2 Microphone streaming (mic to console) — **MAYBE (big)**
 - **What**: opus-encoded mic uplink, mute toggle, DualSense mic LED sync (`streamsession.cpp:824-868, 1396-1719`; `startMicUnmuted`, `audioInDevice`, speex AEC `settings.h:483-491`).
@@ -300,10 +307,21 @@ HUD Audio item is focusable — OK cycles output devices live, persisted to Pref
 ### 8.3 Steam shortcut, CLI mode, window geometry, macOS mic permission, WebEngine login — **SKIP**
 - Desktop-only.
 
-### 8.4 Startup "direct stream" intent — **PORT (small)**
+### 8.4 Startup "direct stream" intent — **PARTIAL** (deep-link half DONE: `MainActivity.EXTRA_AUTO_CONNECT_MAC`
+starts a stream of that MAC on launch — used by the TV home channel programs, see 8.5;
+`ShortcutManager` dynamic shortcuts still pending)
 - **What**: Qt `--profile`/direct-stream launch used by Steam shortcuts (`main.cpp:325-330`). Android analog: launcher shortcut per console (long-press app icon → `ShortcutManager` dynamic shortcuts, or Leanback launcher support) that deep-links straight into a stream of a given MAC.
-- **How**: `MainActivity` intent extra `auto_connect_mac`; dynamic shortcuts built from `RegisteredHost` DAO.
-- **Effort**: S-M. Nice TV ergonomics.
+- **How**: dynamic shortcuts built from `RegisteredHost` DAO (the intent-extra plumbing already exists).
+- **Effort**: S. Nice TV ergonomics.
+
+### 8.5 TV home channel (preview channel) — **DONE** (`common/TvChannel.kt`, androidx.tvprovider)
+- "Chiaki TV" preview channel on the Google TV home row: one program per registered console,
+  poster art + preview video per console type (PS5 twin-fin / PS4 slab silhouettes, `res/raw/tv_preview_ps5.mp4`
+  / `tv_preview_ps4.mp4` served via FileProvider — Google TV only renders programs that carry a
+  preview video), selecting a program deep-links straight into the stream (8.4 extra).
+- Re-syncs on every app launch against the `RegisteredHost` DAO. Gotchas: programs must be deleted
+  by ID (`delete()` with a WHERE selection throws `SecurityException`), `Channel.Builder` has no
+  `setInternalIntent`/`setBannerUri` in tvprovider 1.1.0, `setPosterArtAspectRatio` takes an Int.
 
 ---
 
@@ -333,18 +351,20 @@ HUD Audio item is focusable — OK cycles output devices live, persisted to Pref
 
 ## Suggested phasing
 
+**Done since planning** (2026-10): 1.2, 2.1, 2.5, 2.8, 3.1, 3.2, 3.4, 6.1, 6.3, 8.4 (deep-link half), 8.5.
+Build tooling: `build.ps1` mounts `.docker-cache/gradle` (cold build ~25 min → ~9 min incremental).
+
 **Phase 1 — polish what exists (no native changes, ~small PRs each)**
 1. Console PIN storage + auto-entry (2.6)
-2. Auto-connect + wake-on-connect (3.1 + 3.2)
-3. Stream menu: live volume, display mode zoom/stretch (2.2 + 7.2 + 6.1)
-4. Per-PS4/PS5 video profiles + finer bitrate (1.1 + 1.2)
-5. Quit-action pref, auto-retry, Go Home, rumble intensity, button-haptics wiring, import UX (2.3-2.5, 5.1, 5.2, 3.6, 9.2, 9.4)
+2. Stream menu: display mode zoom/stretch, video presets (2.2 + 7.2)
+3. Per-PS4/PS5 video profiles (1.1)
+4. Quit-action pref, Go Home, rumble intensity, button-haptics wiring, import UX (2.3, 2.4, 5.1, 5.2, 3.6, 9.2, 9.4)
 
 **Phase 2 — JNI additions (touch `native/jni`, update UPSTREAM_SYNC divergence list)**
-6. Richer stats + weak-WiFi warning (2.1 + 1.5)
+6. Weak-WiFi warning (1.5)
 7. packet_loss_max + IDR-on-FEC (1.3 + 1.4)
-8. Motion reset event (5.8); audio device hot-switch check (6.3)
-9. Hidden hosts, launcher deep-link shortcuts (3.3, 8.4)
+8. Motion reset event (5.8)
+9. Hidden hosts, launcher dynamic shortcuts (3.3, 8.4)
 
 **Phase 3 — flagship (spike first)**
 10. PSN spike: verify OAuth + holepunch still work from this codebase (4.1)

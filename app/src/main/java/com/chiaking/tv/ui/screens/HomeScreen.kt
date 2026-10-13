@@ -45,6 +45,9 @@ object ToggleDiscovery: HomeAction()
 fun HomeScreen(
 	hosts: List<DisplayHost>,
 	discoveryActive: Boolean,
+	wakingHost: DisplayHost?,
+	wakeBannerText: String?,
+	onCancelWakeup: () -> Unit,
 	onAction: (HomeAction) -> Unit
 )
 {
@@ -83,6 +86,24 @@ fun HomeScreen(
 
 		Spacer(Modifier.height(24.dp))
 
+		if(wakingHost != null)
+		{
+			Row(
+				verticalAlignment = Alignment.CenterVertically,
+				horizontalArrangement = Arrangement.spacedBy(12.dp),
+				modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+			) {
+				CircularProgressIndicator(color = PsBlueLight, modifier = Modifier.size(24.dp))
+				Text(
+					wakeBannerText ?: "Waiting for ${wakingHost.name ?: "console"}…",
+					color = OnSurfaceMuted,
+					fontSize = 16.sp
+				)
+				Spacer(Modifier.weight(1f))
+				TvButton(text = "Cancel", onClick = onCancelWakeup)
+			}
+		}
+
 		Box(
 			modifier = Modifier
 				.fillMaxWidth()
@@ -119,6 +140,7 @@ fun HomeScreen(
 					hosts.forEachIndexed { index, host ->
 						ConsoleCard(
 							host = host,
+							waking = wakingHost?.host == host.host,
 							focusRequester = if(index == focusTarget.coerceAtMost(hosts.lastIndex)) cardFocus else null,
 							onFocus = { focused -> if(focused) lastFocused = index },
 							onAction = onAction
@@ -135,6 +157,7 @@ fun HomeScreen(
 @Composable
 private fun ConsoleCard(
 	host: DisplayHost,
+	waking: Boolean = false,
 	focusRequester: FocusRequester?,
 	onFocus: (Boolean) -> Unit,
 	onAction: (HomeAction) -> Unit
@@ -149,12 +172,14 @@ private fun ConsoleCard(
 			?: it.runningAppTitleid?.takeIf { t -> t.isNotBlank() }
 	}
 	val stateColor = when {
+		waking -> PsBlueLight
 		ready -> SuccessGreen
 		standby -> WarningAmber
 		host.isRegistered -> PsBlueLight
 		else -> OnSurfaceMuted
 	}
 	val stateText = when {
+		waking -> "Waking…"
 		ready -> "Ready"
 		standby -> "Rest Mode"
 		host.isRegistered -> "Registered"

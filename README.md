@@ -15,18 +15,23 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
   selecting an unregistered discovered console opens registration with its IP and
   console type (PS5/PS4) prefilled
 - **Remote Play** — H.264 / H.265 / H.265 HDR, up to 1080p60, auto or manual bitrate (2000–50000 kbps)
-- **Wake-on-LAN** — rest-mode console wakeup from the home screen
+- **Wake-on-connect** — selecting a rest-mode console wakes it and auto-connects once it comes online
+- **Auto-connect on startup** — pick a console in Settings; the app wakes and connects to it automatically on launch
+- **Google TV home channel** — registered consoles appear as programs on a "Chiaki TV" preview
+  channel on the home row (with per-console PS5/PS4 artwork); selecting one wakes and connects
 - **Gamepad support** — full controller mapping incl. sticks, triggers, motion controls and rumble
 - **TV remote support** — D-pad and menu button act as controller input while streaming (toggleable)
 - **Manual hosts** — add consoles by IP when discovery is not enough
 - **Audio controls** — stream volume (applies live), output-device selection
   (HDMI, Bluetooth, USB, ...) with automatic fallback to the system default, and
   audio buffer size (Auto or 10–100 ms in 10 ms steps, like the Qt app)
-- **In-stream HUD** — press **L3 + R3** while streaming to slide up a stats bar
-  with live FPS, measured bitrate, packet loss %, ping, lost frames and the current
-  video/audio config; **L3 + R3 is also how you disconnect**: the bar ends with a **✕**
-  button (auto-focused, select with D-pad + A/Enter) that opens the Sleep/Disconnect
-  dialog; Back closes the HUD
+- **In-stream HUD** — press **L3 + R3** while streaming to toggle an interactive bar with live
+  FPS, measured bitrate, packet loss %, ping, lost frames and the current video/audio config.
+  Navigate the chips with the **D-pad** (gamepad D-pad *and* left stick are both understood):
+  the **Audio** chip cycles the output device with **cross** and adjusts volume with **D-pad
+  up/down**; the bar ends with a **✕** chip that opens the Sleep/Disconnect dialog. While the
+  HUD is open only D-pad + cross are captured — every other button/stick still goes to the game.
+  Back closes the HUD
 - **Clean disconnect** — Back (TV remote) or the HUD ✕ shows a "Disconnecting" spinner
   and returns to the main screen once the session has fully shut down
 - **Settings** — resolution, FPS, codec, bitrate, audio, controller options, verbose logging, session log viewer
@@ -47,11 +52,12 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
 2. Enable Remote Play on the console (PS5: *Settings → System → Remote Play*; PS4: *Settings → Remote Play Connection Settings*).
 3. Open Chiaki TV — discovered consoles appear as cards. Select one and enter the 8-digit
    pairing PIN shown on screen (or use *Register Console*).
-4. Select the registered console to start streaming. Rest-mode consoles offer a wakeup option.
-5. While streaming, press **L3 + R3** on the controller to open the in-stream HUD
-   (live FPS, bitrate, packet loss, ping, lost frames, video/audio config). The **✕** at
-   the end of the bar is auto-focused — press A/Enter to disconnect (or put the console
-   to sleep).
+4. Select the registered console to start streaming. A rest-mode console is woken automatically
+   and the stream starts as soon as it comes online (Cancel with Back).
+5. Optional: *Settings → General → Auto-connect on Startup* + pick a console — launching the app
+   (or selecting its program on the "Chiaki TV" Google TV channel) then wakes and connects by itself.
+6. While streaming, press **L3 + R3** on the controller to open the in-stream HUD
+   (stats, live audio device/volume, and the **✕** disconnect chip).
 
 > **Note (Shield TV):** the system intercepts the controller's **PS button** as HOME, so it
 > cannot be forwarded to the console. The **Create/Share** button (which Android remaps to
@@ -71,11 +77,11 @@ git -C external/chiaki-ng submodule update --init third-party/nanopb third-party
 # one-time: build the Linux build image
 docker build --platform linux/amd64 -f docker/Dockerfile.build -t chiaki-tv-build-amd64 docker/
 
-# build the APK (~30 min cold, faster incrementally)
-docker run --rm --platform linux/amd64 -v "${PWD}:/src" -w /src chiaki-tv-build-amd64 sh gradlew assembleDebug
+# build the APK (~9 min incremental, ~25 min cold — build.ps1 persists the Gradle cache in .docker-cache/)
+.\build.ps1
 
 # build the release APK (signed with the repo keystore, optimized native libs)
-docker run --rm --platform linux/amd64 -v "${PWD}:/src" -w /src chiaki-tv-build-amd64 sh gradlew assembleRelease
+.\build.ps1 assembleRelease
 ```
 
 Output: `app/build/outputs/apk/debug/app-debug.apk` or `app/build/outputs/apk/release/app-release.apk`.

@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chiaking.tv.common.AudioDevices
 import com.chiaking.tv.common.Preferences
+import com.chiaking.tv.common.RegisteredHost
 import com.chiaking.tv.ui.*
 import com.chiaking.tv.ui.theme.*
 
@@ -23,6 +24,7 @@ import com.chiaking.tv.ui.theme.*
 fun SettingsScreen(
 	preferences: Preferences,
 	registeredHostCount: Int,
+	registeredHosts: List<RegisteredHost>,
 	onBack: () -> Unit,
 	onShowLogs: () -> Unit,
 	onManageHosts: () -> Unit,
@@ -43,6 +45,11 @@ fun SettingsScreen(
 	var logVerbose by remember { mutableStateOf(preferences.logVerbose) }
 	var volume by remember { mutableStateOf(preferences.audioVolume) }
 	var bufferMs by remember { mutableStateOf(preferences.audioBufferMs) }
+	var autoConnect by remember { mutableStateOf(preferences.autoConnectEnabled) }
+	var autoConnectIndex by remember { mutableStateOf(
+		(registeredHosts.indexOfFirst { it.serverMac.toString() == preferences.autoConnectMac } + 1).coerceAtLeast(0)) }
+
+	val autoConnectOptions = remember(registeredHosts) { listOf<RegisteredHost?>(null) + registeredHosts }
 
 	val ctx = androidx.compose.ui.platform.LocalContext.current
 	val audioDevices = remember { AudioDevices.outputDevices(ctx) }
@@ -150,6 +157,18 @@ fun SettingsScreen(
 		SettingsCard {
 			TvSwitchRow("Console Discovery", "Automatically find consoles on the local network", discovery)
 			{ discovery = it; preferences.discoveryEnabled = it }
+			TvSwitchRow("Auto-connect on Startup", "Wake and connect to a console automatically when the app starts", autoConnect)
+			{ autoConnect = it; preferences.autoConnectEnabled = it }
+			TvCycleRow(
+				title = "Auto-connect Console",
+				value = autoConnectOptions.getOrNull(autoConnectIndex)?.let {
+					it.serverNickname?.takeIf { n -> n.isNotBlank() } ?: (if(it.target.isPS5) "PlayStation 5" else "PlayStation 4")
+				} ?: "None",
+				onNext = {
+					autoConnectIndex = (autoConnectIndex + 1) % (autoConnectOptions.size.coerceAtLeast(1))
+					preferences.autoConnectMac = autoConnectOptions.getOrNull(autoConnectIndex)?.serverMac?.toString() ?: ""
+				}
+			)
 			TvSwitchRow("Verbose Logs", "Write detailed session logs for debugging", logVerbose)
 			{ logVerbose = it; preferences.logVerbose = it }
 			TvActionRow("Session Logs", "View recorded session logs", onShowLogs)

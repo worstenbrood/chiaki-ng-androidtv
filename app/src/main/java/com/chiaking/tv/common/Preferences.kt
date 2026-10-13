@@ -58,6 +58,8 @@ class Preferences(context: Context)
 		const val audioDeviceNameKey = "audio_device_name"
 		const val tvChannelIdKey = "tv_channel_id"
 		const val audioBufferMsKey = "audio_buffer_ms"
+		const val autoConnectEnabledKey = "auto_connect_enabled"
+		const val autoConnectMacKey = "auto_connect_mac"
 
 		val resolutionDefault = Resolution.RES_1080P
 		val fpsDefault = FPS.FPS_60
@@ -119,6 +121,14 @@ class Preferences(context: Context)
 	var audioBufferMs
 		get() = sharedPreferences.getInt(audioBufferMsKey, 0)
 		set(value) { sharedPreferences.edit().putInt(audioBufferMsKey, value.coerceIn(0, 100)).apply() }
+
+	var autoConnectEnabled
+		get() = sharedPreferences.getBoolean(autoConnectEnabledKey, false)
+		set(value) { sharedPreferences.edit().putBoolean(autoConnectEnabledKey, value).apply() }
+
+	var autoConnectMac
+		get() = sharedPreferences.getString(autoConnectMacKey, "") ?: ""
+		set(value) { sharedPreferences.edit().putString(autoConnectMacKey, value).apply() }
 
 	var resolution
 		get() = sharedPreferences.getString(resolutionDefaultKey, resolutionDefault.value)?.let { value ->

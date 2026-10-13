@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -258,7 +259,7 @@ fun StreamScreen(
 								else
 									false
 							}
-							.clickable { session.requestDisconnectDialog() }
+							.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { session.requestDisconnectDialog() }
 							.padding(horizontal = 10.dp, vertical = 14.dp)
 					) {
 						Icon(
@@ -424,7 +425,7 @@ private fun HudItem(
 						else -> false
 					}
 			}
-			.clickable { onClick?.invoke() }
+			.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onClick?.invoke() }
 			.padding(horizontal = 10.dp, vertical = 4.dp)
 	) {
 		Text(

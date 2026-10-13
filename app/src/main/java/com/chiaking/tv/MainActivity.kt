@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.lifecycleScope
 import com.chiaking.tv.common.*
+import com.chiaking.tv.discovery.serverMac
 import com.metallic.chiaki.lib.ConnectInfo
 import com.metallic.chiaki.lib.DiscoveryHost
 import com.metallic.chiaki.lib.RegistInfo
@@ -35,7 +36,6 @@ import com.chiaking.tv.ui.screens.*
 import com.chiaking.tv.ui.theme.ChiakiTvTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okio.buffer
@@ -55,15 +55,8 @@ class MainActivity: ComponentActivity()
 	companion object
 	{
 		const val EXTRA_AUTO_CONNECT_MAC = "com.chiaking.tv.AUTO_CONNECT_MAC"
-
-		private val HUD_SWALLOWED_KEYS = setOf(
-			KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y, KeyEvent.KEYCODE_BUTTON_B,
-			KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1,
-			KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_R2,
-			KeyEvent.KEYCODE_BUTTON_SELECT, KeyEvent.KEYCODE_BUTTON_START,
-			KeyEvent.KEYCODE_BUTTON_MODE,
-			KeyEvent.KEYCODE_BUTTON_THUMBL, KeyEvent.KEYCODE_BUTTON_THUMBR
-		)
+		const val WAKE_TIMEOUT_MS = 25000L
+		const val AUTO_CONNECT_DISCOVER_GRACE_MS = 5000L
 	}
 
 	private lateinit var preferences: Preferences
@@ -72,6 +65,12 @@ class MainActivity: ComponentActivity()
 	private var streamInput: StreamInput? = null
 	private var currentStreamSession: StreamSession? = null
 	private var currentStreamDisplayHost: DisplayHost? = null
+	private var wakingHost by mutableStateOf<DisplayHost?>(null)
+	private var wakeBannerText by mutableStateOf<String?>(null)
+	private var wakeJob: kotlinx.coroutines.Job? = null
+	private var autoConnectTriggered = false
+	private var deepLinkConnect = false
+	private var pendingDeepLinkMac by mutableStateOf<MacAddress?>(null)
 
 	private val screenStack = mutableStateListOf<Screen>()
 	private var showManualHostDialog by mutableStateOf(false)
@@ -142,29 +141,38 @@ class MainActivity: ComponentActivity()
 		val macStr = intent?.getStringExtra(EXTRA_AUTO_CONNECT_MAC) ?: return
 		intent.removeExtra(EXTRA_AUTO_CONNECT_MAC)
 		val mac = try { MacAddress(macStr) } catch(e: IllegalArgumentException) { return }
+		deepLinkConnect = true
+		pendingDeepLinkMac = mac
+	}
+
+	private fun deepLinkConnect(viewModel: MainViewModel, mac: MacAddress)
+	{
+		pendingDeepLinkMac = null
 		lifecycleScope.launch {
-			val hosts = withContext(Dispatchers.IO) { database.registeredHostDao().getAll().first() }
-			val reg = hosts.firstOrNull { it.serverMac == mac } ?: return@launch
-			if(screenStack.lastOrNull() is ScreenStream)
-				return@launch
-			var discovered: DiscoveryHost? = null
+			val reg = withContext(Dispatchers.IO) { database.registeredHostDao().getByMac(mac) }
+				?: return@launch
+			var found: DiscoveryHost? = null
 			val deadline = android.os.SystemClock.elapsedRealtime() + 15000L
-			while(discovered == null && android.os.SystemClock.elapsedRealtime() < deadline)
+			while(found == null && android.os.SystemClock.elapsedRealtime() < deadline)
 			{
-				discovered = LastSeenHosts.hosts.value[mac]?.takeIf { !it.hostAddr.isNullOrEmpty() }
-				if(discovered == null)
+				found = viewModel.discoveryManager.discoveredHosts.value.firstOrNull { it.serverMac == mac }
+					?: LastSeenHosts.hosts.value[mac]?.takeIf { !it.hostAddr.isNullOrEmpty() }
+				if(found == null)
 					kotlinx.coroutines.delay(500)
 			}
-			discovered ?: return@launch
-			if(screenStack.lastOrNull() is ScreenStream)
+			if(found == null || screenStack.lastOrNull() !is ScreenHome)
 				return@launch
-			startStream(DiscoveredDisplayHost(reg, discovered))
+			if(found.state == DiscoveryHost.State.READY)
+				startStream(DiscoveredDisplayHost(reg, found))
+			else if(found.state == DiscoveryHost.State.STANDBY)
+				wakeupAndConnect(viewModel, DiscoveredDisplayHost(reg, found), "Connecting to")
 		}
 	}
 
 	@Composable
 	private fun Navigation()
 	{
+		BackHandler(enabled = wakingHost != null) { cancelWakeup() }
 		BackHandler(enabled = screenStack.size > 1 || showManualHostDialog)
 		{
 			if(showManualHostDialog)
@@ -179,16 +187,15 @@ class MainActivity: ComponentActivity()
 				val hosts by viewModel.displayHosts.collectAsState()
 				val discoveryActive by viewModel.discoveryActive.collectAsState()
 				LaunchedEffect(Unit) { viewModel.discoveryManager.resume() }
+				LaunchedEffect(pendingDeepLinkMac) { pendingDeepLinkMac?.let { deepLinkConnect(viewModel, it) } }
+				LaunchedEffect(Unit) { maybeAutoConnect(viewModel) }
 				DisposableEffect(Unit) { onDispose { viewModel.discoveryManager.pause() } }
 				Box {
-					HomeScreen(hosts, discoveryActive) { action ->
+					HomeScreen(hosts, discoveryActive, wakingHost, wakeBannerText, { cancelWakeup() }) { action ->
 						when(action)
 						{
 							is ConnectHost -> startStream(action.host)
-							is WakeupHost -> {
-								val reg = action.host.registeredHost ?: return@HomeScreen
-								viewModel.discoveryManager.sendWakeup(action.host.host, reg.rpRegistKey, reg.target.isPS5)
-							}
+							is WakeupHost -> wakeupAndConnect(viewModel, action.host)
 							is EditManualHost -> {
 								editingManualHost = action.manualHost
 								showManualHostDialog = true
@@ -221,10 +228,14 @@ class MainActivity: ComponentActivity()
 			}
 
 			ScreenSettings -> {
-				val registeredCount by viewModel(database, preferences).registeredHostCount.collectAsState()
+				val registeredHosts = remember { mutableStateOf<List<RegisteredHost>>(emptyList()) }
+				LaunchedEffect(Unit) {
+					database.registeredHostDao().getAll().collect { registeredHosts.value = it }
+				}
 				SettingsScreen(
 					preferences = preferences,
-					registeredHostCount = registeredCount,
+					registeredHostCount = registeredHosts.value.size,
+					registeredHosts = registeredHosts.value,
 					onBack = { screenStack.removeAt(screenStack.size - 1) },
 					onShowLogs = { screenStack.add(ScreenLogs) },
 					onManageHosts = { screenStack.add(ScreenManageHosts) },
@@ -279,8 +290,80 @@ class MainActivity: ComponentActivity()
 	private fun viewModel(db: AppDatabase, prefs: Preferences) =
 		androidx.lifecycle.viewmodel.compose.viewModel { MainViewModel(db, prefs) }
 
+	private fun wakeupAndConnect(viewModel: MainViewModel, host: DisplayHost, message: String = "Waking")
+	{
+		val reg = host.registeredHost ?: return
+		if(wakingHost?.host == host.host)
+		{
+			cancelWakeup()
+			return
+		}
+		cancelWakeup()
+		viewModel.discoveryManager.sendWakeup(host.host, reg.rpRegistKey, reg.target.isPS5)
+		val mac = (host as? DiscoveredDisplayHost)?.discoveredHost?.serverMac ?: return
+		wakingHost = host
+		wakeBannerText = "$message ${host.name ?: "console"}… waiting for it to come online"
+		wakeJob = lifecycleScope.launch {
+			val deadline = android.os.SystemClock.elapsedRealtime() + WAKE_TIMEOUT_MS
+			var ready: DiscoveryHost? = null
+			while(ready == null && android.os.SystemClock.elapsedRealtime() < deadline)
+			{
+				ready = viewModel.discoveryManager.discoveredHosts.value.firstOrNull {
+					it.serverMac == mac && it.state == DiscoveryHost.State.READY
+				}
+				if(ready == null)
+					kotlinx.coroutines.delay(500)
+			}
+			wakingHost = null
+			wakeBannerText = null
+			wakeJob = null
+			if(ready != null && screenStack.lastOrNull() is ScreenHome)
+				startStream(DiscoveredDisplayHost(reg, ready))
+		}
+	}
+
+	private fun cancelWakeup()
+	{
+		wakeJob?.cancel()
+		wakeJob = null
+		wakingHost = null
+		wakeBannerText = null
+	}
+
+	private fun maybeAutoConnect(viewModel: MainViewModel)
+	{
+		if(autoConnectTriggered || deepLinkConnect)
+			return
+		if(!preferences.autoConnectEnabled)
+			return
+		autoConnectTriggered = true
+		val macStr = preferences.autoConnectMac
+		if(macStr.isEmpty())
+			return
+		val mac = try { MacAddress(macStr) } catch(e: IllegalArgumentException) { return }
+		lifecycleScope.launch {
+			val reg = withContext(Dispatchers.IO) { database.registeredHostDao().getByMac(mac) }
+				?: return@launch
+			var found: DiscoveryHost? = null
+			val deadline = android.os.SystemClock.elapsedRealtime() + AUTO_CONNECT_DISCOVER_GRACE_MS
+			while(found == null && android.os.SystemClock.elapsedRealtime() < deadline)
+			{
+				found = viewModel.discoveryManager.discoveredHosts.value.firstOrNull { it.serverMac == mac }
+				if(found == null)
+					kotlinx.coroutines.delay(500)
+			}
+			if(found == null || screenStack.lastOrNull() !is ScreenHome)
+				return@launch
+			if(found.state == DiscoveryHost.State.READY)
+				startStream(DiscoveredDisplayHost(reg, found))
+			else if(found.state == DiscoveryHost.State.STANDBY)
+				wakeupAndConnect(viewModel, DiscoveredDisplayHost(reg, found), "Auto-connecting to")
+		}
+	}
+
 	private fun startStream(host: DisplayHost)
 	{
+		cancelWakeup()
 		val registeredHost = host.registeredHost ?: return
 		val connectInfo = ConnectInfo(
 			host.isPS5,
@@ -391,11 +474,14 @@ class MainActivity: ComponentActivity()
 			// L3+R3 always toggles the HUD, even while it is open (and never reaches the console)
 			if(streamInput?.onHudComboKeyEvent(event) == true)
 				return true
-			// While the HUD is open, only cross/DPad navigate it — swallow other gamepad buttons
+			// While the HUD is open, only D-pad + cross navigate it — everything else goes to the game
 			if(session.hudVisible.value)
 			{
-				if(event.keyCode in HUD_SWALLOWED_KEYS)
-					return true
+				if(event.keyCode == KeyEvent.KEYCODE_BUTTON_A ||
+					event.keyCode == KeyEvent.KEYCODE_DPAD_UP || event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN ||
+					event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
+					return super.dispatchKeyEvent(event)
+				streamInput?.let { if(it.dispatchKeyEvent(event)) return true }
 			}
 			else
 				streamInput?.let { if(it.dispatchKeyEvent(event)) return true }
@@ -405,8 +491,19 @@ class MainActivity: ComponentActivity()
 
 	override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean
 	{
-		if(screenStack.lastOrNull() is ScreenStream && hudStickNavigate(event))
-			return true
+		if(screenStack.lastOrNull() is ScreenStream)
+		{
+			if(hudStickNavigate(event))
+				return true
+			// While the HUD is open, gamepad sticks go straight to the game (Compose would eat them)
+			val session = (screenStack.last() as ScreenStream).session
+			if(session.hudVisible.value &&
+				event.source and (InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_JOYSTICK) != 0)
+			{
+				streamInput?.onGenericMotionEvent(event)
+				return true
+			}
+		}
 		return super.dispatchGenericMotionEvent(event)
 	}
 
@@ -431,8 +528,8 @@ class MainActivity: ComponentActivity()
 			hudStickDir = 0
 			return false
 		}
-		val x = event.getAxisValue(MotionEvent.AXIS_X) + event.getAxisValue(MotionEvent.AXIS_HAT_X)
-		val y = event.getAxisValue(MotionEvent.AXIS_Y) + event.getAxisValue(MotionEvent.AXIS_HAT_Y)
+		val x = event.getAxisValue(MotionEvent.AXIS_HAT_X)
+		val y = event.getAxisValue(MotionEvent.AXIS_HAT_Y)
 		val dir = when
 		{
 			y < -0.5f -> KeyEvent.KEYCODE_DPAD_UP
@@ -449,7 +546,7 @@ class MainActivity: ComponentActivity()
 		if(dir == hudStickDir)
 			return true
 		hudStickDir = dir
-		android.util.Log.i("HudNav", "stick/hat dir=$dir x=$x y=$y src=${event.source}")
+		android.util.Log.i("HudNav", "hat dir=$dir x=$x y=$y src=${event.source}")
 		dispatchKeyEvent(KeyEvent(event.eventTime, event.eventTime, KeyEvent.ACTION_DOWN, dir, 0))
 		dispatchKeyEvent(KeyEvent(event.eventTime, event.eventTime, KeyEvent.ACTION_UP, dir, 0))
 		return true

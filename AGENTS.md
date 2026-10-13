@@ -21,7 +21,7 @@ external/chiaki-ng        git submodule = upstream C core + JNI (do not edit cas
 native/                   Our CMake entry point + copy of the JNI layer (audio volume/device/buffer + video stats additions)
 docker/Dockerfile.build   Linux build image (SDK 35, NDK 28.2, protoc, perl, python)
 docs/UPSTREAM_SYNC.md     How to integrate new upstream chiaki-ng commits — READ before syncing
-```
+docs/FEATURE_PORTING_PLAN.md  Qt→TV feature port roadmap (status per feature)
 
 ## Build
 
@@ -94,8 +94,22 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   SOURCE_GAMEPAD). Remote-sourced BACK still opens the Sleep/Disconnect dialog. The DualSense
   **touchpad click** arrives as `KEYCODE_BUTTON_SELECT` and is sent as a real touchpad click
   (`BUTTON_TOUCHPAD` + center touch), not Create/Share.
-- While the stream HUD is visible, `MainActivity.dispatchKeyEvent` skips `streamInput` so D-pad/A
-  navigate the HUD (✕ disconnect item auto-focuses) instead of the game.
+- While the stream HUD is visible, only D-pad + cross are captured for HUD navigation
+  (`MainActivity.dispatchKeyEvent`); every other button/stick event is routed to the game
+  (gamepad sticks are forwarded in `dispatchGenericMotionEvent` because Compose's `horizontalScroll`
+  would otherwise eat them). The DualSense **D-pad is HAT_X/HAT_Y motion axes**, not DPAD key
+  events — `hudStickNavigate` synthesizes DPAD key events from the hat while the HUD is open.
+  HUD chips share one `hudFocusIdx` state for the grey focus highlight and use `clickable`
+  with `indication = null` (a ripple would linger after cross-press; plain `focusable()` never
+  receives focus in this layout).
+- Wake-on-connect (`MainActivity.wakeupAndConnect`) sends the wakeup packet, polls discovery for
+  READY ≤25 s, then auto-starts the stream; used by the home-screen card, startup auto-connect
+  (`auto_connect_enabled`/`auto_connect_mac` prefs) and the TV-channel deep link
+  (`EXTRA_AUTO_CONNECT_MAC`, handled via `pendingDeepLinkMac` so it runs with the ViewModel).
+- TV home channel (`common/TvChannel.kt`, androidx.tvprovider): programs need a `previewVideoUri`
+  (FileProvider URI to `res/raw/tv_preview_*.mp4`) or Google TV renders nothing; delete programs
+  by row ID (`ContentUris.withAppendedId`) — `delete()` with a WHERE selection throws
+  `SecurityException: Selection not allowed`.
 
 ## Verify changes
 
