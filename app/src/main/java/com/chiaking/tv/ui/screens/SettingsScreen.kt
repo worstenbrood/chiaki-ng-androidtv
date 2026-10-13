@@ -46,6 +46,7 @@ fun SettingsScreen(
 	var volume by remember { mutableStateOf(preferences.audioVolume) }
 	var bufferMs by remember { mutableStateOf(preferences.audioBufferMs) }
 	var autoConnect by remember { mutableStateOf(preferences.autoConnectEnabled) }
+	var menuShortcut by remember { mutableStateOf(preferences.menuShortcut) }
 	var autoConnectIndex by remember { mutableStateOf(
 		(registeredHosts.indexOfFirst { it.serverMac.toString() == preferences.autoConnectMac } + 1).coerceAtLeast(0)) }
 
@@ -151,6 +152,15 @@ fun SettingsScreen(
 			{ motion = it; preferences.motionEnabled = it }
 			TvSwitchRow("Button Haptics", "Haptic feedback on button presses", haptics)
 			{ haptics = it; preferences.buttonHapticEnabled = it }
+			TvCycleRow(
+				title = "HUD Shortcut",
+				value = menuShortcut.title,
+				onNext = {
+					val values = Preferences.MenuShortcut.values()
+					menuShortcut = values[(menuShortcut.ordinal + 1) % values.size]
+					preferences.menuShortcut = menuShortcut
+				}
+			)
 		}
 
 		SectionHeader("General")

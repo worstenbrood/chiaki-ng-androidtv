@@ -243,8 +243,8 @@ fun StreamScreen(
 						onSelect = { if(it) hudFocusIdx = 4 }
 					)
 					HudDivider()
-					Box(
-						contentAlignment = Alignment.Center,
+					Column(
+						horizontalAlignment = Alignment.CenterHorizontally,
 						modifier = Modifier
 							.widthIn(min = 140.dp)
 							.clip(RoundedCornerShape(10.dp))
@@ -260,14 +260,27 @@ fun StreamScreen(
 									false
 							}
 							.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { session.requestDisconnectDialog() }
-							.padding(horizontal = 10.dp, vertical = 14.dp)
+							.padding(horizontal = 10.dp, vertical = 4.dp)
 					) {
-						Icon(
-							Icons.Default.Close,
-							contentDescription = "Disconnect",
-							tint = if(hudFocusIdx == 5) Color.White else OnSurfaceMuted,
-							modifier = Modifier.size(22.dp)
+						Text(
+							"CLOSE",
+							fontSize = 11.sp,
+							color = PsBlueLight,
+							letterSpacing = 2.sp,
+							fontWeight = FontWeight.SemiBold
 						)
+						Spacer(Modifier.height(2.dp))
+						Box(
+							contentAlignment = Alignment.Center,
+							modifier = Modifier.height(40.dp)
+						) {
+							Icon(
+								Icons.Default.Close,
+								contentDescription = "Disconnect",
+								tint = if(hudFocusIdx == 5) Color.White else OnSurfaceMuted,
+								modifier = Modifier.size(22.dp)
+							)
+						}
 					}
 				}
 				if(hudScroll.value > 0)

@@ -25,7 +25,8 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
 - **Audio controls** — stream volume (applies live), output-device selection
   (HDMI, Bluetooth, USB, ...) with automatic fallback to the system default, and
   audio buffer size (Auto or 10–100 ms in 10 ms steps, like the Qt app)
-- **In-stream HUD** — press **L3 + R3** while streaming to toggle an interactive bar with live
+- **In-stream HUD** — press **L3 + R3** (configurable: Select + Start or L1+R1+L2+R2 via
+  *Settings → Controller → HUD Shortcut*) while streaming to toggle an interactive bar with live
   FPS, measured bitrate, packet loss %, ping, lost frames and the current video/audio config.
   Navigate the chips with the **D-pad** (gamepad D-pad *and* left stick are both understood):
   the **Audio** chip cycles the output device with **cross** and adjusts volume with **D-pad

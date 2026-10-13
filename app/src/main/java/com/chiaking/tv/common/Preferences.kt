@@ -37,6 +37,13 @@ class Preferences(context: Context)
 		CODEC_H265_HDR("h265_hdr", "H.265 HDR", com.metallic.chiaki.lib.Codec.CODEC_H265_HDR)
 	}
 
+	enum class MenuShortcut(val value: String, val title: String)
+	{
+		L3_R3("l3_r3", "L3 + R3"),
+		SELECT_START("select_start", "Select + Start"),
+		SHOULDERS("shoulders", "L1 + R1 + L2 + R2")
+	}
+
 	companion object
 	{
 		const val PREFS_NAME = "chiaki_tv_preferences"
@@ -60,6 +67,7 @@ class Preferences(context: Context)
 		const val audioBufferMsKey = "audio_buffer_ms"
 		const val autoConnectEnabledKey = "auto_connect_enabled"
 		const val autoConnectMacKey = "auto_connect_mac"
+		const val menuShortcutKey = "menu_shortcut"
 
 		val resolutionDefault = Resolution.RES_1080P
 		val fpsDefault = FPS.FPS_60
@@ -129,6 +137,10 @@ class Preferences(context: Context)
 	var autoConnectMac
 		get() = sharedPreferences.getString(autoConnectMacKey, "") ?: ""
 		set(value) { sharedPreferences.edit().putString(autoConnectMacKey, value).apply() }
+
+	var menuShortcut
+		get() = MenuShortcut.values().firstOrNull { it.value == sharedPreferences.getString(menuShortcutKey, MenuShortcut.L3_R3.value) } ?: MenuShortcut.L3_R3
+		set(value) { sharedPreferences.edit().putString(menuShortcutKey, value.value).apply() }
 
 	var resolution
 		get() = sharedPreferences.getString(resolutionDefaultKey, resolutionDefault.value)?.let { value ->

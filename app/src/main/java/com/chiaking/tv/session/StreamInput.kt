@@ -16,9 +16,33 @@ class StreamInput(val context: Context, val preferences: Preferences)
 	var controllerStateChangedCallback: ((ControllerState) -> Unit)? = null
 	var hudToggleCallback: (() -> Unit)? = null
 
-	private var l3Pressed = false
-	private var r3Pressed = false
+	private var pressedComboKeys = mutableSetOf<Int>()
 	private var hudComboFired = false
+
+	@Volatile private var orientRef: FloatArray? = null
+	private var isRotated90 = false
+
+	private val comboKeys: Set<Int> get() = when(preferences.menuShortcut)
+	{
+		Preferences.MenuShortcut.L3_R3 -> setOf(KeyEvent.KEYCODE_BUTTON_THUMBL, KeyEvent.KEYCODE_BUTTON_THUMBR)
+		Preferences.MenuShortcut.SELECT_START -> setOf(KeyEvent.KEYCODE_BUTTON_SELECT, KeyEvent.KEYCODE_BUTTON_START)
+		Preferences.MenuShortcut.SHOULDERS -> setOf(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1,
+			KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_R2)
+	}
+
+	fun resetMotionControls()
+	{
+		var x = sensorControllerState.orientX
+		var y = sensorControllerState.orientY
+		var z = sensorControllerState.orientZ
+		val w = sensorControllerState.orientW
+		if(isRotated90)
+		{
+			x *= -1.0f
+			z *= -1.0f
+		}
+		orientRef = if(w != 0f) floatArrayOf(x, y, z, w) else floatArrayOf(0f, 0f, 0f, 1f)
+	}
 
 	val controllerState: ControllerState get()
 	{
@@ -26,17 +50,31 @@ class StreamInput(val context: Context, val preferences: Preferences)
 
 		val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 		@Suppress("DEPRECATION")
-		when(windowManager.defaultDisplay.rotation)
+		isRotated90 = windowManager.defaultDisplay.rotation == Surface.ROTATION_90
+		if(isRotated90)
 		{
-			Surface.ROTATION_90 -> {
-				controllerState.accelX *= -1.0f
-				controllerState.accelZ *= -1.0f
-				controllerState.gyroX *= -1.0f
-				controllerState.gyroZ *= -1.0f
-				controllerState.orientX *= -1.0f
-				controllerState.orientZ *= -1.0f
-			}
-			else -> {}
+			controllerState.accelX *= -1.0f
+			controllerState.accelZ *= -1.0f
+			controllerState.gyroX *= -1.0f
+			controllerState.gyroZ *= -1.0f
+			controllerState.orientX *= -1.0f
+			controllerState.orientZ *= -1.0f
+		}
+
+		// re-centered orientation: q_rel = conj(ref) * cur (identity when no reset requested)
+		orientRef?.let { ref ->
+			val cx = controllerState.orientX
+			val cy = controllerState.orientY
+			val cz = controllerState.orientZ
+			val cw = controllerState.orientW
+			val ax = -ref[0]
+			val ay = -ref[1]
+			val az = -ref[2]
+			val aw = ref[3]
+			controllerState.orientX = aw * cx + ax * cw + ay * cz - az * cy
+			controllerState.orientY = aw * cy - ax * cz + ay * cw + az * cx
+			controllerState.orientZ = aw * cz + ax * cy - ay * cx + az * cw
+			controllerState.orientW = aw * cw - ax * cx - ay * cy - az * cz
 		}
 
 		// prioritize motion controller's l2 and r2 over key
@@ -136,17 +174,16 @@ class StreamInput(val context: Context, val preferences: Preferences)
 
 	fun onHudComboKeyEvent(event: KeyEvent): Boolean
 	{
-		if(event.keyCode != KeyEvent.KEYCODE_BUTTON_THUMBL && event.keyCode != KeyEvent.KEYCODE_BUTTON_THUMBR)
+		val combo = comboKeys
+		if(event.keyCode !in combo)
 			return false
 		if(event.action == KeyEvent.ACTION_DOWN)
 		{
-			if(event.keyCode == KeyEvent.KEYCODE_BUTTON_THUMBL) l3Pressed = true
-			else r3Pressed = true
-			if(l3Pressed && r3Pressed && !hudComboFired)
+			pressedComboKeys.add(event.keyCode)
+			if(pressedComboKeys.containsAll(combo) && !hudComboFired)
 			{
 				hudComboFired = true
-				keyControllerState.buttons = keyControllerState.buttons and
-					(ControllerState.BUTTON_L3 or ControllerState.BUTTON_R3).inv()
+				clearComboButtons(combo)
 				controllerStateUpdated()
 				hudToggleCallback?.invoke()
 				return true
@@ -154,12 +191,34 @@ class StreamInput(val context: Context, val preferences: Preferences)
 		}
 		else
 		{
-			if(event.keyCode == KeyEvent.KEYCODE_BUTTON_THUMBL) l3Pressed = false
-			else r3Pressed = false
-			if(!l3Pressed || !r3Pressed)
+			pressedComboKeys.remove(event.keyCode)
+			if(!pressedComboKeys.containsAll(combo))
 				hudComboFired = false
 		}
 		return false
+	}
+
+	private fun clearComboButtons(combo: Set<Int>)
+	{
+		var mask = 0U
+		for(key in combo)
+			mask = mask or when(key)
+			{
+				KeyEvent.KEYCODE_BUTTON_THUMBL -> ControllerState.BUTTON_L3
+				KeyEvent.KEYCODE_BUTTON_THUMBR -> ControllerState.BUTTON_R3
+				KeyEvent.KEYCODE_BUTTON_SELECT -> ControllerState.BUTTON_TOUCHPAD
+				KeyEvent.KEYCODE_BUTTON_START -> ControllerState.BUTTON_OPTIONS
+				KeyEvent.KEYCODE_BUTTON_L1 -> ControllerState.BUTTON_L1
+				KeyEvent.KEYCODE_BUTTON_R1 -> ControllerState.BUTTON_R1
+				else -> 0U
+			}
+		keyControllerState.buttons = keyControllerState.buttons and mask.inv()
+		if(KeyEvent.KEYCODE_BUTTON_L2 in combo)
+			keyControllerState.l2State = 0U
+		if(KeyEvent.KEYCODE_BUTTON_R2 in combo)
+			keyControllerState.r2State = 0U
+		if(KeyEvent.KEYCODE_BUTTON_SELECT in combo)
+			keyControllerState.touches[0] = ControllerTouch(id = -1)
 	}
 
 	fun dispatchKeyEvent(event: KeyEvent): Boolean

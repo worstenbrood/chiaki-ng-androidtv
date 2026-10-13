@@ -233,10 +233,10 @@ fields, so the badge works there. Console-side limitation, nothing more to do.
 - `buttonHapticEnabled` stored but unused. Either implement (click feedback on UI focus changes via `View.performHapticFeedback`) or remove the row. Implement — cheap polish.
 - **Effort**: S.
 
-### 5.3 Stream-menu gamepad shortcut config — **PORT (small)**
-- **What**: configurable button combo to open stream menu (`settings.h:460-473`).
-- **How**: Preferences `menu_shortcut` cycle: L3+R3 / Select+Start / L1+R1+L2+R2; implement combo detection in `StreamInput` (it already detects L3+R3).
-- **Effort**: S.
+### 5.3 Stream-menu gamepad shortcut config — **DONE** (`menu_shortcut` pref + Settings "HUD
+Shortcut" cycle row: L3+R3 / Select+Start / L1+R1+L2+R2; generic combo detection in
+`StreamInput.onHudComboKeyEvent` — fires when all combo keys are held, clears their controller
+buttons/touches/trigger states so the game never sees them)
 
 ### 5.4 D-pad → touchpad emulation — **MAYBE**
 - **What**: D-pad moves a virtual touch point on PS touchpad, with increment + shortcut combos (`streamsession.cpp:1049-1139`, `settings.h:442-458`). For games using touchpad as buttons.
@@ -252,9 +252,11 @@ fields, so the badge works there. Console-side limitation, nothing more to do.
 ### 5.7 Multiple simultaneous controllers — **MAYBE**
 - Qt supports N controllers (`controllermanager.cpp:201-351`). Our `StreamInput` assumes one active device. Local co-op over Remote Play isn't supported by Sony's protocol anyway (single controller per session) — verify before investing; likely **SKIP**.
 
-### 5.8 Motion-control reset event — **PORT (small)**
-- Console can request motion reset (`CHIAKI_EVENT_MOTION_RESET`, `streamsession.cpp:2413-2438`). Check if our JNI forwards it; if not, add event and re-center `StreamInput` sensors.
-- **Effort**: S.
+### 5.8 Motion-control reset event — **DONE** (`native/jni/chiaki-jni.c` forwards
+`CHIAKI_EVENT_MOTION_RESET` → `MotionResetEvent` (Chiaki.kt) → `StreamSession` →
+`StreamInput.resetMotionControls()`: captures the current (rotation-adjusted) orientation
+quaternion as reference; subsequent states send `conj(ref) * cur` so the current pose becomes
+neutral — mirrors Qt's `resetMotionControls`)
 
 ---
 
@@ -351,7 +353,8 @@ starts a stream of that MAC on launch — used by the TV home channel programs, 
 
 ## Suggested phasing
 
-**Done since planning** (2026-10): 1.2, 2.1, 2.5, 2.8, 3.1, 3.2, 3.4, 6.1, 6.3, 8.4 (deep-link half), 8.5.
+**Done since planning** (2026-10): 1.2, 2.1, 2.5, 2.8, 3.1, 3.2, 3.4, 5.3, 5.8, 6.1, 6.3,
+8.4 (deep-link half), 8.5.
 Build tooling: `build.ps1` mounts `.docker-cache/gradle` (cold build ~25 min → ~9 min incremental).
 
 **Phase 1 — polish what exists (no native changes, ~small PRs each)**
@@ -361,10 +364,9 @@ Build tooling: `build.ps1` mounts `.docker-cache/gradle` (cold build ~25 min →
 4. Quit-action pref, Go Home, rumble intensity, button-haptics wiring, import UX (2.3, 2.4, 5.1, 5.2, 3.6, 9.2, 9.4)
 
 **Phase 2 — JNI additions (touch `native/jni`, update UPSTREAM_SYNC divergence list)**
-6. Weak-WiFi warning (1.5)
-7. packet_loss_max + IDR-on-FEC (1.3 + 1.4)
-8. Motion reset event (5.8)
-9. Hidden hosts, launcher dynamic shortcuts (3.3, 8.4)
+5. Weak-WiFi warning (1.5)
+6. packet_loss_max + IDR-on-FEC (1.3 + 1.4)
+7. Hidden hosts, launcher dynamic shortcuts (3.3, 8.4)
 
 **Phase 3 — flagship (spike first)**
 10. PSN spike: verify OAuth + holepunch still work from this codebase (4.1)

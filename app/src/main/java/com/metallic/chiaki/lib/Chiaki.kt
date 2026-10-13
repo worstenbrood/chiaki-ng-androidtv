@@ -321,7 +321,8 @@ sealed class Event
 object ConnectedEvent: Event()
 data class LoginPinRequestEvent(val pinIncorrect: Boolean): Event()
 data class QuitEvent(val reason: QuitReason, val reasonString: String?): Event()
-data class RumbleEvent(val left: UByte, val right: UByte): Event()
+	data class RumbleEvent(val left: UByte, val right: UByte): Event()
+	object MotionResetEvent: Event()
 
 class CreateError(val errorCode: ErrorCode): Exception("Failed to create a native object: $errorCode")
 
@@ -380,6 +381,11 @@ class Session(connectInfo: ConnectInfo, logFile: String?, logVerbose: Boolean)
 	private fun eventRumble(left: Int, right: Int)
 	{
 		event(RumbleEvent(left.toUByte(), right.toUByte()))
+	}
+
+	private fun eventMotionReset()
+	{
+		event(MotionResetEvent)
 	}
 
 	fun setSurface(surface: Surface?)

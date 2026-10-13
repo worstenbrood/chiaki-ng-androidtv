@@ -55,10 +55,10 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   `native/jni/` (copied from `external/chiaki-ng/android/app/src/main/cpp`) with local
   additions: audio **volume** (software gain in the Oboe callback), **output device**
   selection with default-device fallback, audio **buffer size** (ms → Oboe buffer capacity),
-  video **stats counters** (frames/bytes/lost for the HUD) and the matching JNI functions
-  (`sessionSetVolume`, `sessionSetAudioDevice`, `sessionSetAudioBuffer`, `sessionGetStats`
-  in `chiaki-jni.c` + `audio-output.cpp` / `video-decoder.c`). When bumping upstream,
-  diff and re-apply our changes to those files.
+  video **stats counters** (frames/bytes/lost for the HUD), `CHIAKI_EVENT_MOTION_RESET`
+  forwarding and the matching JNI functions (`sessionSetVolume`, `sessionSetAudioDevice`,
+  `sessionSetAudioBuffer`, `sessionGetStats` in `chiaki-jni.c` + `audio-output.cpp` /
+  `video-decoder.c`). When bumping upstream, diff and re-apply our changes to those files.
 - **CMake entry point** is `native/CMakeLists.txt` (a trimmed copy of upstream's root
   CMakeLists: third-party + lib + our `native/jni`). It must keep `CHIAKI_ENABLE_ANDROID=ON`
   semantics and the `CHIAKI_LIB_*_EXTERNAL_PROJECT` includes.
@@ -101,7 +101,9 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   events — `hudStickNavigate` synthesizes DPAD key events from the hat while the HUD is open.
   HUD chips share one `hudFocusIdx` state for the grey focus highlight and use `clickable`
   with `indication = null` (a ripple would linger after cross-press; plain `focusable()` never
-  receives focus in this layout).
+  receives focus in this layout). The open/close combo is configurable (`menu_shortcut` pref:
+  L3+R3 / Select+Start / L1+R1+L2+R2) via `StreamInput.onHudComboKeyEvent`, which clears the
+  combo's controller buttons/triggers/touch so the game never sees them.
 - Wake-on-connect (`MainActivity.wakeupAndConnect`) sends the wakeup packet, polls discovery for
   READY ≤25 s, then auto-starts the stream; used by the home-screen card, startup auto-connect
   (`auto_connect_enabled`/`auto_connect_mac` prefs) and the TV-channel deep link

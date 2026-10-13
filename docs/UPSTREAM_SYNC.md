@@ -54,7 +54,8 @@ The JNI layer is **not** compiled from the submodule. `native/jni/` is a copy of
   (ms → Oboe buffer capacity + buffer size at open)
 - `video-decoder.{h,c}`: frames/bytes/lost counters + `android_chiaki_video_decoder_get_stats`
 - `chiaki-jni.c`: `sessionSetVolume`, `sessionSetAudioDevice`, `sessionSetAudioBuffer`,
-  `sessionGetStats` JNI functions
+  `sessionGetStats` JNI functions + forwarding of `CHIAKI_EVENT_MOTION_RESET`
+  (`eventMotionReset` → re-centers `StreamInput` motion sensors)
 
 When bumping upstream, diff the two directories and re-apply our additions:
 

@@ -172,6 +172,7 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 				event.pinIncorrect
 			)
 			is RumbleEvent -> _rumbleState.value = event
+			is MotionResetEvent -> input.resetMotionControls()
 		}
 	}
 
