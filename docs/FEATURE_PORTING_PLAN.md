@@ -283,10 +283,12 @@ HUD Audio item is focusable — OK cycles output devices live, persisted to Pref
 ### 7.1 libplacebo/Vulkan renderer, presets (FSR, deband, tone-mapping), ~60 tuning knobs, HDR display targets — **SKIP**
 - Entire placebo pipeline (`qmlmainwindow.cpp` render half, `PlaceboSettingsDialog.qml`, `PlaceboColorMappingDialog.qml`) is desktop Vulkan. Android uses MediaCodec + SurfaceView. HDR passthrough on Android TV is a separate (MediaFormat-level) project, not a Qt port.
 
-### 7.2 Zoom / stretch / black-bar modes — **PORT**
+### 7.2 Zoom / stretch / black-bar modes — **DONE** (`display_mode` pref + Settings "Display Mode"
+row + HUD "Display" chip (index 2, OK cycles Fit/Zoom/Stretch live). Implemented by sizing the
+SurfaceView: Fit = video aspect inside screen (letterbox), Zoom = aspect covering screen
+(center-crop, `clipToBounds`), Stretch = full screen. `SurfaceView.setResizeMode` is @hide —
+the video buffer always fills the view bounds, so view sizing alone does it, like VideoView)
 - **What**: `windowType` Fullscreen/Zoom/Stretch/SelectedResolution (`settings.h:367`, `qmlbackend.cpp:1554-1574`); live zoom + zoom-factor slider in stream menu.
-- **How**: Compose `SurfaceView` scale mode: Fit (current) / Fill (crop, matrix scale) / Stretch (distort matrix). Settings key `display_mode` — note the dead `displayModeKey` constant in `Preferences.kt` was reserved for exactly this; implement it. Live toggle in stream menu (2.2).
-- **Effort**: S-M.
 
 ### 7.3 4K / 120 fps profiles — **MAYBE (verify upstream)**
 - Qt tops at 1080p60 too (360p-1080p enums). Check `lib` `ChiakiConnectVideoProfile` limits + console support before promising 4K. Likely upstream limitation → **SKIP** unless upstream adds it.
@@ -354,7 +356,7 @@ starts a stream of that MAC on launch — used by the TV home channel programs, 
 ## Suggested phasing
 
 **Done since planning** (2026-10): 1.2, 2.1, 2.5, 2.8, 3.1, 3.2, 3.4, 5.3, 5.8, 6.1, 6.3,
-8.4 (deep-link half), 8.5.
+7.2, 8.4 (deep-link half), 8.5.
 Build tooling: `build.ps1` mounts `.docker-cache/gradle` (cold build ~25 min → ~9 min incremental).
 
 **Phase 1 — polish what exists (no native changes, ~small PRs each)**

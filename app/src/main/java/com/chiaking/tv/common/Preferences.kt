@@ -44,6 +44,13 @@ class Preferences(context: Context)
 		SHOULDERS("shoulders", "L1 + R1 + L2 + R2")
 	}
 
+	enum class DisplayMode(val value: String, val title: String)
+	{
+		FIT("fit", "Fit"),
+		ZOOM("zoom", "Zoom"),
+		STRETCH("stretch", "Stretch")
+	}
+
 	companion object
 	{
 		const val PREFS_NAME = "chiaki_tv_preferences"
@@ -141,6 +148,10 @@ class Preferences(context: Context)
 	var menuShortcut
 		get() = MenuShortcut.values().firstOrNull { it.value == sharedPreferences.getString(menuShortcutKey, MenuShortcut.L3_R3.value) } ?: MenuShortcut.L3_R3
 		set(value) { sharedPreferences.edit().putString(menuShortcutKey, value.value).apply() }
+
+	var displayMode
+		get() = DisplayMode.values().firstOrNull { it.value == sharedPreferences.getString(displayModeKey, DisplayMode.FIT.value) } ?: DisplayMode.FIT
+		set(value) { sharedPreferences.edit().putString(displayModeKey, value.value).apply() }
 
 	var resolution
 		get() = sharedPreferences.getString(resolutionDefaultKey, resolutionDefault.value)?.let { value ->

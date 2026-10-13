@@ -47,6 +47,7 @@ fun SettingsScreen(
 	var bufferMs by remember { mutableStateOf(preferences.audioBufferMs) }
 	var autoConnect by remember { mutableStateOf(preferences.autoConnectEnabled) }
 	var menuShortcut by remember { mutableStateOf(preferences.menuShortcut) }
+	var displayMode by remember { mutableStateOf(preferences.displayMode) }
 	var autoConnectIndex by remember { mutableStateOf(
 		(registeredHosts.indexOfFirst { it.serverMac.toString() == preferences.autoConnectMac } + 1).coerceAtLeast(0)) }
 
@@ -101,6 +102,15 @@ fun SettingsScreen(
 				onReset = {
 					bitrate = if(bitrate == null) preferences.bitrateAuto else null
 					preferences.bitrate = bitrate
+				}
+			)
+			TvCycleRow(
+				title = "Display Mode",
+				value = displayMode.title,
+				onNext = {
+					val values = Preferences.DisplayMode.values()
+					displayMode = values[(displayMode.ordinal + 1) % values.size]
+					preferences.displayMode = displayMode
 				}
 			)
 		}

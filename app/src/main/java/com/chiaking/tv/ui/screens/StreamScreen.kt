@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalContext
 import com.metallic.chiaki.lib.Codec
 import com.metallic.chiaki.lib.ConnectInfo
@@ -142,15 +143,36 @@ fun StreamScreen(
 		}
 	}
 
+	var displayMode by remember { mutableStateOf(preferences.displayMode) }
+
 	Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-		AndroidView(
-			factory = { context ->
-				SurfaceView(context).also {
-					session.attachToSurfaceView(it)
-				}
-			},
-			modifier = Modifier.fillMaxSize()
-		)
+		BoxWithConstraints(modifier = Modifier.fillMaxSize().clipToBounds()) {
+			val vprofile = session.connectInfo.videoProfile
+			val vAspect = if(vprofile.height > 0) vprofile.width.toFloat() / vprofile.height else 16f / 9f
+			val sAspect = maxWidth / maxHeight
+			// The video buffer always stretches to fill the SurfaceView bounds, so the
+			// display mode is implemented purely by sizing the view (like VideoView does).
+			val (vw, vh) = when(displayMode)
+			{
+				Preferences.DisplayMode.FIT ->
+					if(vAspect > sAspect) maxWidth to (maxWidth / vAspect)
+					else (maxHeight * vAspect) to maxHeight
+				Preferences.DisplayMode.ZOOM ->
+					if(vAspect > sAspect) (maxHeight * vAspect) to maxHeight
+					else maxWidth to (maxWidth / vAspect)
+				Preferences.DisplayMode.STRETCH -> maxWidth to maxHeight
+			}
+			AndroidView(
+				factory = { context ->
+					SurfaceView(context).also {
+						session.attachToSurfaceView(it)
+					}
+				},
+				modifier = Modifier
+					.size(vw, vh)
+					.align(Alignment.Center)
+			)
+		}
 
 		when(state)
 		{
@@ -208,19 +230,32 @@ fun StreamScreen(
 					)
 					HudDivider()
 					HudItem(
+						label = "Display",
+						value = displayMode.title,
+						sub = "OK to cycle",
+						onClick = {
+							val values = Preferences.DisplayMode.values()
+							displayMode = values[(displayMode.ordinal + 1) % values.size]
+							preferences.displayMode = displayMode
+						},
+						selected = hudFocusIdx == 2,
+						onSelect = { if(it) hudFocusIdx = 2 }
+					)
+					HudDivider()
+					HudItem(
 						label = "Stream",
 						value = hudStats?.let { String.format("%.0f fps", it.fps) } ?: "—",
 						sub = hudStats?.let { String.format("%.1f Mbps", it.kbps / 1000.0) } ?: "",
-						selected = hudFocusIdx == 2,
-						onSelect = { if(it) hudFocusIdx = 2 }
+						selected = hudFocusIdx == 3,
+						onSelect = { if(it) hudFocusIdx = 3 }
 					)
 					HudDivider()
 					HudItem(
 						label = "Network",
 						value = hudStats?.let { String.format("%.1f%% loss", it.packetLossPct) } ?: "—",
 						sub = hudStats?.let { String.format("ping %d ms • %d lost", it.rttMs, it.framesLost) } ?: "",
-						selected = hudFocusIdx == 3,
-						onSelect = { if(it) hudFocusIdx = 3 }
+						selected = hudFocusIdx == 4,
+						onSelect = { if(it) hudFocusIdx = 4 }
 					)
 					HudDivider()
 					HudItem(
@@ -239,8 +274,8 @@ fun StreamScreen(
 							preferences.audioVolume = volume
 							session.setVolumePercent(volume)
 						},
-						selected = hudFocusIdx == 4,
-						onSelect = { if(it) hudFocusIdx = 4 }
+						selected = hudFocusIdx == 5,
+						onSelect = { if(it) hudFocusIdx = 5 }
 					)
 					HudDivider()
 					Column(
@@ -248,8 +283,8 @@ fun StreamScreen(
 						modifier = Modifier
 							.widthIn(min = 140.dp)
 							.clip(RoundedCornerShape(10.dp))
-							.background(if(hudFocusIdx == 5) Color.White.copy(alpha = 0.16f) else Color.Transparent)
-							.onFocusEvent { if(it.isFocused) hudFocusIdx = 5 }
+							.background(if(hudFocusIdx == 6) Color.White.copy(alpha = 0.16f) else Color.Transparent)
+							.onFocusEvent { if(it.isFocused) hudFocusIdx = 6 }
 							.onKeyEvent { ev ->
 								if(ev.key == Key.ButtonA && ev.type == KeyEventType.KeyUp)
 								{
@@ -277,7 +312,7 @@ fun StreamScreen(
 							Icon(
 								Icons.Default.Close,
 								contentDescription = "Disconnect",
-								tint = if(hudFocusIdx == 5) Color.White else OnSurfaceMuted,
+								tint = if(hudFocusIdx == 6) Color.White else OnSurfaceMuted,
 								modifier = Modifier.size(22.dp)
 							)
 						}
