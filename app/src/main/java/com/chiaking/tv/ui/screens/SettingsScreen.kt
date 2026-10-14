@@ -62,6 +62,8 @@ fun SettingsScreen(
 	val ctx = androidx.compose.ui.platform.LocalContext.current
 	var psnLoggedIn by remember { mutableStateOf(com.chiaking.tv.common.psn.PsnTokenStore.get(ctx).isLoggedIn) }
 	var showPsnLogin by remember { mutableStateOf(false) }
+	var showPinEdit by remember { mutableStateOf(false) }
+	var pinDraft by remember { mutableStateOf(preferences.loginPin) }
 	val audioDevices = remember { AudioDevices.outputDevices(ctx) }
 	var deviceIndex by remember { mutableStateOf(
 		(audioDevices.indexOfFirst { it.first == preferences.audioDeviceName }
@@ -262,6 +264,13 @@ fun SettingsScreen(
 				},
 				focusRequester = fr(18), onFocus = fb(18)
 			)
+			TvActionRow(
+				stringResource(R.string.login_pin),
+				if(preferences.loginPin.isEmpty()) stringResource(R.string.login_pin_not_set)
+					else stringResource(R.string.login_pin_summary_default),
+				{ pinDraft = preferences.loginPin; showPinEdit = true },
+				focusRequester = fr(19), onFocus = fb(19)
+			)
 			TvCycleRow(
 				title = stringResource(R.string.auto_connect_console),
 				value = autoConnectOptions.getOrNull(autoConnectIndex)?.let {
@@ -272,27 +281,27 @@ fun SettingsScreen(
 					autoConnectIndex = (autoConnectIndex + 1) % (autoConnectOptions.size.coerceAtLeast(1))
 					preferences.autoConnectMac = autoConnectOptions.getOrNull(autoConnectIndex)?.serverMac?.toString() ?: ""
 				},
-				focusRequester = fr(19), onFocus = fb(19)
+				focusRequester = fr(20), onFocus = fb(20)
 			)
 			TvSwitchRow(
 				stringResource(R.string.verbose_logs),
 				stringResource(R.string.verbose_logs_summary),
 				logVerbose,
 				{ logVerbose = it; preferences.logVerbose = it },
-				focusRequester = fr(20), onFocus = fb(20)
+				focusRequester = fr(21), onFocus = fb(21)
 			)
 			TvActionRow(
 				stringResource(R.string.session_logs),
 				stringResource(R.string.session_logs_summary),
 				onShowLogs,
-				focusRequester = fr(21), onFocus = fb(21)
+				focusRequester = fr(22), onFocus = fb(22)
 			)
 			TvActionRow(
 				stringResource(R.string.registered_consoles),
 				if(registeredHostCount == 0) stringResource(R.string.registered_consoles_none)
 					else stringResource(R.string.registered_consoles_count, registeredHostCount),
 				onManageHosts,
-				focusRequester = fr(22), onFocus = fb(22)
+				focusRequester = fr(23), onFocus = fb(23)
 			)
 		}
 
@@ -308,7 +317,7 @@ fun SettingsScreen(
 						com.chiaking.tv.common.psn.PsnTokenStore.get(ctx).logout()
 						psnLoggedIn = false
 					},
-					focusRequester = fr(23), onFocus = fb(23)
+					focusRequester = fr(24), onFocus = fb(24)
 				)
 			}
 			else
@@ -316,7 +325,7 @@ fun SettingsScreen(
 					stringResource(R.string.sign_in_psn),
 					stringResource(R.string.sign_in_psn_summary),
 					{ showPsnLogin = true },
-					focusRequester = fr(23), onFocus = fb(23)
+					focusRequester = fr(24), onFocus = fb(24)
 				)
 		}
 
@@ -326,13 +335,13 @@ fun SettingsScreen(
 				stringResource(R.string.export_settings),
 				stringResource(R.string.export_settings_summary),
 				onExportSettings,
-				focusRequester = fr(24), onFocus = fb(24)
+				focusRequester = fr(25), onFocus = fb(25)
 			)
 			TvActionRow(
 				stringResource(R.string.import_settings),
 				stringResource(R.string.import_settings_summary),
 				onImportSettings,
-				focusRequester = fr(25), onFocus = fb(25)
+				focusRequester = fr(26), onFocus = fb(26)
 			)
 		}
 
@@ -350,4 +359,29 @@ fun SettingsScreen(
 			onDismiss = { showPsnLogin = false },
 			onLoggedIn = { psnLoggedIn = true; showPsnLogin = false }
 		)
+
+	if(showPinEdit)
+	{
+		val save: () -> Unit = {
+			preferences.loginPin = pinDraft
+			showPinEdit = false
+		}
+		AlertDialog(
+			onDismissRequest = { showPinEdit = false },
+			title = { Text(stringResource(R.string.login_pin)) },
+			text = {
+				TvTextField(stringResource(R.string.login_pin), pinDraft,
+					imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+					keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { save() })) {
+					if(it.all { c -> c.isDigit() } && it.length <= 8) pinDraft = it
+				}
+			},
+			confirmButton = {
+				TextButton(onClick = { save() }) { Text(stringResource(R.string.save)) }
+			},
+			dismissButton = {
+				TextButton(onClick = { showPinEdit = false }) { Text(stringResource(R.string.cancel)) }
+			}
+		)
+	}
 }

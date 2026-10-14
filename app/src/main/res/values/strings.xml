@@ -38,6 +38,7 @@
 	<string name="not_registered">Not registered</string>
 	<string name="edit">Edit</string>
 	<string name="delete">Delete</string>
+	<string name="delete_console_confirm">Delete this console? You must re-register it on the console itself to stream again.</string>
 
 	<!-- Settings -->
 	<string name="stream">Stream</string>
@@ -75,6 +76,10 @@
 	<string name="auto_connect_startup_summary">Wake and connect to a console automatically when the app starts</string>
 	<string name="sleep_console_on_exit">Sleep Console on Exit</string>
 	<string name="on_close">On Close</string>
+	<string name="login_pin">Login PIN</string>
+	<string name="login_pin_not_set">Not set</string>
+	<string name="login_pin_set">Set</string>
+	<string name="login_pin_summary_default">Default PIN for consoles without their own</string>
 	<string name="auto_connect_console">Auto-connect Console</string>
 	<string name="verbose_logs">Verbose Logs</string>
 	<string name="verbose_logs_summary">Write detailed session logs for debugging</string>

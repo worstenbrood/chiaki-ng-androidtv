@@ -20,7 +20,8 @@ data class RegisteredHost(
 	@ColumnInfo(name = "server_nickname") val serverNickname: String?,
 	@ColumnInfo(name = "rp_regist_key", typeAffinity = BLOB) val rpRegistKey: ByteArray, // CHIAKI_SESSION_AUTH_SIZE
 	@ColumnInfo(name = "rp_key_type") val rpKeyType: Int,
-	@ColumnInfo(name = "rp_key", typeAffinity = BLOB) val rpKey: ByteArray // 0x10
+	@ColumnInfo(name = "rp_key", typeAffinity = BLOB) val rpKey: ByteArray, // 0x10
+	@ColumnInfo(name = "rp_pin") val rpPin: String? = null
 )
 {
 	constructor(registHost: RegistHost) : this(
@@ -54,6 +55,7 @@ data class RegisteredHost(
 		if(!rpRegistKey.contentEquals(other.rpRegistKey)) return false
 		if(rpKeyType != other.rpKeyType) return false
 		if(!rpKey.contentEquals(other.rpKey)) return false
+		if(rpPin != other.rpPin) return false
 
 		return true
 	}
@@ -71,6 +73,7 @@ data class RegisteredHost(
 		result = 31 * result + rpRegistKey.contentHashCode()
 		result = 31 * result + rpKeyType
 		result = 31 * result + rpKey.contentHashCode()
+		result = 31 * result + (rpPin?.hashCode() ?: 0)
 		return result
 	}
 }
@@ -95,4 +98,7 @@ interface RegisteredHostDao
 
 	@Insert
 	suspend fun insert(host: RegisteredHost): Long
+
+	@Query("UPDATE registered_host SET rp_pin = :pin WHERE id == :id")
+	suspend fun setPin(id: Long, pin: String?)
 }

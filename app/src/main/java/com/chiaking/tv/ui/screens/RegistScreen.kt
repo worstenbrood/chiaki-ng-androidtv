@@ -144,13 +144,23 @@ fun RegistScreen(
 }
 
 @Composable
-fun TvTextField(label: String, value: String, enabled: Boolean = true, onValueChange: (String) -> Unit)
+fun TvTextField(
+	label: String,
+	value: String,
+	enabled: Boolean = true,
+	imeAction: androidx.compose.ui.text.input.ImeAction = androidx.compose.ui.text.input.ImeAction.Default,
+	keyboardActions: androidx.compose.foundation.text.KeyboardActions = androidx.compose.foundation.text.KeyboardActions.Default,
+	onValueChange: (String) -> Unit
+)
 {
 	OutlinedTextField(
 		value = value,
 		onValueChange = onValueChange,
 		enabled = enabled,
 		label = { Text(label) },
+		keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = imeAction),
+		keyboardActions = keyboardActions,
+		singleLine = true,
 		colors = OutlinedTextFieldDefaults.colors(
 			focusedBorderColor = PsBlueLight,
 			focusedLabelColor = PsBlueLight

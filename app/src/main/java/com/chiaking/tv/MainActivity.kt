@@ -251,6 +251,13 @@ class MainActivity: ComponentActivity()
 					onSleep = {
 						StreamManager.markDisplayHostStandby()
 						disconnectStream()
+					},
+					onPinStored = { pin ->
+						val hostId = screen.session.loginPinHostId
+						if(hostId != null)
+							lifecycleScope.launch { database.registeredHostDao().setPin(hostId, pin) }
+						else
+							preferences.loginPin = pin
 					})
 				if(awayController.sleepPrompt)
 					androidx.compose.material3.AlertDialog(
@@ -278,7 +285,9 @@ class MainActivity: ComponentActivity()
 				LaunchedEffect(Unit) {
 					database.registeredHostDao().getAll().collect { hosts.value = it }
 				}
-				ManageHostsScreen(hosts.value, { viewModel.deleteRegisteredHost(it) }) {
+				ManageHostsScreen(hosts.value,
+					{ viewModel.deleteRegisteredHost(it) },
+					{ host, pin -> lifecycleScope.launch { database.registeredHostDao().setPin(host.id, pin) } }) {
 					screenStack.removeAt(screenStack.size - 1)
 				}
 			}

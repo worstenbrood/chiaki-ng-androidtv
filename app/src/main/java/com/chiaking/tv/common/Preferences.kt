@@ -93,6 +93,7 @@ class Preferences(context: Context)
 		const val autoConnectEnabledKey = "auto_connect_enabled"
 		const val autoConnectMacKey = "auto_connect_mac"
 		const val autoRegistDuidsKey = "auto_regist_duids"
+		const val remoteHostMacsKey = "remote_host_macs"
 		const val loginPinKey = "login_pin"
 		const val menuShortcutKey = "menu_shortcut"
 		const val sleepConsoleOnExitKey = "sleep_console_on_exit"
@@ -170,6 +171,11 @@ class Preferences(context: Context)
 	var autoRegistDuids: Set<String>
 		get() = sharedPreferences.getStringSet(autoRegistDuidsKey, emptySet()) ?: emptySet()
 		set(value) { sharedPreferences.edit().putStringSet(autoRegistDuidsKey, value).apply() }
+
+	/** Maps PSN device duid to console MAC as "duid|mac" so remote sessions can find their registered host. */
+	var remoteHostMacs: Set<String>
+		get() = sharedPreferences.getStringSet(remoteHostMacsKey, emptySet()) ?: emptySet()
+		set(value) { sharedPreferences.edit().putStringSet(remoteHostMacsKey, value).apply() }
 
 	var loginPin
 		get() = sharedPreferences.getString(loginPinKey, "") ?: ""

@@ -56,6 +56,10 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
 - **Clean disconnect** — closing the stream (HUD ✕ or remote Back, per the *On Close* setting)
    shows a "Disconnecting" spinner and returns to the main screen once the session has fully shut down
 - **Settings** — resolution, FPS, codec, bitrate, audio, controller options, verbose logging, session log viewer
+- **Login PIN auto-entry** — store the console's Remote Play login PIN per console
+  (*Registered consoles → console → Login PIN*) or as a global default
+  (*Settings → General → Login PIN*); it is submitted automatically when the console asks,
+  and the dialog only appears if no PIN is stored or the console rejected it
 - **Backup** — export/import registered + manual hosts as JSON (compatible with chiaki-ng's format);
   import asks to **Replace** or **Merge** with existing consoles and reports failures instead of
   silently ignoring them
@@ -72,7 +76,8 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
 
 ## Requirements
 
-- Android TV 7.0+ (API 24), arm64-v8a (e.g. Shield TV, most modern TV boxes)
+- Android TV 7.0+ (API 24), **arm64-v8a** and **armeabi-v7a** (Shield TV and other modern TV
+  boxes on arm64; older 32-bit ARM boxes like the Mi Box 3 on armeabi-v7a)
 - PS4 (system software 5.0+) or PS5 with Remote Play enabled
 - A PSN **Account ID** (base64, 8 bytes) for registration — obtain it with the
   `psn-account-id.go` or `psn-account-id.py` script from

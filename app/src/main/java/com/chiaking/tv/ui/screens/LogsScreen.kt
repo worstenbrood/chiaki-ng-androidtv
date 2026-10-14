@@ -95,9 +95,14 @@ fun LogsScreen(logManager: LogManager, onBack: () -> Unit)
 fun ManageHostsScreen(
 	registeredHosts: List<RegisteredHost>,
 	onDeleteRegistered: (RegisteredHost) -> Unit,
+	onSetPin: (RegisteredHost, String?) -> Unit,
 	onBack: () -> Unit
 )
 {
+	var detailHost by remember { mutableStateOf<RegisteredHost?>(null) }
+	var deleteHost by remember { mutableStateOf<RegisteredHost?>(null) }
+	var pinHost by remember { mutableStateOf<RegisteredHost?>(null) }
+	var pinDraft by remember { mutableStateOf("") }
 	val restore = remember { FocusMemory.get("hosts") }
 	val rowFocus = remember { FocusRequester() }
 	val backFocus = remember { FocusRequester() }
@@ -120,11 +125,86 @@ fun ManageHostsScreen(
 				TvActionRow(
 					host.serverNickname ?: host.serverMac.toString(),
 					"${host.serverMac} / ${stringResource(if(host.target.isPS5) R.string.ps5 else R.string.ps4)}",
-					onClick = { onDeleteRegistered(host) },
+					onClick = { detailHost = host },
 					focusRequester = if(index + 1 == restore) rowFocus else null,
 					onFocus = { if(it) FocusMemory.set("hosts", index + 1) }
 				)
 			}
 		}
+	}
+
+	if(detailHost != null)
+	{
+		val host = detailHost!!
+		androidx.compose.material3.AlertDialog(
+			onDismissRequest = { detailHost = null },
+			title = { Text(host.serverNickname ?: host.serverMac.toString()) },
+			text = {
+				Text("${host.serverMac} / ${stringResource(if(host.target.isPS5) R.string.ps5 else R.string.ps4)} / " +
+					"${stringResource(R.string.login_pin)}: " +
+					stringResource(if(host.rpPin.isNullOrEmpty()) R.string.login_pin_not_set else R.string.login_pin_set),
+					color = OnSurfaceMuted)
+			},
+			confirmButton = {
+				androidx.compose.material3.TextButton(onClick = {
+					pinDraft = host.rpPin ?: ""
+					pinHost = host
+					detailHost = null
+				}) { Text(stringResource(R.string.login_pin), color = PsBlueLight) }
+			},
+			dismissButton = {
+				androidx.compose.material3.TextButton(onClick = {
+					detailHost = null
+					deleteHost = host
+				}) { Text(stringResource(R.string.delete), color = androidx.compose.material3.MaterialTheme.colorScheme.error) }
+			}
+		)
+	}
+
+	if(deleteHost != null)
+	{
+		val host = deleteHost!!
+		androidx.compose.material3.AlertDialog(
+			onDismissRequest = { deleteHost = null },
+			title = { Text(host.serverNickname ?: host.serverMac.toString()) },
+			text = { Text(stringResource(R.string.delete_console_confirm), color = OnSurfaceMuted) },
+			confirmButton = {
+				androidx.compose.material3.TextButton(onClick = {
+					deleteHost = null
+					onDeleteRegistered(host)
+				}) { Text(stringResource(R.string.delete), color = androidx.compose.material3.MaterialTheme.colorScheme.error) }
+			},
+			dismissButton = {
+				androidx.compose.material3.TextButton(onClick = { deleteHost = null })
+				{ Text(stringResource(R.string.cancel), color = PsBlueLight) }
+			}
+		)
+	}
+
+	if(pinHost != null)
+	{
+		val host = pinHost!!
+		val save: () -> Unit = {
+			onSetPin(host, pinDraft.ifEmpty { null })
+			pinHost = null
+		}
+		androidx.compose.material3.AlertDialog(
+			onDismissRequest = { pinHost = null },
+			title = { Text(stringResource(R.string.login_pin)) },
+			text = {
+				TvTextField(stringResource(R.string.pin), pinDraft,
+					imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+					keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { save() })) {
+					if(it.all { c -> c.isDigit() } && it.length <= 8) pinDraft = it
+				}
+			},
+			confirmButton = {
+				androidx.compose.material3.TextButton(onClick = { save() }) { Text(stringResource(R.string.save), color = PsBlueLight) }
+			},
+			dismissButton = {
+				androidx.compose.material3.TextButton(onClick = { pinHost = null })
+				{ Text(stringResource(R.string.cancel), color = OnSurfaceMuted) }
+			}
+		)
 	}
 }

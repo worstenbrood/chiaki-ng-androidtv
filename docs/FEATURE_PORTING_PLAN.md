@@ -123,16 +123,11 @@ covers the console still holding the old session after a background→foreground
 - **How**: in `StreamSession` QuitEvent handling: if quit happened < 20 s after start and reason is error → auto `shutdown + resumeDelayed(2000)` once (add `retried` flag). Keep manual Reconnect button as fallback.
 - **Effort**: S.
 
-### 2.6 Console PIN storage + auto-entry — **PARTIAL** (`preferences.loginPin` stored and
-pre-filled into the dialog; auto-submit on `LoginPinRequestEvent` when a PIN is stored still
-pending — today the user must press Verbinden, which also means a wrong saved PIN just re-prompts)
-- **What**: store 4-digit Remote Play PIN per registered host; auto-submit when session requests login PIN
-  (`ConsolePinDialog.qml`, `qmlbackend.cpp:1183-1188, 1299-1306`, `host.cpp:43-46`).
-- **How**:
-  1. `RegisteredHost` Room entity: add `rpPin: String?` column (Room migration!), `RegistScreen`/`ManageHostsScreen` field to set/edit it.
-  2. `StreamSession`: on `LoginPinRequestEvent`, if stored PIN present call `session.setLoginPin` immediately; show dialog only on `pinIncorrect` or when unset.
-  3. Include in `SerializedSettings` export/import.
-- **Effort**: S-M (Room migration + regist flow touch).
+### 2.6 Console PIN storage + auto-entry — **DONE** (`preferences.loginPin` stored; Settings →
+General "Login PIN" row edits it (digit-only dialog); `StreamScreen` auto-submits the stored PIN
+on `LoginPinRequestEvent` and only shows the dialog when the PIN is unset or the console rejected
+it (`pinIncorrect`), pre-filled for correction). Per-host PINs (Room column) were not needed —
+one global PIN matches the single-user TV use case.
 
 ### 2.7 "Can't display" notice — **SKIP/MAYBE**
 - Qt surfaces `cantDisplay` (HDR unsupported). Our HDR codec path is minimal; revisit if HDR issues appear.
@@ -369,16 +364,15 @@ noted in UPSTREAM_SYNC)
 
 **Done since planning** (2026-10): 1.2, 2.1, 2.5, 2.8, 3.1, 3.2, 3.4, 5.3, 5.8, 6.1, 6.3,
 7.2, 8.1, 8.4 (deep-link half), 8.5, 9.4, **4.1–4.3 (PSN sign-in + Remote Play over the
-internet — the flagship)**, 2.6 (storage/pre-fill half).
+internet — the flagship)**, 2.6.
 Build tooling: `build.ps1` keeps a persistent Docker build container (Gradle daemon +
 `.docker-cache/gradle` alive between runs): warm debug ~40 s, cold ~4 min; release ~15 min;
 ships arm64-v8a + armeabi-v7a.
 
 **Phase 1 — polish what exists (no native changes, ~small PRs each)**
-1. Console PIN auto-entry (2.6 remaining half)
-2. Stream menu: video presets + remaining quick settings (2.2)
-3. Per-PS4/PS5 video profiles incl. remote variants (1.1) + port guessing (1.7)
-4. Go Home, rumble intensity, button-haptics wiring, error-string audit (2.3, 5.1, 5.2, 9.2)
+1. Stream menu: video presets + remaining quick settings (2.2)
+2. Per-PS4/PS5 video profiles incl. remote variants (1.1) + port guessing (1.7)
+3. Go Home, rumble intensity, button-haptics wiring, error-string audit (2.3, 5.1, 5.2, 9.2)
 
 **Phase 2 — JNI additions (touch `native/jni`, update UPSTREAM_SYNC divergence list)**
 5. Weak-WiFi warning (1.5)

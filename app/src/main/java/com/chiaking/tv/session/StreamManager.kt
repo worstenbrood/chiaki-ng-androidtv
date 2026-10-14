@@ -59,6 +59,8 @@ object StreamManager
 		this.input = input
 		this.displayHost = host
 		this.session = session
+		session.storedLoginPin = registeredHost.rpPin
+		session.loginPinHostId = registeredHost.id
 		session.resume()
 		session.applyAudioSettings(preferences.audioVolume,
 			AudioDevices.resolveDeviceId(context, preferences.audioDeviceName, preferences.audioDeviceId),

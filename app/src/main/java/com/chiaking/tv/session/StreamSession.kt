@@ -32,6 +32,12 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 
 	var autoRegistCallback: ((RegistHost) -> Unit)? = null
 
+	/** Per-console login PIN (from the registered host); falls back to the global preference when null. */
+	var storedLoginPin: String? = null
+
+	/** Row id of the registered host [storedLoginPin] belongs to; manually entered PINs are stored here. */
+	var loginPinHostId: Long? = null
+
 	private val _state = MutableStateFlow<StreamState>(StreamStateIdle)
 	val state: MutableStateFlow<StreamState> get() = _state
 	private val _rumbleState = MutableStateFlow(RumbleEvent(0U, 0U))

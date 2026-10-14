@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import com.chiaking.tv.R
 import com.chiaking.tv.common.AppDatabase
 import com.chiaking.tv.common.LogManager
+import com.chiaking.tv.common.MacAddress
 import com.chiaking.tv.common.Preferences
 import com.chiaking.tv.common.RegisteredHost
 import com.chiaking.tv.common.psn.PsnTokenStore
@@ -136,6 +137,7 @@ class RemoteConnectController(
 				}
 				if(!autoRegist)
 				{
+					resolveRemoteLoginPin(session, device.duid)
 					connectingText = null
 					onStreamReady(session)
 					return@launch
@@ -149,8 +151,11 @@ class RemoteConnectController(
 						try
 						{
 							val reg = RegisteredHost(host)
+							val previous = database.registeredHostDao().getByMac(reg.serverMac)
 							database.registeredHostDao().deleteByMac(reg.serverMac)
-							database.registeredHostDao().insert(reg)
+							database.registeredHostDao().insert(reg.copy(rpPin = previous?.rpPin))
+							preferences.remoteHostMacs = preferences.remoteHostMacs
+								.filterNot { it.startsWith("${device.duid}|") }.toSet() + "${device.duid}|${reg.serverMac}"
 							preferences.autoRegistDuids = preferences.autoRegistDuids + device.duid
 							Log.i(TAG, "Auto-registered console ${reg.serverMac} over PSN")
 							registOk.complete(true)
@@ -193,5 +198,15 @@ class RemoteConnectController(
 				Toast.makeText(context, context.getString(R.string.remote_connect_failed, e.message), Toast.LENGTH_LONG).show()
 			}
 		}
+	}
+
+	private suspend fun resolveRemoteLoginPin(session: StreamSession, duid: String)
+	{
+		val mac = preferences.remoteHostMacs
+			.firstOrNull { it.startsWith("$duid|") }
+			?.substringAfter('|') ?: return
+		val reg = database.registeredHostDao().getByMac(MacAddress(mac)) ?: return
+		session.storedLoginPin = reg.rpPin
+		session.loginPinHostId = reg.id
 	}
 }

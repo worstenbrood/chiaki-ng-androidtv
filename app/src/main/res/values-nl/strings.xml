@@ -37,6 +37,7 @@
 	<string name="not_registered">Niet geregistreerd</string>
 	<string name="edit">Bewerken</string>
 	<string name="delete">Verwijderen</string>
+	<string name="delete_console_confirm">Deze console verwijderen? Je moet de console opnieuw registreren op de console zelf om te streamen.</string>
 
 	<!-- Settings -->
 	<string name="stream">Stream</string>
@@ -74,6 +75,10 @@
 	<string name="auto_connect_startup_summary">Wake en verbind automatisch met een console wanneer de app start</string>
 	<string name="sleep_console_on_exit">Console in slaap brengen bij afsluiten</string>
 	<string name="on_close">Bij afsluiten</string>
+	<string name="login_pin">Inlog-pincode</string>
+	<string name="login_pin_not_set">Niet ingesteld</string>
+	<string name="login_pin_set">Ingesteld</string>
+	<string name="login_pin_summary_default">Standaard-pincode voor consoles zonder eigen pincode</string>
 	<string name="auto_connect_console">Automatisch verbinden met console</string>
 	<string name="verbose_logs">Uitgebreide logboeken</string>
 	<string name="verbose_logs_summary">Gedetailleerde sessielogboeken schrijven voor debugging</string>

@@ -29,7 +29,8 @@ fun StreamScreen(
 	session: StreamSession,
 	preferences: Preferences,
 	onQuit: () -> Unit,
-	onSleep: () -> Unit
+	onSleep: () -> Unit,
+	onPinStored: (String) -> Unit = {}
 )
 {
 	val state by session.state.collectAsState()
@@ -53,7 +54,15 @@ fun StreamScreen(
 	LaunchedEffect(state) {
 		when(state)
 		{
-			is StreamStateLoginPinRequest -> pinDialog = state as StreamStateLoginPinRequest
+			is StreamStateLoginPinRequest -> {
+				val pinReq = state as StreamStateLoginPinRequest
+				val stored = session.storedLoginPin?.takeIf { it.isNotEmpty() } ?: preferences.loginPin
+				// Auto-submit the stored PIN; only prompt when unset or the console rejected it
+				if(!pinReq.pinIncorrect && stored.isNotEmpty())
+					session.setLoginPin(stored)
+				else
+					pinDialog = pinReq
+			}
 			is StreamStateQuit -> {
 				val quit = state as StreamStateQuit
 				if(session.disconnecting)
@@ -128,25 +137,31 @@ fun StreamScreen(
 
 	if(pinDialog != null)
 	{
-		var pin by remember(pinDialog!!.requestId) { mutableStateOf(preferences.loginPin) }
+		val pinReq = pinDialog!!
+		var pin by remember(pinReq.requestId) {
+			mutableStateOf(session.storedLoginPin?.takeIf { it.isNotEmpty() } ?: preferences.loginPin)
+		}
+		val submit: () -> Unit = {
+			onPinStored(pin)
+			session.setLoginPin(pin)
+			pinDialog = null
+		}
 		AlertDialog(
 			onDismissRequest = onQuit,
-			title = { Text(stringResource(if(pinDialog!!.pinIncorrect) R.string.pin_incorrect else R.string.enter_pin)) },
+			title = { Text(stringResource(if(pinReq.pinIncorrect) R.string.pin_incorrect else R.string.enter_pin)) },
 			text = {
 				Column {
 					Text(stringResource(R.string.pin_instructions))
 					Spacer(Modifier.height(12.dp))
-					TvTextField(stringResource(R.string.pin), pin) {
+					TvTextField(stringResource(R.string.pin), pin,
+						imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+						keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { submit() })) {
 						if(it.all { c -> c.isDigit() } && it.length <= 8) pin = it
 					}
 				}
 			},
 			confirmButton = {
-				TextButton(onClick = {
-					preferences.loginPin = pin
-					session.setLoginPin(pin)
-					pinDialog = null
-				}) { Text(stringResource(R.string.connect), color = PsBlueLight) }
+				TextButton(onClick = { submit() }) { Text(stringResource(R.string.connect), color = PsBlueLight) }
 			},
 			dismissButton = {
 				TextButton(onClick = onQuit) { Text(stringResource(R.string.quit), color = OnSurfaceMuted) }
