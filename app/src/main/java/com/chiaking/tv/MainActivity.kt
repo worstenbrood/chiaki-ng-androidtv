@@ -31,6 +31,7 @@ import com.chiaking.tv.session.StreamManager
 import com.chiaking.tv.session.StreamSession
 import com.chiaking.tv.session.StreamStateConnected
 import com.chiaking.tv.session.StreamStateDisconnecting
+import com.chiaking.tv.ui.TvProgressDialog
 import com.chiaking.tv.ui.screens.*
 import com.chiaking.tv.ui.theme.ChiakiTvTheme
 import kotlinx.coroutines.Dispatchers
@@ -138,8 +139,6 @@ class MainActivity: ComponentActivity()
 	@Composable
 	private fun Navigation()
 	{
-		BackHandler(enabled = wakeController.wakingHost != null) { wakeController.cancel() }
-		BackHandler(enabled = remoteController.connectingText != null) { remoteController.cancel() }
 		BackHandler(enabled = screenStack.size > 1 || showManualHostDialog)
 		{
 			if(showManualHostDialog)
@@ -163,14 +162,11 @@ class MainActivity: ComponentActivity()
 				LaunchedEffect(Unit) { viewModel.refreshPsnLoginState(); if(viewModel.psnLoggedIn.value) viewModel.refreshPsnDevices() }
 				DisposableEffect(Unit) { onDispose { viewModel.discoveryManager.pause() } }
 				Box {
-					HomeScreen(hosts, discoveryActive, wakeController.wakingHost, wakeController.bannerText,
-						{ wakeController.cancel() },
+					HomeScreen(hosts, discoveryActive,
 						psnLoggedIn = psnLoggedIn,
 						psnDevices = psnDevices,
 						psnLoading = psnLoading,
-						psnDeviceCount = psnDeviceCount,
-						remoteConnectingText = remoteController.connectingText,
-						onCancelRemote = { remoteController.cancel() }
+						psnDeviceCount = psnDeviceCount
 					) { action ->
 						when(action)
 						{
@@ -206,6 +202,11 @@ class MainActivity: ComponentActivity()
 								showManualHostDialog = false
 							}
 						)
+					if(wakeController.wakingHost != null)
+						TvProgressDialog(wakeController.bannerText ?: "", wakeController::cancel)
+					remoteController.connectingText?.let {
+						TvProgressDialog(it, remoteController::cancel)
+					}
 				}
 			}
 

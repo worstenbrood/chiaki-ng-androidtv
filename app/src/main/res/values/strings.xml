@@ -23,7 +23,6 @@
 	<string name="discovery_off">Discovery: Off</string>
 	<string name="local">Local</string>
 	<string name="remote">Remote</string>
-	<string name="waiting_for_console">Waiting for %1$s…</string>
 	<string name="no_consoles_discovered">No consoles discovered yet.\nMake sure your console is in rest mode or on, and on the same network.</string>
 	<string name="discovery_off_hint">Discovery is off.\nRegister a console or add one manually.</string>
 	<string name="register_console">Register Console</string>
@@ -32,7 +31,6 @@
 	<string name="found_count">Found: %1$d</string>
 	<string name="found_error">Found: -1 (error)</string>
 	<string name="remote_play">Remote Play</string>
-	<string name="linking">Linking…</string>
 	<string name="ready">Ready</string>
 	<string name="rest_mode">Rest Mode</string>
 	<string name="waking">Waking</string>

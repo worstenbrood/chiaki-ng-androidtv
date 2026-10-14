@@ -23,7 +23,6 @@
 	<string name="discovery_off">Detectie: Uit</string>
 	<string name="local">Lokaal</string>
 	<string name="remote">Extern</string>
-	<string name="waiting_for_console">Wachten op %1$s…</string>
 	<string name="no_consoles_discovered">Nog geen consoles gevonden.\nZorg dat je console in de rustmodus staat of aan staat, en op hetzelfde netwerk.</string>
 	<string name="discovery_off_hint">Detectie staat uit.\nRegistreer een console of voeg er handmatig een toe.</string>
 	<string name="register_console">Console registreren</string>
@@ -32,7 +31,6 @@
 	<string name="found_count">Gevonden: %1$d</string>
 	<string name="found_error">Gevonden: -1 (fout)</string>
 	<string name="remote_play">Remote Play</string>
-	<string name="linking">Koppelen…</string>
 	<string name="ready">Klaar</string>
 	<string name="rest_mode">Rustmodus</string>
 	<string name="registered">Geregistreerd</string>

@@ -50,15 +50,10 @@ private const val FOCUS_REQUEST_DELAY_MS = 100L
 fun HomeScreen(
 	hosts: List<DisplayHost>,
 	discoveryActive: Boolean,
-	wakingHost: DisplayHost?,
-	wakeBannerText: String?,
-	onCancelWakeup: () -> Unit,
 	psnLoggedIn: Boolean = false,
 	psnDevices: List<com.metallic.chiaki.lib.HolepunchDevice> = emptyList(),
 	psnLoading: Boolean = false,
 	psnDeviceCount: Int? = null,
-	remoteConnectingText: String? = null,
-	onCancelRemote: () -> Unit = {},
 	onAction: (HomeAction) -> Unit
 )
 {
@@ -67,7 +62,6 @@ fun HomeScreen(
 	val localTarget = remember { FocusMemory.get("home_local").coerceIn(0, hosts.size + 1) }
 	val remoteTarget = remember { FocusMemory.get("home_remote").coerceIn(0, psnDevices.size) }
 	var focusRequested by remember { mutableStateOf(false) }
-	val busy = wakingHost != null || remoteConnectingText != null
 
 	LaunchedEffect(Unit)
 	{
@@ -98,41 +92,6 @@ fun HomeScreen(
 		}
 
 		Spacer(Modifier.height(12.dp))
-
-		if(wakingHost != null)
-		{
-			Row(
-				verticalAlignment = Alignment.CenterVertically,
-				horizontalArrangement = Arrangement.spacedBy(12.dp),
-				modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
-			) {
-				CircularProgressIndicator(color = PsBlueLight, modifier = Modifier.size(24.dp))
-				Text(
-					wakeBannerText ?: stringResource(
-						R.string.waiting_for_console,
-						wakingHost.name ?: stringResource(R.string.playstation5)
-					),
-					color = OnSurfaceMuted,
-					fontSize = 16.sp
-				)
-				Spacer(Modifier.weight(1f))
-				TvButton(text = stringResource(R.string.cancel), onClick = onCancelWakeup)
-			}
-		}
-
-		if(remoteConnectingText != null)
-		{
-			Row(
-				verticalAlignment = Alignment.CenterVertically,
-				horizontalArrangement = Arrangement.spacedBy(12.dp),
-				modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
-			) {
-				CircularProgressIndicator(color = PsBlueLight, modifier = Modifier.size(24.dp))
-				Text(remoteConnectingText, color = OnSurfaceMuted, fontSize = 16.sp)
-				Spacer(Modifier.weight(1f))
-				TvButton(text = stringResource(R.string.cancel), onClick = onCancelRemote)
-			}
-		}
 
 		Box(
 			modifier = Modifier
@@ -171,8 +130,6 @@ fun HomeScreen(
 					hosts.forEachIndexed { index, host ->
 						ConsoleCard(
 							host = host,
-							waking = wakingHost?.host == host.host,
-							enabled = !busy,
 							focusRequester = if(index == localTarget) localFocus else null,
 							onFocus = { focused -> if(focused) FocusMemory.set("home_local", index) },
 							onAction = onAction
@@ -181,14 +138,12 @@ fun HomeScreen(
 					AddCard(
 						stringResource(R.string.register_console),
 						Icons.Default.AddCircleOutline,
-						enabled = !busy,
 						focusRequester = if(hosts.size == localTarget) localFocus else null,
 						onFocus = { if(it) FocusMemory.set("home_local", hosts.size) }
 					) { onAction(RegisterNew) }
 					AddCard(
 						stringResource(R.string.add_manual_host),
 						Icons.Default.Language,
-						enabled = !busy,
 						focusRequester = if(hosts.size + 1 == localTarget) localFocus else null,
 						onFocus = { if(it) FocusMemory.set("home_local", hosts.size + 1) }
 					) { onAction(AddManualHost) }
@@ -221,8 +176,6 @@ fun HomeScreen(
 						psnDevices.forEachIndexed { index, device ->
 							RemoteConsoleCard(
 								device,
-								connecting = remoteConnectingText != null,
-								enabled = !busy,
 								focusRequester = if(index == remoteTarget) remoteFocus else null,
 								onFocus = { if(it) FocusMemory.set("home_remote", index) },
 								onAction = onAction
@@ -231,7 +184,6 @@ fun HomeScreen(
 						AddCard(
 							stringResource(R.string.refresh_psn_consoles),
 							Icons.Default.Refresh,
-							enabled = !busy,
 							sub = when(psnDeviceCount)
 							{
 								null -> null
@@ -251,8 +203,6 @@ fun HomeScreen(
 @Composable
 private fun RemoteConsoleCard(
 	device: com.metallic.chiaki.lib.HolepunchDevice,
-	connecting: Boolean,
-	enabled: Boolean = true,
 	focusRequester: FocusRequester?,
 	onFocus: (Boolean) -> Unit,
 	onAction: (HomeAction) -> Unit
@@ -260,9 +210,8 @@ private fun RemoteConsoleCard(
 {
 	TvFocusCard(
 		focusRequester = focusRequester,
-		enabled = enabled,
 		onFocusChange = onFocus,
-		onClick = { if(!connecting) onAction(ConnectRemoteConsole(device)) }
+		onClick = { onAction(ConnectRemoteConsole(device)) }
 	) {
 		Column(
 			modifier = Modifier
@@ -293,7 +242,7 @@ private fun RemoteConsoleCard(
 			Row(verticalAlignment = Alignment.CenterVertically) {
 				Box(Modifier.size(10.dp).background(PsBlueLight, androidx.compose.foundation.shape.CircleShape))
 				Spacer(Modifier.width(8.dp))
-				Text(stringResource(if(connecting) R.string.linking else R.string.ready), fontSize = 14.sp, color = PsBlueLight)
+				Text(stringResource(R.string.ready), fontSize = 14.sp, color = PsBlueLight)
 				Spacer(Modifier.weight(1f))
 				Text(stringResource(if(device.isPS5) R.string.ps5 else R.string.ps4), fontSize = 13.sp, color = OnSurfaceMuted)
 			}
@@ -304,8 +253,6 @@ private fun RemoteConsoleCard(
 @Composable
 private fun ConsoleCard(
 	host: DisplayHost,
-	waking: Boolean = false,
-	enabled: Boolean = true,
 	focusRequester: FocusRequester?,
 	onFocus: (Boolean) -> Unit,
 	onAction: (HomeAction) -> Unit
@@ -320,7 +267,6 @@ private fun ConsoleCard(
 			?: it.runningAppTitleid?.takeIf { t -> t.isNotBlank() }
 	}
 	val stateColor = when {
-		waking -> PsBlueLight
 		ready -> SuccessGreen
 		standby -> WarningAmber
 		host.isRegistered -> PsBlueLight
@@ -328,7 +274,6 @@ private fun ConsoleCard(
 	}
 	val stateText = stringResource(
 		when {
-			waking -> R.string.waking
 			ready -> R.string.ready
 			standby -> R.string.rest_mode
 			host.isRegistered -> R.string.registered
@@ -338,7 +283,6 @@ private fun ConsoleCard(
 
 	TvFocusCard(
 		focusRequester = focusRequester,
-		enabled = enabled,
 		onFocusChange = onFocus,
 		onClick = {
 			if(host.isRegistered)
@@ -412,7 +356,6 @@ private fun AddCard(
 	text: String,
 	icon: ImageVector,
 	sub: String? = null,
-	enabled: Boolean = true,
 	focusRequester: FocusRequester? = null,
 	onFocus: (Boolean) -> Unit = {},
 	onClick: () -> Unit
@@ -420,7 +363,6 @@ private fun AddCard(
 {
 	TvFocusCard(
 		focusRequester = focusRequester,
-		enabled = enabled,
 		onFocusChange = onFocus,
 		onClick = onClick,
 		containerColor = SurfaceDark
