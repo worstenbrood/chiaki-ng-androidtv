@@ -9,7 +9,6 @@ import com.chiaking.tv.common.*
 import com.chiaking.tv.common.psn.PsnTokenStore
 import com.chiaking.tv.discovery.DiscoveryManager
 import com.chiaking.tv.discovery.serverMac
-import com.metallic.chiaki.lib.DiscoveryHost
 import com.metallic.chiaki.lib.Holepunch
 import com.metallic.chiaki.lib.HolepunchDevice
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +18,11 @@ import kotlinx.coroutines.withContext
 
 class MainViewModel(context: Context, val database: AppDatabase, val preferences: Preferences): ViewModel()
 {
+	companion object
+	{
+		private const val SUBSCRIBE_TIMEOUT_MS = 5000L
+	}
+
 	private val appContext = context.applicationContext
 	val discoveryManager = DiscoveryManager().also {
 		it.active = preferences.discoveryEnabled
@@ -60,15 +64,15 @@ class MainViewModel(context: Context, val database: AppDatabase, val preferences
 			manualHosts.map {
 				ManualDisplayHost(it.registeredHost?.let { id -> idRegisteredHosts[id] }, it)
 			}
-		}.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+		}.stateIn(viewModelScope, SharingStarted.WhileSubscribed(SUBSCRIBE_TIMEOUT_MS), emptyList())
 	}
 
 	val discoveryActive by lazy {
-		discoveryManager.discoveryActive.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+		discoveryManager.discoveryActive.stateIn(viewModelScope, SharingStarted.WhileSubscribed(SUBSCRIBE_TIMEOUT_MS), false)
 	}
 
 	val registeredHostCount = database.registeredHostDao().count()
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(SUBSCRIBE_TIMEOUT_MS), 0)
 
 	val psnLoggedIn = MutableStateFlow(PsnTokenStore.get(appContext).isLoggedIn)
 	val psnDevices = MutableStateFlow<List<HolepunchDevice>>(emptyList())

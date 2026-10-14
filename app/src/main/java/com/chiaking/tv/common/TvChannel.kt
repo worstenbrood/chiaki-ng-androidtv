@@ -12,6 +12,10 @@ import androidx.tvprovider.media.tv.PreviewProgram
 import androidx.tvprovider.media.tv.TvContractCompat
 import com.chiaking.tv.MainActivity
 import com.chiaking.tv.R
+import com.chiaking.tv.common.psn.PsnTokenStore
+import com.chiaking.tv.connect.LocalConnectController
+import com.metallic.chiaki.lib.Holepunch
+import com.metallic.chiaki.lib.HolepunchDevice
 
 object TvChannel
 {
@@ -51,7 +55,7 @@ object TvChannel
 		}
 	}
 
-	fun sync(context: Context, preferences: Preferences, hosts: List<RegisteredHost>)
+	suspend fun sync(context: Context, preferences: Preferences, hosts: List<RegisteredHost>)
 	{
 		try
 		{
@@ -61,7 +65,7 @@ object TvChannel
 			{
 				val builder = Channel.Builder()
 					.setDisplayName("Chiaki TV")
-					.setDescription("Stream your registered PlayStation consoles")
+					.setDescription(context.getString(R.string.tv_channel_description))
 					.setType(TvContractCompat.Channels.TYPE_PREVIEW)
 				val uri = resolver.insert(TvContractCompat.Channels.CONTENT_URI, builder.build().toContentValues()) ?: return
 				channelId = ContentUris.parseId(uri)
@@ -78,29 +82,76 @@ object TvChannel
 
 			for(host in hosts)
 			{
-				val previewUri = previewVideoUri(context, host.target.isPS5)
 				val title = host.serverNickname?.takeIf { it.isNotBlank() }
-					?: if(host.target.isPS5) "PlayStation 5" else "PlayStation 4"
+					?: context.getString(if(host.target.isPS5) R.string.playstation5 else R.string.playstation4)
 				val intent = Intent(context, MainActivity::class.java)
 					.putExtra(MainActivity.EXTRA_AUTO_CONNECT_MAC, host.serverMac.toString())
 					.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-				val program = PreviewProgram.Builder()
-					.setChannelId(channelId)
-					.setType(TvContractCompat.PreviewPrograms.TYPE_GAME)
-					.setTitle(title)
-					.setDescription(if(host.target.isPS5) "Connect to PS5" else "Connect to PS4")
-					.setIntent(intent)
-					.setPosterArtUri(resUri(context,
-						if(host.target.isPS5) R.drawable.tv_ps5 else R.drawable.tv_ps4))
-					.setPosterArtAspectRatio(2)
-					.apply { if(previewUri != null) setPreviewVideoUri(previewUri) }
-					.build()
-				resolver.insert(TvContractCompat.PreviewPrograms.CONTENT_URI, program.toContentValues())
+				insertProgram(context, resolver, channelId, title,
+					context.getString(R.string.tv_connect_lan,
+						context.getString(if(host.target.isPS5) R.string.ps5 else R.string.ps4)),
+					host.target.isPS5, intent)
+			}
+
+			for(device in remoteDevices(context))
+			{
+				val title = device.name.ifBlank { context.getString(if(device.isPS5) R.string.playstation5 else R.string.playstation4) }
+				val intent = Intent(context, MainActivity::class.java)
+					.putExtra(LocalConnectController.EXTRA_REMOTE_CONNECT_DUID, device.duid)
+					.putExtra(LocalConnectController.EXTRA_REMOTE_CONNECT_PS5, device.isPS5)
+					.putExtra(LocalConnectController.EXTRA_REMOTE_CONNECT_NAME, device.name)
+					.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+				insertProgram(context, resolver, channelId, title,
+					context.getString(R.string.tv_remote_psn,
+						context.getString(if(device.isPS5) R.string.ps5 else R.string.ps4)),
+					device.isPS5, intent)
 			}
 		}
 		catch(e: Exception)
 		{
 			Log.e("TvChannel", "Failed to sync TV channel", e)
 		}
+	}
+
+	/** PSN consoles with Remote Play enabled; empty when not logged in or the lookup fails. */
+	private suspend fun remoteDevices(context: Context): List<HolepunchDevice>
+	{
+		return try
+		{
+			val store = PsnTokenStore.get(context)
+			if(!store.isLoggedIn)
+				return emptyList()
+			val token = store.ensureFreshToken() ?: return emptyList()
+			val result = Holepunch.listDevices(token, true)
+			if(!result.errorCode.isSuccess)
+			{
+				Log.e("TvChannel", "PSN listDevices failed: ${result.errorCode}")
+				emptyList()
+			}
+			else
+				result.devices.filter { it.remotePlayEnabled }
+		}
+		catch(e: Exception)
+		{
+			Log.e("TvChannel", "PSN remote device lookup failed", e)
+			emptyList()
+		}
+	}
+
+	private fun insertProgram(context: Context, resolver: android.content.ContentResolver,
+		channelId: Long, title: String, description: String, ps5: Boolean, intent: Intent)
+	{
+		val previewUri = previewVideoUri(context, ps5)
+		val program = PreviewProgram.Builder()
+			.setChannelId(channelId)
+			.setType(TvContractCompat.PreviewPrograms.TYPE_GAME)
+			.setTitle(title)
+			.setDescription(description)
+			.setIntent(intent)
+			.setPosterArtUri(resUri(context, if(ps5) R.drawable.tv_ps5 else R.drawable.tv_ps4))
+			.setPosterArtAspectRatio(2)
+			.apply { if(previewUri != null) setPreviewVideoUri(previewUri) }
+			.build()
+		resolver.insert(TvContractCompat.PreviewPrograms.CONTENT_URI, program.toContentValues())
 	}
 }

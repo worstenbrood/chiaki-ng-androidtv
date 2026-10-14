@@ -69,6 +69,10 @@ class Preferences(context: Context)
 	{
 		const val PREFS_NAME = "chiaki_tv_preferences"
 
+		const val BITRATE_MIN_KBPS = 2000
+		const val BITRATE_MAX_KBPS = 50000
+		const val BITRATE_STEP_KBPS = 500
+
 		const val resolutionDefaultKey = "resolution"
 		const val fpsKey = "fps"
 		const val bitrateKey = "bitrate"
@@ -199,7 +203,7 @@ class Preferences(context: Context)
 		} ?: fpsDefault
 		set(value) { sharedPreferences.edit().putString(fpsKey, value.value).apply() }
 
-	fun validateBitrate(bitrate: Int) = max(2000, min(50000, bitrate))
+	fun validateBitrate(bitrate: Int) = max(BITRATE_MIN_KBPS, min(BITRATE_MAX_KBPS, bitrate))
 	var bitrate
 		get() = sharedPreferences.getInt(bitrateKey, 0).let { if(it == 0) null else validateBitrate(it) }
 		set(value) { sharedPreferences.edit().putInt(bitrateKey, if(value != null) validateBitrate(value) else 0).apply() }

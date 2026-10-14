@@ -208,4 +208,7 @@
 	<string name="wake_waiting">%1$s %2$s… wachten tot hij online komt</string>
 	<string name="console">console</string>
 	<string name="auto_registered_console">Console %1$s automatisch geregistreerd via PSN</string>
+	<string name="tv_channel_description">Stream je PlayStation-consoles via LAN of Remote Play</string>
+	<string name="tv_connect_lan">Verbinden met %1$s via LAN</string>
+	<string name="tv_remote_psn">Remote Play via PSN (%1$s)</string>
 </resources>

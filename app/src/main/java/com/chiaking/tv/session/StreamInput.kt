@@ -13,6 +13,11 @@ import com.metallic.chiaki.lib.ControllerTouch
 
 class StreamInput(val context: Context, val preferences: Preferences)
 {
+	companion object
+	{
+		private const val GYRO_SAMPLING_PERIOD_US = 4000
+	}
+
 	var controllerStateChangedCallback: ((ControllerState) -> Unit)? = null
 	var hudToggleCallback: (() -> Unit)? = null
 
@@ -134,14 +139,13 @@ class StreamInput(val context: Context, val preferences: Preferences)
 		@OnLifecycleEvent(Lifecycle.Event.ON_RESUME)
 		fun onResume()
 		{
-			val samplingPeriodUs = 4000
 			val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
 			listOfNotNull(
 				sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
 				sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE),
 				sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
 			).forEach {
-				sensorManager.registerListener(sensorEventListener, it, samplingPeriodUs)
+				sensorManager.registerListener(sensorEventListener, it, GYRO_SAMPLING_PERIOD_US)
 			}
 		}
 

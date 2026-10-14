@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
@@ -35,6 +36,7 @@ import com.chiaking.tv.ui.theme.*
 fun TvFocusCard(
 	focusRequester: FocusRequester? = null,
 	containerColor: Color = SurfaceCard,
+	enabled: Boolean = true,
 	onClick: (() -> Unit)? = null,
 	onFocusChange: (Boolean) -> Unit = {},
 	content: @Composable BoxScope.() -> Unit
@@ -46,12 +48,13 @@ fun TvFocusCard(
 	Box(
 		modifier = Modifier
 			.scale(scale)
+			.then(if(!enabled) Modifier.alpha(0.4f) else Modifier)
 			.then(
 				if(focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier
 			)
 			.clip(CardShape)
 			.then(
-				if(onClick != null) Modifier.clickable { onClick() } else Modifier.focusable()
+				if(onClick != null && enabled) Modifier.clickable { onClick() } else Modifier.focusable()
 			)
 			.onFocusChanged {
 				focused = it.isFocused

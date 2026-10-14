@@ -3,10 +3,7 @@
 package com.chiaking.tv
 
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
-import android.os.VibrationEffect
-import android.os.Vibrator
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -14,39 +11,31 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import com.chiaking.tv.common.*
-import com.chiaking.tv.discovery.serverMac
-import com.metallic.chiaki.lib.ConnectInfo
-import com.metallic.chiaki.lib.DiscoveryHost
+import com.chiaking.tv.connect.LocalConnectController
+import com.chiaking.tv.connect.RemoteConnectController
+import com.chiaking.tv.connect.WakeConnectController
+import com.chiaking.tv.discovery.DiscoveryManager
 import com.metallic.chiaki.lib.RegistInfo
 import com.chiaking.tv.regist.RegistExecuteViewModel
-import com.chiaking.tv.session.StreamInput
+import com.chiaking.tv.session.AwayController
+import com.chiaking.tv.session.RumbleFeedback
 import com.chiaking.tv.session.StreamManager
 import com.chiaking.tv.session.StreamSession
 import com.chiaking.tv.session.StreamStateConnected
 import com.chiaking.tv.session.StreamStateDisconnecting
-import com.chiaking.tv.session.StreamStateQuit
 import com.chiaking.tv.ui.screens.*
 import com.chiaking.tv.ui.theme.ChiakiTvTheme
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
-import okio.buffer
-import okio.source
 
 private sealed class Screen
 private object ScreenHome: Screen()
@@ -61,70 +50,22 @@ class MainActivity: ComponentActivity()
 {
 	companion object
 	{
-		const val EXTRA_AUTO_CONNECT_MAC = "com.chiaking.tv.AUTO_CONNECT_MAC"
-		const val WAKE_TIMEOUT_MS = 25000L
-		const val AUTO_CONNECT_DISCOVER_GRACE_MS = 5000L
-		const val AWAY_TIMEOUT_MS = 60000L
+		const val EXTRA_AUTO_CONNECT_MAC = LocalConnectController.EXTRA_AUTO_CONNECT_MAC
+		private const val HOME_BACKGROUND_COLOR = 0xFF0B0E17L
 	}
 
 	private lateinit var preferences: Preferences
 	private lateinit var database: AppDatabase
 	private lateinit var logManager: LogManager
-	private var wakingHost by mutableStateOf<DisplayHost?>(null)
-	private var wakeBannerText by mutableStateOf<String?>(null)
-	private var wakeJob: kotlinx.coroutines.Job? = null
-	private var autoConnectTriggered = false
-	private var deepLinkConnect = false
-	private var pendingDeepLinkMac by mutableStateOf<MacAddress?>(null)
-	private var awayJob: kotlinx.coroutines.Job? = null
-	private var awaySleepPrompt by mutableStateOf(false)
-	private var remoteConnectingText by mutableStateOf<String?>(null)
+	private lateinit var wakeController: WakeConnectController
+	private lateinit var remoteController: RemoteConnectController
+	private lateinit var localController: LocalConnectController
+	private lateinit var awayController: AwayController
+	private lateinit var settingsTransfer: SettingsTransfer
 
 	private val screenStack = mutableStateListOf<Screen>()
 	private var showManualHostDialog by mutableStateOf(false)
 	private var editingManualHost by mutableStateOf<ManualHost?>(null)
-
-	private val exportLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
-		if(uri == null) return@registerForActivityResult
-		lifecycleScope.launch {
-			val json = exportAllSettings(database)
-			contentResolver.openOutputStream(uri)?.use { out ->
-				out.write(json.toByteArray())
-			}
-		}
-	}
-
-	private var pendingImport by mutableStateOf<SerializedSettings?>(null)
-
-	private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-		if(uri == null) return@registerForActivityResult
-		lifecycleScope.launch {
-			try {
-				val settings = contentResolver.openInputStream(uri)!!.source().buffer().use {
-					parseSettingsImport(it)
-				}
-				pendingImport = settings
-			} catch(e: Exception) {
-				android.util.Log.e("MainActivity", "Import failed", e)
-				android.widget.Toast.makeText(this@MainActivity, getString(R.string.import_failed, e.message), android.widget.Toast.LENGTH_LONG).show()
-			}
-		}
-	}
-
-	private fun doImport(replace: Boolean)
-	{
-		val settings = pendingImport ?: return
-		pendingImport = null
-		lifecycleScope.launch {
-			try {
-				importSettings(database, settings, replace)
-				android.widget.Toast.makeText(this@MainActivity, getString(R.string.imported_count, settings.registeredHosts.size), android.widget.Toast.LENGTH_SHORT).show()
-			} catch(e: Exception) {
-				android.util.Log.e("MainActivity", "Import failed", e)
-				android.widget.Toast.makeText(this@MainActivity, getString(R.string.import_failed, e.message), android.widget.Toast.LENGTH_LONG).show()
-			}
-		}
-	}
 
 	override fun onCreate(savedInstanceState: Bundle?)
 	{
@@ -135,6 +76,21 @@ class MainActivity: ComponentActivity()
 		database = getDatabase(this)
 		logManager = LogManager(this)
 		com.chiaking.tv.common.psn.CaBundle.ensure(this)
+		wakeController = WakeConnectController(lifecycleScope)
+		remoteController = RemoteConnectController(this, lifecycleScope, preferences, database, logManager)
+		remoteController.onStreamReady = { screenStack.add(ScreenStream(it)) }
+		localController = LocalConnectController(this, lifecycleScope, database, preferences)
+		localController.onConnectReady = { reg, found ->
+			if(screenStack.lastOrNull() is ScreenHome)
+				startStream(DiscoveredDisplayHost(reg, found))
+		}
+		localController.onWakeRequest = { discoveryManager, host, message ->
+			if(screenStack.lastOrNull() is ScreenHome)
+				wakeupAndConnect(discoveryManager, host, message)
+		}
+		localController.onRemoteConnectRequest = { device -> remoteController.connect(device) }
+		awayController = AwayController(lifecycleScope, preferences)
+		settingsTransfer = SettingsTransfer(this, database)
 		screenStack.add(ScreenHome)
 		StreamManager.session?.let { screenStack.add(ScreenStream(it)) }
 
@@ -142,21 +98,21 @@ class MainActivity: ComponentActivity()
 			ChiakiTvTheme {
 				Surface(
 					modifier = Modifier.fillMaxSize(),
-					color = Color(0xFF0B0E17)
+					color = Color(HOME_BACKGROUND_COLOR)
 				) {
 					Box {
 						Navigation()
-						pendingImport?.let {
+						settingsTransfer.pendingImport?.let {
 							androidx.compose.material3.AlertDialog(
-								onDismissRequest = { pendingImport = null },
+								onDismissRequest = { settingsTransfer.dismissImport() },
 								title = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.import_settings)) },
 								text = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.import_replace_merge_question)) },
 								confirmButton = {
-									androidx.compose.material3.TextButton(onClick = { doImport(true) })
+									androidx.compose.material3.TextButton(onClick = { settingsTransfer.confirmImport(true) })
 									{ androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.replace)) }
 								},
 								dismissButton = {
-									androidx.compose.material3.TextButton(onClick = { doImport(false) })
+									androidx.compose.material3.TextButton(onClick = { settingsTransfer.confirmImport(false) })
 									{ androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.merge)) }
 								}
 							)
@@ -171,52 +127,19 @@ class MainActivity: ComponentActivity()
 				withContext(Dispatchers.IO) { TvChannel.sync(this@MainActivity, preferences, hosts) }
 			}
 		}
-		handleAutoConnect(intent)
+		localController.handleDeepLink(intent)
 	}
-
 	override fun onNewIntent(intent: Intent)
 	{
 		super.onNewIntent(intent)
-		handleAutoConnect(intent)
-	}
-
-	private fun handleAutoConnect(intent: Intent?)
-	{
-		val macStr = intent?.getStringExtra(EXTRA_AUTO_CONNECT_MAC) ?: return
-		intent.removeExtra(EXTRA_AUTO_CONNECT_MAC)
-		val mac = try { MacAddress(macStr) } catch(e: IllegalArgumentException) { return }
-		deepLinkConnect = true
-		pendingDeepLinkMac = mac
-	}
-
-	private fun deepLinkConnect(viewModel: MainViewModel, mac: MacAddress)
-	{
-		pendingDeepLinkMac = null
-		lifecycleScope.launch {
-			val reg = withContext(Dispatchers.IO) { database.registeredHostDao().getByMac(mac) }
-				?: return@launch
-			var found: DiscoveryHost? = null
-			val deadline = android.os.SystemClock.elapsedRealtime() + 15000L
-			while(found == null && android.os.SystemClock.elapsedRealtime() < deadline)
-			{
-				found = viewModel.discoveryManager.discoveredHosts.value.firstOrNull { it.serverMac == mac }
-					?: LastSeenHosts.hosts.value[mac]?.takeIf { !it.hostAddr.isNullOrEmpty() }
-				if(found == null)
-					kotlinx.coroutines.delay(500)
-			}
-			if(found == null || screenStack.lastOrNull() !is ScreenHome)
-				return@launch
-			if(found.state == DiscoveryHost.State.READY)
-				startStream(DiscoveredDisplayHost(reg, found))
-			else if(found.state == DiscoveryHost.State.STANDBY)
-				wakeupAndConnect(viewModel, DiscoveredDisplayHost(reg, found), getString(R.string.connecting_to))
-		}
+		localController.handleDeepLink(intent)
 	}
 
 	@Composable
 	private fun Navigation()
 	{
-		BackHandler(enabled = wakingHost != null) { cancelWakeup() }
+		BackHandler(enabled = wakeController.wakingHost != null) { wakeController.cancel() }
+		BackHandler(enabled = remoteController.connectingText != null) { remoteController.cancel() }
 		BackHandler(enabled = screenStack.size > 1 || showManualHostDialog)
 		{
 			if(showManualHostDialog)
@@ -235,23 +158,25 @@ class MainActivity: ComponentActivity()
 				val psnLoading by viewModel.psnLoading.collectAsState()
 				val psnDeviceCount by viewModel.psnDeviceCount.collectAsState()
 				LaunchedEffect(Unit) { viewModel.discoveryManager.resume() }
-				LaunchedEffect(pendingDeepLinkMac) { pendingDeepLinkMac?.let { deepLinkConnect(viewModel, it) } }
-				LaunchedEffect(Unit) { maybeAutoConnect(viewModel) }
+				LaunchedEffect(localController.pendingDeepLinkMac, localController.pendingRemoteDevice) { localController.connectDeepLink(viewModel.discoveryManager) }
+				LaunchedEffect(Unit) { localController.autoConnect(viewModel.discoveryManager) }
 				LaunchedEffect(Unit) { viewModel.refreshPsnLoginState(); if(viewModel.psnLoggedIn.value) viewModel.refreshPsnDevices() }
 				DisposableEffect(Unit) { onDispose { viewModel.discoveryManager.pause() } }
 				Box {
-					HomeScreen(hosts, discoveryActive, wakingHost, wakeBannerText, { cancelWakeup() },
+					HomeScreen(hosts, discoveryActive, wakeController.wakingHost, wakeController.bannerText,
+						{ wakeController.cancel() },
 						psnLoggedIn = psnLoggedIn,
 						psnDevices = psnDevices,
 						psnLoading = psnLoading,
 						psnDeviceCount = psnDeviceCount,
-						remoteConnectingText = remoteConnectingText
+						remoteConnectingText = remoteController.connectingText,
+						onCancelRemote = { remoteController.cancel() }
 					) { action ->
 						when(action)
 						{
 							is ConnectHost -> startStream(action.host)
-							is WakeupHost -> wakeupAndConnect(viewModel, action.host)
-							is ConnectRemoteConsole -> connectRemote(action.device)
+							is WakeupHost -> wakeupAndConnect(viewModel.discoveryManager, action.host)
+							is ConnectRemoteConsole -> remoteController.connect(action.device)
 							RefreshPsnDevices -> viewModel.refreshPsnDevices()
 							is EditManualHost -> {
 								editingManualHost = action.manualHost
@@ -296,8 +221,8 @@ class MainActivity: ComponentActivity()
 					onBack = { screenStack.removeAt(screenStack.size - 1) },
 					onShowLogs = { screenStack.add(ScreenLogs) },
 					onManageHosts = { screenStack.add(ScreenManageHosts) },
-					onExportSettings = { exportLauncher.launch("chiaki-settings.json") },
-					onImportSettings = { importLauncher.launch(arrayOf("application/json")) }
+					onExportSettings = { settingsTransfer.launchExport() },
+					onImportSettings = { settingsTransfer.launchImport() }
 				)
 			}
 
@@ -319,24 +244,21 @@ class MainActivity: ComponentActivity()
 			}
 
 			is ScreenStream -> {
-				ObserveRumble(screen.session)
+				RumbleFeedback(screen.session, preferences.rumbleEnabled)
 				StreamScreen(screen.session, preferences,
 					onQuit = { disconnectStream() },
-					onSleep =
-					{
-						StreamManager.displayHost?.registeredHost?.serverMac?.let {
-							LastSeenHosts.markState(it, DiscoveryHost.State.STANDBY)
-						}
+					onSleep = {
+						StreamManager.markDisplayHostStandby()
 						disconnectStream()
 					})
-				if(awaySleepPrompt)
+				if(awayController.sleepPrompt)
 					androidx.compose.material3.AlertDialog(
 						onDismissRequest = { keepPlaying() },
 						title = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.console_still_awake)) },
 						text = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.away_sleep_question)) },
 						confirmButton = {
 							androidx.compose.material3.TextButton(onClick = {
-								awaySleepPrompt = false
+								awayController.dismissPrompt()
 								sleepConsoleAway()
 							}) { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.sleep_console)) }
 						},
@@ -366,201 +288,29 @@ class MainActivity: ComponentActivity()
 	private fun viewModel(context: android.content.Context, db: AppDatabase, prefs: Preferences) =
 		androidx.lifecycle.viewmodel.compose.viewModel { MainViewModel(context, db, prefs) }
 
-	private fun wakeupAndConnect(viewModel: MainViewModel, host: DisplayHost, message: String = getString(R.string.waking))
+	private fun wakeupAndConnect(discoveryManager: DiscoveryManager, host: DisplayHost, message: String = getString(R.string.waking))
 	{
-		val reg = host.registeredHost ?: return
-		if(wakingHost?.host == host.host)
-		{
-			cancelWakeup()
-			return
-		}
-		cancelWakeup()
-		viewModel.discoveryManager.sendWakeup(host.host, reg.rpRegistKey, reg.target.isPS5)
-		val mac = (host as? DiscoveredDisplayHost)?.discoveredHost?.serverMac ?: return
-		wakingHost = host
-		wakeBannerText = getString(R.string.wake_waiting, message, host.name ?: getString(R.string.console))
-		wakeJob = lifecycleScope.launch {
-			val deadline = android.os.SystemClock.elapsedRealtime() + WAKE_TIMEOUT_MS
-			var ready: DiscoveryHost? = null
-			while(ready == null && android.os.SystemClock.elapsedRealtime() < deadline)
-			{
-				ready = viewModel.discoveryManager.discoveredHosts.value.firstOrNull {
-					it.serverMac == mac && it.state == DiscoveryHost.State.READY
-				}
-				if(ready == null)
-					kotlinx.coroutines.delay(500)
-			}
-			wakingHost = null
-			wakeBannerText = null
-			wakeJob = null
-			if(ready != null && screenStack.lastOrNull() is ScreenHome)
+		val banner = getString(R.string.wake_waiting, message, host.name ?: getString(R.string.console))
+		wakeController.toggle(discoveryManager, host, banner) { ready ->
+			val reg = host.registeredHost ?: return@toggle
+			if(screenStack.lastOrNull() is ScreenHome)
 				startStream(DiscoveredDisplayHost(reg, ready))
-		}
-	}
-
-	private fun cancelWakeup()
-	{
-		wakeJob?.cancel()
-		wakeJob = null
-		wakingHost = null
-		wakeBannerText = null
-	}
-
-	private fun maybeAutoConnect(viewModel: MainViewModel)
-	{
-		if(autoConnectTriggered || deepLinkConnect)
-			return
-		if(!preferences.autoConnectEnabled)
-			return
-		autoConnectTriggered = true
-		val macStr = preferences.autoConnectMac
-		if(macStr.isEmpty())
-			return
-		val mac = try { MacAddress(macStr) } catch(e: IllegalArgumentException) { return }
-		lifecycleScope.launch {
-			val reg = withContext(Dispatchers.IO) { database.registeredHostDao().getByMac(mac) }
-				?: return@launch
-			var found: DiscoveryHost? = null
-			val deadline = android.os.SystemClock.elapsedRealtime() + AUTO_CONNECT_DISCOVER_GRACE_MS
-			while(found == null && android.os.SystemClock.elapsedRealtime() < deadline)
-			{
-				found = viewModel.discoveryManager.discoveredHosts.value.firstOrNull { it.serverMac == mac }
-				if(found == null)
-					kotlinx.coroutines.delay(500)
-			}
-			if(found == null || screenStack.lastOrNull() !is ScreenHome)
-				return@launch
-			if(found.state == DiscoveryHost.State.READY)
-				startStream(DiscoveredDisplayHost(reg, found))
-			else if(found.state == DiscoveryHost.State.STANDBY)
-				wakeupAndConnect(viewModel, DiscoveredDisplayHost(reg, found), getString(R.string.auto_connecting_to))
-		}
-	}
-
-	private fun connectRemote(device: com.metallic.chiaki.lib.HolepunchDevice, internal: Boolean = false, attempt: Int = 0)
-	{
-		if(StreamManager.session != null || (remoteConnectingText != null && !internal))
-			return
-		val deviceName = device.name.ifBlank { getString(R.string.console) }
-		remoteConnectingText = getString(R.string.remote_linking_with, deviceName)
-		lifecycleScope.launch {
-			try
-			{
-				remoteConnectingText = getString(R.string.remote_refreshing_token)
-				val store = com.chiaking.tv.common.psn.PsnTokenStore.get(this@MainActivity)
-				val token = withContext(Dispatchers.IO) { store.ensureFreshToken() }
-				if(token == null)
-				{
-					remoteConnectingText = null
-					android.widget.Toast.makeText(this@MainActivity, R.string.remote_psn_required, android.widget.Toast.LENGTH_LONG).show()
-					return@launch
-				}
-				val accountIdBytes = store.accountIdBytes()
-				if(accountIdBytes == null)
-				{
-					remoteConnectingText = null
-					android.widget.Toast.makeText(this@MainActivity, R.string.remote_account_missing, android.widget.Toast.LENGTH_LONG).show()
-					return@launch
-				}
-				remoteConnectingText = getString(R.string.remote_creating_session, deviceName)
-				val result = withContext(Dispatchers.IO) { com.metallic.chiaki.lib.Holepunch.createSession(token, device.duid, device.isPS5) }
-				if(!result.errorCode.isSuccess)
-				{
-					// Right after auto-registration the console is busy finishing the regist session
-					// and may not answer a new holepunch offer for a while — retry a few times.
-					if(internal && attempt < 3)
-					{
-						android.util.Log.i("MainActivity", "Holepunch create failed (${result.errorCode}), retry ${attempt + 1}/3")
-						delay(6000)
-						connectRemote(device, internal = true, attempt = attempt + 1)
-						return@launch
-					}
-					remoteConnectingText = null
-					android.util.Log.e("MainActivity", "Holepunch create failed: ${result.errorCode}")
-					android.widget.Toast.makeText(this@MainActivity, getString(R.string.remote_connect_failed, result.errorCode), android.widget.Toast.LENGTH_LONG).show()
-					return@launch
-				}
-				// First connect to a console: the session only performs the PSN auto-registration
-				// and then stops (upstream design). Save the host, then reconnect to actually stream.
-				val autoRegist = device.duid !in preferences.autoRegistDuids
-				val session = StreamManager.startRemote(this@MainActivity, preferences, logManager,
-					result.ptr, accountIdBytes, device.isPS5, autoRegist)
-				if(session == null)
-				{
-					com.metallic.chiaki.lib.Holepunch.fini(result.ptr)
-					remoteConnectingText = null
-					return@launch
-				}
-				if(!autoRegist)
-				{
-					remoteConnectingText = null
-					screenStack.add(ScreenStream(session))
-					return@launch
-				}
-				val registOk = kotlinx.coroutines.CompletableDeferred<Boolean>()
-				var registSeen = false
-				session.autoRegistCallback = { host ->
-					registSeen = true
-					lifecycleScope.launch {
-						try
-						{
-							val reg = RegisteredHost(host)
-							database.registeredHostDao().deleteByMac(reg.serverMac)
-							database.registeredHostDao().insert(reg)
-							preferences.autoRegistDuids = preferences.autoRegistDuids + device.duid
-							android.util.Log.i("MainActivity", "Auto-registered console ${reg.serverMac} over PSN")
-							registOk.complete(true)
-						}
-						catch(e: Exception)
-						{
-							android.util.Log.e("MainActivity", "Failed to save auto-registered host", e)
-							registOk.complete(false)
-						}
-					}
-				}
-				lifecycleScope.launch {
-					session.state.collect { st ->
-						if(st is StreamStateQuit && !registSeen && !registOk.isCompleted)
-							registOk.complete(false)
-					}
-				}
-				val ok = withTimeoutOrNull(40000) { registOk.await() } ?: false
-				StreamManager.clear(session)
-				if(ok)
-				{
-					delay(4000) // let the console settle after the regist session
-					connectRemote(device, internal = true)
-				}
-				else
-				{
-					remoteConnectingText = null
-					android.widget.Toast.makeText(this@MainActivity, R.string.regist_failed, android.widget.Toast.LENGTH_LONG).show()
-				}
-			}
-			catch(e: Exception)
-			{
-				android.util.Log.e("MainActivity", "Remote connect failed", e)
-				remoteConnectingText = null
-				android.widget.Toast.makeText(this@MainActivity, getString(R.string.remote_connect_failed, e.message), android.widget.Toast.LENGTH_LONG).show()
-			}
 		}
 	}
 
 	private fun startStream(host: DisplayHost)
 	{
-		cancelWakeup()
-		awayJob?.cancel()
-		awayJob = null
-		awaySleepPrompt = false
+		wakeController.cancel()
+		awayController.cancel()
+		awayController.dismissPrompt()
 		val session = StreamManager.start(this, preferences, logManager, host) ?: return
 		screenStack.add(ScreenStream(session))
 	}
 
 	private fun disconnectStream()
 	{
-		awayJob?.cancel()
-		awayJob = null
-		awaySleepPrompt = false
+		awayController.cancel()
+		awayController.dismissPrompt()
 		val screen = screenStack.lastOrNull() as? ScreenStream ?: return
 		if(screen.session.disconnecting)
 			return
@@ -577,33 +327,22 @@ class MainActivity: ComponentActivity()
 	override fun onResume()
 	{
 		super.onResume()
-		awayJob?.cancel()
-		awayJob = null
-		if(awaySleepPrompt)
+		awayController.cancel()
+		if(awayController.sleepPrompt)
 			return
 		resumeStream()
 	}
 
 	private fun resumeStream()
 	{
-		val session = StreamManager.session ?: return
 		if(screenStack.lastOrNull() !is ScreenStream)
 			return
-		if(!session.disconnecting && session.session == null)
-		{
-			session.resume()
-			session.setVolumePercent(preferences.audioVolume)
-		}
-		else
-		{
-			session.setVolumePercent(preferences.audioVolume)
-			session.restartAudio()
-		}
+		StreamManager.resumeStream(preferences)
 	}
 
 	private fun keepPlaying()
 	{
-		awaySleepPrompt = false
+		awayController.dismissPrompt()
 		resumeStream()
 	}
 
@@ -616,14 +355,7 @@ class MainActivity: ComponentActivity()
 			preferences.sleepConsoleOnExit != Preferences.SleepConsoleOnExit.NEVER)
 		{
 			session.setVolumePercent(0)
-			awayJob = lifecycleScope.launch {
-				delay(AWAY_TIMEOUT_MS)
-				awayJob = null
-				if(preferences.sleepConsoleOnExit == Preferences.SleepConsoleOnExit.ALWAYS)
-					sleepConsoleAway()
-				else
-					awaySleepPrompt = true
-			}
+			awayController.arm { sleepConsoleAway() }
 		}
 		else
 			session?.pause()
@@ -631,73 +363,15 @@ class MainActivity: ComponentActivity()
 
 	private fun sleepConsoleAway()
 	{
-		val session = StreamManager.session
-		if(session != null && session.session != null)
+		if(StreamManager.sleepConsoleLive())
 		{
-			session.gotoBed()
-			StreamManager.displayHost?.registeredHost?.serverMac?.let {
-				LastSeenHosts.markState(it, DiscoveryHost.State.STANDBY)
-			}
 			disconnectStream()
 			return
 		}
-		sleepConsoleViaReconnect(StreamManager.displayHost)
+		StreamManager.sleepConsoleViaReconnect(this, preferences, logManager)
 		StreamManager.clear()
 		if(screenStack.lastOrNull() is ScreenStream)
 			screenStack.removeAt(screenStack.size - 1)
-	}
-
-	private fun sleepConsoleViaReconnect(host: DisplayHost?)
-	{
-		val reg = host?.registeredHost ?: return
-		val addr = host.host
-		if(addr.isEmpty())
-			return
-		lifecycleScope.launch {
-			try {
-				val connectInfo = ConnectInfo(host.isPS5, addr, reg.rpRegistKey, reg.rpKey, preferences.videoProfile)
-				val s = StreamSession(connectInfo, logManager, preferences.logVerbose, StreamInput(applicationContext, preferences))
-				try
-				{
-					s.resume()
-					val reached = withTimeoutOrNull(10000L) {
-						s.state.first { it is StreamStateConnected || it is StreamStateQuit }
-					}
-					if(reached is StreamStateConnected)
-					{
-						s.gotoBed()
-						delay(500)
-					}
-					LastSeenHosts.markState(reg.serverMac, DiscoveryHost.State.STANDBY)
-				}
-				finally {
-					withContext(Dispatchers.IO) { s.shutdown() }
-				}
-			} catch(e: Exception) {
-				android.util.Log.e("MainActivity", "sleep-console reconnect failed", e)
-			}
-		}
-	}
-
-	@Composable
-	private fun ObserveRumble(session: StreamSession)
-	{
-		if(!preferences.rumbleEnabled)
-			return
-		LaunchedEffect(session) {
-			val vibrator = getSystemService(VIBRATOR_SERVICE) as Vibrator
-			lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-				session.rumbleState.collectLatest { rumble ->
-					val amplitude = (rumble.left.toInt() + rumble.right.toInt()) / 2
-					vibrator.cancel()
-					if(amplitude == 0) return@collectLatest
-					if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-						vibrator.vibrate(VibrationEffect.createOneShot(1000, amplitude))
-					else
-						@Suppress("DEPRECATION") vibrator.vibrate(1000)
-				}
-			}
-		}
 	}
 
 	override fun onDestroy()
@@ -827,25 +501,4 @@ class MainActivity: ComponentActivity()
 		dispatchKeyEvent(KeyEvent(event.eventTime, event.eventTime, KeyEvent.ACTION_UP, dir, 0))
 		return true
 	}
-}
-
-@androidx.compose.runtime.Composable
-private fun ManualHostDialog(initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit)
-{
-	var value by remember { mutableStateOf(initial) }
-	androidx.compose.material3.AlertDialog(
-		onDismissRequest = onDismiss,
-		title = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(if(initial.isEmpty()) R.string.manual_host_add else R.string.manual_host_edit)) },
-		text = {
-			com.chiaking.tv.ui.screens.TvTextField(androidx.compose.ui.res.stringResource(R.string.host_address_ip), value) { value = it }
-		},
-		confirmButton = {
-			androidx.compose.material3.TextButton(
-				onClick = { if(value.isNotBlank()) onSave(value.trim()) }
-			) { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.save)) }
-		},
-		dismissButton = {
-			androidx.compose.material3.TextButton(onClick = onDismiss) { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.cancel)) }
-		}
-	)
 }

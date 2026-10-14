@@ -22,6 +22,8 @@ import kotlinx.coroutines.delay
 // Keep in sync with CHIAKI_VERSION in external/chiaki-ng/CMakeLists.txt (see docs/UPSTREAM_SYNC.md)
 const val UPSTREAM_CHIAKI_VERSION = "1.10.0"
 
+private const val FOCUS_RESTORE_DELAY_MS = 100L
+
 @Composable
 fun SettingsScreen(
 	preferences: Preferences,
@@ -71,7 +73,7 @@ fun SettingsScreen(
 	val rowFocus = remember { FocusRequester() }
 	val backFocus = remember { FocusRequester() }
 	LaunchedEffect(Unit) {
-		delay(100)
+		delay(FOCUS_RESTORE_DELAY_MS)
 		try { if(restore == 0) backFocus.requestFocus() else rowFocus.requestFocus() } catch(e: Exception) { }
 	}
 	fun fr(i: Int) = if(i == restore) rowFocus else null
@@ -121,7 +123,8 @@ fun SettingsScreen(
 				summary = stringResource(R.string.bitrate_summary),
 				onStep = { steps ->
 					val base = bitrate ?: preferences.bitrateAuto
-					bitrate = (base + steps * 500).coerceIn(2000, 50000)
+					bitrate = (base + steps * Preferences.BITRATE_STEP_KBPS)
+						.coerceIn(Preferences.BITRATE_MIN_KBPS, Preferences.BITRATE_MAX_KBPS)
 					preferences.bitrate = bitrate
 				},
 				onReset = {

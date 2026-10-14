@@ -26,6 +26,7 @@ object PsnAuth
 
 	private const val AUTHORIZE_URL = "https://auth.api.sonyentertainmentnetwork.com/2.0/oauth/authorize"
 	private const val TOKEN_URL = "https://auth.api.sonyentertainmentnetwork.com/2.0/oauth/token"
+	private const val HTTP_TIMEOUT_MS = 15000
 
 	data class PsnTokens(val accessToken: String, val refreshToken: String, val expiresInSeconds: Long)
 
@@ -86,8 +87,8 @@ object PsnAuth
 		try
 		{
 			conn.requestMethod = method
-			conn.connectTimeout = 15000
-			conn.readTimeout = 15000
+			conn.connectTimeout = HTTP_TIMEOUT_MS
+			conn.readTimeout = HTTP_TIMEOUT_MS
 			conn.setRequestProperty("Authorization", basicAuth())
 			if(body != null)
 			{

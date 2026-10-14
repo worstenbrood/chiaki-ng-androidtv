@@ -37,11 +37,16 @@ git -C external/chiaki-ng submodule update --init third-party/nanopb third-party
 # build image (once):
 docker build --platform linux/amd64 -f docker/Dockerfile.build -t chiaki-tv-build-amd64 docker/
 
-# build APK — use build.ps1 (mounts .docker-cache/gradle so dependencies persist between builds):
+# build APK — use build.ps1 (mounts .docker-cache/gradle so dependencies persist between builds).
+# It keeps a persistent container (chiaki-tv-build) so the Gradle daemon survives between runs:
+# first build ~4 min, incremental ~40 s.
 .\build.ps1                          # assembleDebug
 .\build.ps1 assembleRelease          # release APK (signed with the repo debug.keystore)
+.\build.ps1 "assembleDebug --offline" # extra gradlew args are passed through
+.\build.ps1 -Fresh                   # recreate the container (after an image rebuild or repo move)
+.\build.ps1 -Stop                    # stop/remove the build container
 
-# equivalent raw command:
+# equivalent raw command (no daemon reuse):
 docker run --rm --platform linux/amd64 -v "${PWD}:/src" -v "${PWD}/.docker-cache/gradle:/root/.gradle" -w /src chiaki-tv-build-amd64 sh gradlew assembleDebug
 ```
 

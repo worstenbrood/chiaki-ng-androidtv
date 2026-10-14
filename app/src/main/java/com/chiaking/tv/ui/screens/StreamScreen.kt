@@ -8,15 +8,12 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
@@ -35,7 +32,6 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -54,6 +50,16 @@ import com.chiaking.tv.ui.theme.*
 import kotlinx.coroutines.delay
 
 private data class HudStats(val fps: Double, val kbps: Double, val framesLost: Long, val packetLossPct: Double, val rttMs: Long)
+
+private const val HUD_STATS_POLL_MS = 1000L
+private const val HUD_FOCUS_SETTLE_MS = 400L
+private const val HUD_FOCUS_REQUEST_MS = 50L
+private const val RECONNECT_RESUME_DELAY_MS = 1500L
+private const val NS_PER_S = 1_000_000_000.0
+private const val BITS_PER_BYTE = 8.0
+private const val BITS_PER_KBIT = 1000.0
+private const val PACKET_LOSS_PCT_SCALE = 10000.0
+private const val MICROS_PER_MS = 1000
 
 @Composable
 fun StreamScreen(
@@ -108,19 +114,19 @@ fun StreamScreen(
 			val stats = session.getStats()
 			if(stats != null && lastStats != null && lastTime != 0L)
 			{
-				val dt = (now - lastTime) / 1_000_000_000.0
+				val dt = (now - lastTime) / NS_PER_S
 				if(dt > 0.0)
 					hudStats = HudStats(
 						(stats[0] - lastStats[0]) / dt,
-						(stats[1] - lastStats[1]) * 8.0 / dt / 1000.0,
+						(stats[1] - lastStats[1]) * BITS_PER_BYTE / dt / BITS_PER_KBIT,
 						stats[2],
-						stats[3] / 10000.0,
-						stats[4] / 1000
+						stats[3] / PACKET_LOSS_PCT_SCALE,
+						stats[4] / MICROS_PER_MS
 					)
 			}
 			lastStats = stats
 			lastTime = now
-			delay(1000)
+			delay(HUD_STATS_POLL_MS)
 		}
 	}
 
@@ -128,9 +134,9 @@ fun StreamScreen(
 	{
 		if(hudVisible)
 		{
-			delay(400)
+			delay(HUD_FOCUS_SETTLE_MS)
 			hudFocusIdx = FocusMemory.get("hud").coerceIn(0, 6)
-			delay(50)
+			delay(HUD_FOCUS_REQUEST_MS)
 			try { hudFocus.requestFocus() } catch(e: Exception)
 			{ android.util.Log.e("StreamScreen", "HUD focus request failed", e) }
 		}
@@ -406,7 +412,7 @@ fun StreamScreen(
 				TextButton(onClick = {
 					quitDialog = null
 					session.shutdown(StreamStateIdle)
-					session.resumeDelayed(1500)
+					session.resumeDelayed(RECONNECT_RESUME_DELAY_MS)
 				}) { Text(stringResource(R.string.reconnect), color = PsBlueLight) }
 			},
 			dismissButton = {

@@ -2,7 +2,8 @@
 
 Android TV port of [chiaki-ng](https://github.com/chiaki-ng/chiaki-ng) — free and open-source
 PS4/PS5 Remote Play. Stream your PlayStation console to an Android TV device
-(Google TV, Nvidia Shield, Xiaomi TV Box, ...) over your local network.
+(Google TV, Nvidia Shield, Xiaomi TV Box, ...) over your local network **or over the internet
+via Remote Play over Internet (PSN)**.
 
 The streaming core is chiaki-ng's battle-tested C library (Takion/RPCrypt protocol stack,
 MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
@@ -26,8 +27,17 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
   show the Sleep/Disconnect dialog, sleep the console immediately, or just disconnect
 - **Wake-on-connect** — selecting a rest-mode console wakes it and auto-connects once it comes online
 - **Auto-connect on startup** — pick a console in Settings; the app wakes and connects to it automatically on launch
+- **PSN sign-in + Remote Play over Internet** — sign in to PlayStation Network from the TV
+  (*Settings → PSN Account*: scan the QR code or enter the short code on any phone/PC);
+  your PS5 consoles then appear in the **Remote** section and stream from anywhere over the
+  internet (PSN holepunching). First connection to a console auto-registers it — no PIN needed
 - **Google TV home channel** — registered consoles appear as programs on a "Chiaki TV" preview
-  channel on the home row (with per-console PS5/PS4 artwork); selecting one wakes and connects
+  channel on the home row (with per-console PS5/PS4 artwork); selecting one wakes and connects.
+  PSN-registered consoles additionally get **Remote Play via PSN** programs that start an
+  internet session directly
+- **Focus memory** — every menu (home, settings, logs, hosts, in-stream HUD) remembers exactly
+  where you were when you left it
+- **Dutch & English UI** — follows the system language
 - **Gamepad support** — full controller mapping incl. sticks, triggers, motion controls and rumble
 - **TV remote support** — D-pad and menu button act as controller input while streaming (toggleable)
 - **Manual hosts** — add consoles by IP when discovery is not enough
@@ -56,7 +66,8 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
 - A PSN **Account ID** (base64, 8 bytes) for registration — obtain it with the
   `psn-account-id.go` or `psn-account-id.py` script from
   [`external/chiaki-ng/scripts/`](external/chiaki-ng/scripts) (see
-  [chiaki-ng's guide](https://github.com/chiaki-ng/chiaki-ng#obtaining-your-psn-accountid))
+  [chiaki-ng's guide](https://github.com/chiaki-ng/chiaki-ng#obtaining-your-psn-accountid)).
+  Signing in with PSN inside the app (*Settings → Sign in with PSN*) fetches it automatically.
 
 ## Getting started
 
@@ -66,10 +77,20 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
 3. Open Chiaki TV — discovered consoles appear as cards. Select one and enter the 8-digit
    pairing PIN shown on screen (or use *Register Console*).
 4. Select the registered console to start streaming. A rest-mode console is woken automatically
-   and the stream starts as soon as it comes online (Cancel with Back).
-5. Optional: *Settings → General → Auto-connect on Startup* + pick a console — launching the app
+   and the stream starts as soon as it comes online (Cancel with Back or the **Cancel** button).
+5. **Remote Play over the internet (optional):**
+   1. Enable Remote Play on the console and make sure it is linked to your PSN account.
+   2. In Chiaki TV open *Settings → Sign in with PSN*. A QR code appears on the TV.
+   3. Scan it with your phone (or open the same URL on a PC), sign in to PlayStation Network,
+      then copy the full URL your browser lands on (a blank page) and paste it into the dialog
+      on the TV. The app exchanges the code and stores the tokens encrypted on the device.
+   4. Your PS5 consoles appear in the **Remote** section of the home screen. Selecting one
+      connects over the internet (the first connection auto-registers the console — no PIN
+      needed; afterwards it behaves like a locally registered console).
+      The "Chiaki TV" Google TV channel also gets **Remote Play via PSN** programs for them.
+6. Optional: *Settings → General → Auto-connect on Startup* + pick a console — launching the app
    (or selecting its program on the "Chiaki TV" Google TV channel) then wakes and connects by itself.
-6. While streaming, press **L3 + R3** on the controller to open the in-stream HUD
+7. While streaming, press **L3 + R3** on the controller to open the in-stream HUD
    (stats, live audio device/volume, and the **✕** chip that disconnects — and sleeps the console
    too if *On Close* is set to Sleep Console).
 
@@ -91,7 +112,8 @@ git -C external/chiaki-ng submodule update --init third-party/nanopb third-party
 # one-time: build the Linux build image
 docker build --platform linux/amd64 -f docker/Dockerfile.build -t chiaki-tv-build-amd64 docker/
 
-# build the APK (~9 min incremental, ~25 min cold — build.ps1 persists the Gradle cache in .docker-cache/)
+# build the APK (~40 s incremental, ~4 min cold — build.ps1 keeps a persistent build container
+# with the Gradle daemon + cache alive between runs)
 .\build.ps1
 
 # build the release APK (signed with the repo keystore, optimized native libs)

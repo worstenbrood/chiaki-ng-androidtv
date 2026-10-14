@@ -31,6 +31,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
+private const val FOCUS_RESTORE_DELAY_MS = 100L
+
 @Composable
 fun LogsScreen(logManager: LogManager, onBack: () -> Unit)
 {
@@ -63,7 +65,7 @@ fun LogsScreen(logManager: LogManager, onBack: () -> Unit)
 	val rowFocus = remember { FocusRequester() }
 	val backFocus = remember { FocusRequester() }
 	LaunchedEffect(Unit) {
-		delay(100)
+		delay(FOCUS_RESTORE_DELAY_MS)
 		try { if(restore == 0) backFocus.requestFocus() else rowFocus.requestFocus() } catch(e: Exception) { }
 	}
 
@@ -100,7 +102,7 @@ fun ManageHostsScreen(
 	val rowFocus = remember { FocusRequester() }
 	val backFocus = remember { FocusRequester() }
 	LaunchedEffect(Unit) {
-		delay(100)
+		delay(FOCUS_RESTORE_DELAY_MS)
 		try { if(restore == 0) backFocus.requestFocus() else rowFocus.requestFocus() } catch(e: Exception) { }
 	}
 
