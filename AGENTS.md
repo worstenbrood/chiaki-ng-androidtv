@@ -11,7 +11,9 @@ app/                      Android TV app (namespace com.chiaking.tv)
   src/main/java/com/chiaking/tv/
     common/               Room DB, Preferences, settings import/export, MAC type
     session/              StreamManager (process-wide session owner), StreamSession (StateFlow),
-                          StreamInput (gamepad + TV remote input)
+                          StreamInput (gamepad + TV remote input), AwayController, RumbleFeedback
+    connect/              WakeConnectController, RemoteConnectController (PSN hole-punch),
+                          LocalConnectController (deep-link + auto-connect)
     regist/               Console registration (PIN flow)
     discovery/            UDP discovery service wrapper
     ui/                   Compose TV UI: screens/, theme/ (dark PS-blue, D-pad focus)
@@ -81,6 +83,12 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   via the live session, or via a short-lived reconnect session if it died); `onResume`
   restores volume + `restartAudio()`. Never call `session.pause()`/shutdown while the surface
   may still be attached from another thread — teardown races the surface callbacks.
+- **Connect flows live in `connect/` controllers**, not `MainActivity`: `WakeConnectController`
+  (wakeup packet + READY polling + `wakingHost`/`bannerText` state), `RemoteConnectController`
+  (PSN hole-punch flow + `cancel()` tearing down the regist session), `LocalConnectController`
+  (deep-link + startup auto-connect). Progress for both is one modal `TvProgressDialog`
+  (spinner + text + Cancel; Back cancels) from `ui/Components.kt`, shown in `ScreenHome` —
+  home cards are never disabled during wake/connect.
 - **CMake entry point** is `native/CMakeLists.txt` (a trimmed copy of upstream's root
   CMakeLists: third-party + lib + our `native/jni`). It must keep `CHIAKI_ENABLE_ANDROID=ON`
   semantics and the `CHIAKI_LIB_*_EXTERNAL_PROJECT` includes.
@@ -123,7 +131,10 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   events — `hudStickNavigate` synthesizes DPAD key events from the hat while the HUD is open.
   HUD chips share one `hudFocusIdx` state for the grey focus highlight and use `clickable`
   with `indication = null` (a ripple would linger after cross-press; plain `focusable()` never
-  receives focus in this layout). The open/close combo is configurable (`menu_shortcut` pref:
+  receives focus in this layout). All HUD UI + state (scroll, focus-restore from `FocusMemory`,
+  stats polling, `HudItem`/`HudDivider`) lives in `ui/screens/StreamHud.kt`, not `StreamScreen.kt`.
+  The scroll edge arrows key off `hudFocusIdx` bounds (not `hudScroll.value`) because auto-scroll
+  to a remembered item does not always reach the scroll edge. The open/close combo is configurable (`menu_shortcut` pref:
   L3+R3 / Select+Start / L1+R1+L2+R2) via `StreamInput.onHudComboKeyEvent`, which clears the
   combo's controller buttons/triggers/touch so the game never sees them.
 - Wake-on-connect (`MainActivity.wakeupAndConnect`) sends the wakeup packet, polls discovery for

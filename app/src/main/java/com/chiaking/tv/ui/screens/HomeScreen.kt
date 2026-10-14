@@ -101,9 +101,9 @@ fun HomeScreen(
 		) {
 			Column(
 				horizontalAlignment = Alignment.CenterHorizontally,
-				modifier = Modifier.verticalScroll(rememberScrollState())
+				modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
 			) {
-				SectionHeader(stringResource(R.string.local))
+				SectionHeader(stringResource(R.string.local), centered = true)
 				if(hosts.isEmpty())
 				{
 					Icon(
@@ -152,7 +152,11 @@ fun HomeScreen(
 				if(psnLoggedIn)
 				{
 					Spacer(Modifier.height(16.dp))
-					Row(verticalAlignment = Alignment.CenterVertically) {
+					Row(
+						verticalAlignment = Alignment.CenterVertically,
+						modifier = Modifier.fillMaxWidth(),
+						horizontalArrangement = Arrangement.Center
+					) {
 						Text(
 							stringResource(R.string.remote).uppercase(),
 							fontSize = 13.sp,

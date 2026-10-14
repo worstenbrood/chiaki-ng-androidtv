@@ -27,6 +27,7 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import com.chiaking.tv.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -340,7 +341,7 @@ fun TvInfoRow(title: String, value: String)
 }
 
 @Composable
-fun SectionHeader(text: String)
+fun SectionHeader(text: String, centered: Boolean = false)
 {
 	Text(
 		text.uppercase(),
@@ -348,7 +349,9 @@ fun SectionHeader(text: String)
 		fontWeight = FontWeight.Bold,
 		color = PsBlueLight,
 		letterSpacing = 2.sp,
-		modifier = Modifier.padding(start = 20.dp, top = 24.dp, bottom = 8.dp)
+		textAlign = if(centered) TextAlign.Center else TextAlign.Start,
+		modifier = if(centered) Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 8.dp)
+			else Modifier.padding(start = 20.dp, top = 24.dp, bottom = 8.dp)
 	)
 }
 

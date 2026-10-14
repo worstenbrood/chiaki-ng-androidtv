@@ -25,7 +25,8 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
 - **On Close action** — *Settings → General → On Close* (Ask / Sleep Console / Do Nothing):
   decides what the HUD ✕ chip and the remote's Back button do while streaming —
   show the Sleep/Disconnect dialog, sleep the console immediately, or just disconnect
-- **Wake-on-connect** — selecting a rest-mode console wakes it and auto-connects once it comes online
+- **Wake-on-connect** — selecting a rest-mode console wakes it and auto-connects once it comes online;
+  wake and remote-connect progress shows as a modal dialog with a Cancel button (Back cancels too)
 - **Auto-connect on startup** — pick a console in Settings; the app wakes and connects to it automatically on launch
 - **PSN sign-in + Remote Play over Internet** — sign in to PlayStation Network from the TV
   (*Settings → PSN Account*: scan the QR code or enter the short code on any phone/PC);
