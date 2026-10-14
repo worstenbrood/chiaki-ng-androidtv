@@ -52,7 +52,8 @@ object StreamManager
 			host.host,
 			registeredHost.rpRegistKey,
 			registeredHost.rpKey,
-			preferences.videoProfile
+			preferences.videoProfile,
+			enableIDROnFECFailure = preferences.idrOnFecFailure
 		)
 		val input = StreamInput(context.applicationContext, preferences)
 		val session = StreamSession(connectInfo, logManager, preferences.logVerbose, input)
@@ -87,7 +88,8 @@ object StreamManager
 			preferences.videoProfile,
 			psnAccountId,
 			holepunchSessionPtr,
-			autoRegist
+			autoRegist,
+			enableIDROnFECFailure = preferences.idrOnFecFailure
 		)
 		val input = StreamInput(context.applicationContext, preferences)
 		val session = StreamSession(connectInfo, logManager, preferences.logVerbose, input)
@@ -165,7 +167,8 @@ object StreamManager
 			return
 		scope.launch {
 			try {
-				val connectInfo = ConnectInfo(host.isPS5, addr, reg.rpRegistKey, reg.rpKey, preferences.videoProfile)
+				val connectInfo = ConnectInfo(host.isPS5, addr, reg.rpRegistKey, reg.rpKey, preferences.videoProfile,
+					enableIDROnFECFailure = preferences.idrOnFecFailure)
 				val s = StreamSession(connectInfo, logManager, preferences.logVerbose, StreamInput(context.applicationContext, preferences))
 				try
 				{

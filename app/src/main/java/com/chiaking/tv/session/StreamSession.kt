@@ -207,6 +207,7 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 			is MotionResetEvent -> input.resetMotionControls()
 			is DataHolepunchEvent -> _state.value = StreamStateRemoteProgress(event.finished)
 			is AutoRegistEvent -> autoRegistCallback?.invoke(event.host)
+			is VideoFecFailureEvent -> { }
 		}
 	}
 

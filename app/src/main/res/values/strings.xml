@@ -50,6 +50,8 @@
 	<string name="bitrate_kbps">%1$d kbps</string>
 	<string name="bitrate_summary">Left / Right adjusts by 500 kbps (hold to go faster), OK toggles Auto</string>
 	<string name="display_mode">Display Mode</string>
+	<string name="idr_on_fec_failure">Request Keyframe on Frame Loss</string>
+	<string name="idr_on_fec_failure_summary">Ask the console for a new keyframe when a frame cannot be repaired, so artifacts recover faster</string>
 	<string name="display_mode_fit">Fit</string>
 	<string name="display_mode_zoom">Zoom</string>
 	<string name="display_mode_stretch">Stretch</string>

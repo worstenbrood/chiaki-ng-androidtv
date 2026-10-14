@@ -63,10 +63,12 @@ hold ≥8 repeats → ×5 step, OK toggles Auto; clamped 2000–50000)
 - **How**: add field to Kotlin `ConnectInfo` + parse in `native/jni/chiaki-jni.c` `Java_..._sessionStart` connect-info extraction (this is a **native/jni change** — note in UPSTREAM_SYNC divergence list); Preferences key + SettingsScreen cycle row (e.g. 0/2/5/10 %).
 - **Effort**: S-M (touches our JNI copy).
 
-### 1.4 IDR-on-FEC-failure (`iDROnFECFailureEnabled`) — **PORT**
+### 1.4 IDR-on-FEC-failure (`iDROnFECFailureEnabled`) — **DONE**
 - **What**: request keyframe when FEC fails instead of waiting (`settings.h:302`, `streamsession.cpp:475, 2400-2412`; lib event `CHIAKI_EVENT_VIDEO_FEC_FAILURE` if present in `lib/include/chiaki/session.h`).
-- **Status**: absent.
-- **How**: set flag in connect info (JNI addition as in 1.3); optionally surface FEC-failure event in HUD "frames lost" line. Check `session.h` event enum for exact name before starting.
+- **Status**: done. `ConnectInfo.enableIDROnFECFailure` parsed in `native/jni/chiaki-jni.c`
+  (also forwards `CHIAKI_EVENT_VIDEO_FEC_FAILURE` → `VideoFecFailureEvent`, unused by UI for now);
+  `idr_on_fec_failure` pref (default **on**, upstream Qt defaults off) + switch row in the Stream
+  settings card; wired into all `StreamManager` connect paths.
 - **Effort**: S-M.
 
 ### 1.5 Weak-WiFi warning — **MAYBE**

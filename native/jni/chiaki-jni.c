@@ -196,6 +196,7 @@ typedef struct android_chiaki_session_t
 	jmethodID java_session_event_motion_reset_meth;
 	jmethodID java_session_event_data_holepunch_meth;
 	jmethodID java_session_event_regist_meth;
+	jmethodID java_session_event_video_fec_failure_meth;
 	jfieldID java_controller_state_buttons;
 	jfieldID java_controller_state_l2_state;
 	jfieldID java_controller_state_r2_state;
@@ -279,6 +280,11 @@ static void android_chiaki_event_cb(ChiakiEvent *event, void *user)
 			E->DeleteLocalRef(env, java_host);
 			break;
 		}
+		case CHIAKI_EVENT_VIDEO_FEC_FAILURE:
+			E->CallVoidMethod(env, session->java_session,
+							  session->java_session_event_video_fec_failure_meth,
+							  (jboolean)event->video_fec_failure.idr_request_sent);
+			break;
 		default:
 			break;
 	}
@@ -342,6 +348,7 @@ JNIEXPORT void JNICALL JNI_FCN(sessionCreate)(JNIEnv *env, jobject obj, jobject 
 	E->ReleaseByteArrayElements(env, morning_array, bytes, JNI_ABORT);
 
 	connect_info.auto_regist = E->GetBooleanField(env, connect_info_obj, E->GetFieldID(env, connect_info_class, "autoRegist", "Z"));
+	connect_info.enable_idr_on_fec_failure = E->GetBooleanField(env, connect_info_obj, E->GetFieldID(env, connect_info_class, "enableIDROnFECFailure", "Z"));
 	connect_info.holepunch_session = (ChiakiHolepunchSession)E->GetLongField(env, connect_info_obj, E->GetFieldID(env, connect_info_class, "holepunchSessionPtr", "J"));
 	if(connect_info.holepunch_session)
 	{
@@ -419,6 +426,7 @@ JNIEXPORT void JNICALL JNI_FCN(sessionCreate)(JNIEnv *env, jobject obj, jobject 
 	session->java_session_event_motion_reset_meth = E->GetMethodID(env, session->java_session_class, "eventMotionReset", "()V");
 	session->java_session_event_data_holepunch_meth = E->GetMethodID(env, session->java_session_class, "eventDataHolepunch", "(Z)V");
 	session->java_session_event_regist_meth = E->GetMethodID(env, session->java_session_class, "eventRegist", "(L"BASE_PACKAGE"/RegistHost;)V");
+	session->java_session_event_video_fec_failure_meth = E->GetMethodID(env, session->java_session_class, "eventVideoFecFailure", "(Z)V");
 
 	jclass controller_state_class = E->FindClass(env, BASE_PACKAGE"/ControllerState");
 	session->java_controller_state_buttons = E->GetFieldID(env, controller_state_class, "buttons", "I");

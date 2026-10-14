@@ -54,6 +54,7 @@ fun SettingsScreen(
 	var displayMode by remember { mutableStateOf(preferences.displayMode) }
 	var sleepConsoleOnExit by remember { mutableStateOf(preferences.sleepConsoleOnExit) }
 	var disconnectAction by remember { mutableStateOf(preferences.disconnectAction) }
+	var idrOnFec by remember { mutableStateOf(preferences.idrOnFecFailure) }
 	var autoConnectIndex by remember { mutableStateOf(
 		(registeredHosts.indexOfFirst { it.serverMac.toString() == preferences.autoConnectMac } + 1).coerceAtLeast(0)) }
 
@@ -145,6 +146,13 @@ fun SettingsScreen(
 				},
 				focusRequester = fr(5), onFocus = fb(5)
 			)
+			TvSwitchRow(
+				stringResource(R.string.idr_on_fec_failure),
+				stringResource(R.string.idr_on_fec_failure_summary),
+				idrOnFec,
+				{ idrOnFec = it; preferences.idrOnFecFailure = it },
+				focusRequester = fr(6), onFocus = fb(6)
+			)
 		}
 
 		SectionHeader(stringResource(R.string.audio))
@@ -156,7 +164,7 @@ fun SettingsScreen(
 					volume = if(volume >= 100) 0 else volume + 25
 					preferences.audioVolume = volume
 				},
-				focusRequester = fr(6), onFocus = fb(6)
+				focusRequester = fr(7), onFocus = fb(7)
 			)
 			TvCycleRow(
 				title = stringResource(R.string.output_device),
@@ -166,7 +174,7 @@ fun SettingsScreen(
 					preferences.audioDeviceId = audioDevices[deviceIndex].second
 					preferences.audioDeviceName = audioDevices[deviceIndex].first
 				},
-				focusRequester = fr(7), onFocus = fb(7)
+				focusRequester = fr(8), onFocus = fb(8)
 			)
 			TvCycleRow(
 				title = stringResource(R.string.audio_buffer),
@@ -175,7 +183,7 @@ fun SettingsScreen(
 					bufferMs = if(bufferMs >= 100) 0 else bufferMs + 10
 					preferences.audioBufferMs = bufferMs
 				},
-				focusRequester = fr(8), onFocus = fb(8)
+				focusRequester = fr(9), onFocus = fb(9)
 			)
 		}
 
@@ -186,35 +194,35 @@ fun SettingsScreen(
 				stringResource(R.string.swap_cross_moon_summary),
 				swapCrossMoon,
 				{ swapCrossMoon = it; preferences.swapCrossMoon = it },
-				focusRequester = fr(9), onFocus = fb(9)
+				focusRequester = fr(10), onFocus = fb(10)
 			)
 			TvSwitchRow(
 				stringResource(R.string.dpad_as_controller),
 				stringResource(R.string.dpad_as_controller_summary),
 				dpadAsController,
 				{ dpadAsController = it; preferences.dpadAsController = it },
-				focusRequester = fr(10), onFocus = fb(10)
+				focusRequester = fr(11), onFocus = fb(11)
 			)
 			TvSwitchRow(
 				stringResource(R.string.rumble),
 				stringResource(R.string.rumble_summary),
 				rumble,
 				{ rumble = it; preferences.rumbleEnabled = it },
-				focusRequester = fr(11), onFocus = fb(11)
+				focusRequester = fr(12), onFocus = fb(12)
 			)
 			TvSwitchRow(
 				stringResource(R.string.motion_controls),
 				stringResource(R.string.motion_controls_summary),
 				motion,
 				{ motion = it; preferences.motionEnabled = it },
-				focusRequester = fr(12), onFocus = fb(12)
+				focusRequester = fr(13), onFocus = fb(13)
 			)
 			TvSwitchRow(
 				stringResource(R.string.button_haptics),
 				stringResource(R.string.button_haptics_summary),
 				haptics,
 				{ haptics = it; preferences.buttonHapticEnabled = it },
-				focusRequester = fr(13), onFocus = fb(13)
+				focusRequester = fr(14), onFocus = fb(14)
 			)
 			TvCycleRow(
 				title = stringResource(R.string.hud_shortcut),
@@ -224,7 +232,7 @@ fun SettingsScreen(
 					menuShortcut = values[(menuShortcut.ordinal + 1) % values.size]
 					preferences.menuShortcut = menuShortcut
 				},
-				focusRequester = fr(14), onFocus = fb(14)
+				focusRequester = fr(15), onFocus = fb(15)
 			)
 		}
 
@@ -235,14 +243,14 @@ fun SettingsScreen(
 				stringResource(R.string.console_discovery_summary),
 				discovery,
 				{ discovery = it; preferences.discoveryEnabled = it },
-				focusRequester = fr(15), onFocus = fb(15)
+				focusRequester = fr(16), onFocus = fb(16)
 			)
 			TvSwitchRow(
 				stringResource(R.string.auto_connect_startup),
 				stringResource(R.string.auto_connect_startup_summary),
 				autoConnect,
 				{ autoConnect = it; preferences.autoConnectEnabled = it },
-				focusRequester = fr(16), onFocus = fb(16)
+				focusRequester = fr(17), onFocus = fb(17)
 			)
 			TvCycleRow(
 				title = stringResource(R.string.sleep_console_on_exit),
@@ -252,7 +260,7 @@ fun SettingsScreen(
 					sleepConsoleOnExit = values[(sleepConsoleOnExit.ordinal + 1) % values.size]
 					preferences.sleepConsoleOnExit = sleepConsoleOnExit
 				},
-				focusRequester = fr(17), onFocus = fb(17)
+				focusRequester = fr(18), onFocus = fb(18)
 			)
 			TvCycleRow(
 				title = stringResource(R.string.on_close),
@@ -262,14 +270,14 @@ fun SettingsScreen(
 					disconnectAction = values[(disconnectAction.ordinal + 1) % values.size]
 					preferences.disconnectAction = disconnectAction
 				},
-				focusRequester = fr(18), onFocus = fb(18)
+				focusRequester = fr(19), onFocus = fb(19)
 			)
 			TvActionRow(
 				stringResource(R.string.login_pin),
 				if(preferences.loginPin.isEmpty()) stringResource(R.string.login_pin_not_set)
 					else stringResource(R.string.login_pin_summary_default),
 				{ pinDraft = preferences.loginPin; showPinEdit = true },
-				focusRequester = fr(19), onFocus = fb(19)
+				focusRequester = fr(20), onFocus = fb(20)
 			)
 			TvCycleRow(
 				title = stringResource(R.string.auto_connect_console),
@@ -281,27 +289,27 @@ fun SettingsScreen(
 					autoConnectIndex = (autoConnectIndex + 1) % (autoConnectOptions.size.coerceAtLeast(1))
 					preferences.autoConnectMac = autoConnectOptions.getOrNull(autoConnectIndex)?.serverMac?.toString() ?: ""
 				},
-				focusRequester = fr(20), onFocus = fb(20)
+				focusRequester = fr(21), onFocus = fb(21)
 			)
 			TvSwitchRow(
 				stringResource(R.string.verbose_logs),
 				stringResource(R.string.verbose_logs_summary),
 				logVerbose,
 				{ logVerbose = it; preferences.logVerbose = it },
-				focusRequester = fr(21), onFocus = fb(21)
+				focusRequester = fr(22), onFocus = fb(22)
 			)
 			TvActionRow(
 				stringResource(R.string.session_logs),
 				stringResource(R.string.session_logs_summary),
 				onShowLogs,
-				focusRequester = fr(22), onFocus = fb(22)
+				focusRequester = fr(23), onFocus = fb(23)
 			)
 			TvActionRow(
 				stringResource(R.string.registered_consoles),
 				if(registeredHostCount == 0) stringResource(R.string.registered_consoles_none)
 					else stringResource(R.string.registered_consoles_count, registeredHostCount),
 				onManageHosts,
-				focusRequester = fr(23), onFocus = fb(23)
+				focusRequester = fr(24), onFocus = fb(24)
 			)
 		}
 
@@ -317,7 +325,7 @@ fun SettingsScreen(
 						com.chiaking.tv.common.psn.PsnTokenStore.get(ctx).logout()
 						psnLoggedIn = false
 					},
-					focusRequester = fr(24), onFocus = fb(24)
+					focusRequester = fr(25), onFocus = fb(25)
 				)
 			}
 			else
@@ -325,7 +333,7 @@ fun SettingsScreen(
 					stringResource(R.string.sign_in_psn),
 					stringResource(R.string.sign_in_psn_summary),
 					{ showPsnLogin = true },
-					focusRequester = fr(24), onFocus = fb(24)
+					focusRequester = fr(25), onFocus = fb(25)
 				)
 		}
 
@@ -335,13 +343,13 @@ fun SettingsScreen(
 				stringResource(R.string.export_settings),
 				stringResource(R.string.export_settings_summary),
 				onExportSettings,
-				focusRequester = fr(25), onFocus = fb(25)
+				focusRequester = fr(26), onFocus = fb(26)
 			)
 			TvActionRow(
 				stringResource(R.string.import_settings),
 				stringResource(R.string.import_settings_summary),
 				onImportSettings,
-				focusRequester = fr(26), onFocus = fb(26)
+				focusRequester = fr(27), onFocus = fb(27)
 			)
 		}
 

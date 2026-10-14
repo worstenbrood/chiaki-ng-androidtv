@@ -67,7 +67,9 @@ The JNI layer is **not** compiled from the submodule. `native/jni/` is a copy of
   buffer-overflow log → verbose
 - `chiaki-jni.c`: `sessionSetVolume`, `sessionSetAudioDevice`, `sessionSetAudioBuffer`,
   `sessionGetStats`, `sessionRequestIDR`, `sessionRestartAudio` JNI functions + forwarding of
-  `CHIAKI_EVENT_MOTION_RESET` (`eventMotionReset` → re-centers `StreamInput` motion sensors)
+  `CHIAKI_EVENT_MOTION_RESET` (`eventMotionReset` → re-centers `StreamInput` motion sensors) +
+  `enableIDROnFECFailure` connect-info field (`connect_info.enable_idr_on_fec_failure`) and
+  forwarding of `CHIAKI_EVENT_VIDEO_FEC_FAILURE` (`eventVideoFecFailure(idrRequestSent)`)
 
 When bumping upstream, diff the two directories and re-apply our additions:
 

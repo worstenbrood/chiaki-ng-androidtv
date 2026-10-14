@@ -72,7 +72,8 @@ data class ConnectInfo(
 	val videoProfile: ConnectVideoProfile,
 	val psnAccountId: ByteArray? = null,
 	val holepunchSessionPtr: Long = 0L,
-	val autoRegist: Boolean = false
+	val autoRegist: Boolean = false,
+	val enableIDROnFECFailure: Boolean = false
 ): Parcelable
 
 private class ChiakiNative
@@ -374,6 +375,7 @@ data class QuitEvent(val reason: QuitReason, val reasonString: String?): Event()
 	object MotionResetEvent: Event()
 data class DataHolepunchEvent(val finished: Boolean): Event()
 data class AutoRegistEvent(val host: RegistHost): Event()
+data class VideoFecFailureEvent(val idrRequestSent: Boolean): Event()
 
 class CreateError(val errorCode: ErrorCode): Exception("Failed to create a native object: $errorCode")
 
@@ -442,6 +444,11 @@ class Session(connectInfo: ConnectInfo, logFile: String?, logVerbose: Boolean)
 	private fun eventDataHolepunch(finished: Boolean)
 	{
 		event(DataHolepunchEvent(finished))
+	}
+
+	private fun eventVideoFecFailure(idrRequestSent: Boolean)
+	{
+		event(VideoFecFailureEvent(idrRequestSent))
 	}
 
 	private fun eventRegist(host: RegistHost)

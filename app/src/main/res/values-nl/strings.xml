@@ -49,6 +49,8 @@
 	<string name="bitrate_kbps">%1$d kbps</string>
 	<string name="bitrate_summary">Links / rechts past met 500 kbps aan (ingehouden = sneller), OK schakelt Auto</string>
 	<string name="display_mode">Beeldmodus</string>
+	<string name="idr_on_fec_failure">Keyframe aanvragen bij frameverlies</string>
+	<string name="idr_on_fec_failure_summary">Vraag de console om een nieuw keyframe wanneer een frame niet hersteld kan worden, zodat beeldfouten sneller herstellen</string>
 	<string name="display_mode_fit">Inpas</string>
 	<string name="display_mode_zoom">Zoom</string>
 	<string name="display_mode_stretch">Uitrek</string>

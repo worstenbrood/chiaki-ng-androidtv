@@ -99,6 +99,7 @@ class Preferences(context: Context)
 		const val menuShortcutKey = "menu_shortcut"
 		const val sleepConsoleOnExitKey = "sleep_console_on_exit"
 		const val disconnectActionKey = "disconnect_action"
+		const val idrOnFecFailureKey = "idr_on_fec_failure"
 
 		val resolutionDefault = Resolution.RES_1080P
 		val fpsDefault = FPS.FPS_60
@@ -197,6 +198,11 @@ class Preferences(context: Context)
 	var disconnectAction
 		get() = DisconnectAction.values().firstOrNull { it.value == sharedPreferences.getString(disconnectActionKey, DisconnectAction.ASK.value) } ?: DisconnectAction.ASK
 		set(value) { sharedPreferences.edit().putString(disconnectActionKey, value.value).apply() }
+
+	/** Default on (upstream Qt defaults off) — faster recovery from corrupted frames matters more on WiFi. */
+	var idrOnFecFailure
+		get() = sharedPreferences.getBoolean(idrOnFecFailureKey, true)
+		set(value) { sharedPreferences.edit().putBoolean(idrOnFecFailureKey, value).apply() }
 
 	var resolution
 		get() = sharedPreferences.getString(resolutionDefaultKey, resolutionDefault.value)?.let { value ->
