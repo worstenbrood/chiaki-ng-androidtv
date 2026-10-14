@@ -21,8 +21,10 @@ import com.chiaking.tv.R
 import com.chiaking.tv.common.Preferences
 import com.chiaking.tv.session.*
 import com.chiaking.tv.ui.theme.*
+import kotlinx.coroutines.delay
 
 private const val RECONNECT_RESUME_DELAY_MS = 1500L
+private const val FIRST_FRAME_POLL_MS = 100L
 
 @Composable
 fun StreamScreen(
@@ -39,6 +41,7 @@ fun StreamScreen(
 	var pinDialog by remember { mutableStateOf<StreamStateLoginPinRequest?>(null) }
 	var quitDialog by remember { mutableStateOf<StreamStateQuit?>(null) }
 	var createError by remember { mutableStateOf<StreamStateCreateError?>(null) }
+	var firstFrameSeen by remember(session) { mutableStateOf(false) }
 
 	val closeAction: () -> Unit = {
 		when(preferences.disconnectAction)
@@ -73,7 +76,22 @@ fun StreamScreen(
 					onQuit()
 			}
 			is StreamStateCreateError -> createError = state as StreamStateCreateError
+			StreamStateConnecting -> firstFrameSeen = false
 			else -> {}
+		}
+	}
+
+	LaunchedEffect(state, session) {
+		if(state is StreamStateConnected && !firstFrameSeen)
+		{
+			while(!firstFrameSeen && !session.disconnecting)
+			{
+				val stats = session.getStats()
+				if(stats != null && stats[0] > 0L)
+					firstFrameSeen = true
+				else
+					delay(FIRST_FRAME_POLL_MS)
+			}
 		}
 	}
 
@@ -111,10 +129,14 @@ fun StreamScreen(
 		when(state)
 		{
 			StreamStateConnecting, StreamStateIdle -> HudSpinner(stringResource(R.string.connecting))
+			// While the stored PIN is auto-submitted there is no dialog — keep the spinner up
+			is StreamStateLoginPinRequest -> if(pinDialog == null) HudSpinner(stringResource(R.string.connecting))
 			is StreamStateRemoteProgress -> HudSpinner(stringResource(
 				if((state as StreamStateRemoteProgress).finished) R.string.remote_data_connected
 				else R.string.remote_data_connecting
 			))
+			// Keep the spinner until the decoder has actually received a frame (black screen otherwise)
+			StreamStateConnected -> if(!firstFrameSeen) HudSpinner(stringResource(R.string.connecting))
 			StreamStateDisconnecting -> HudSpinner(stringResource(R.string.disconnecting))
 			else -> {}
 		}
