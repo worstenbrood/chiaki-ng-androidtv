@@ -64,7 +64,9 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   additions: audio **volume** (software gain in the Oboe callback), **output device**
   selection with default-device fallback, audio **buffer size** (ms → Oboe buffer capacity),
   video **stats counters** (frames/bytes/lost for the HUD), `CHIAKI_EVENT_MOTION_RESET`
-  forwarding and the `sessionRequestIDR` / `sessionRestartAudio` JNI functions.
+  forwarding, the `sessionRequestIDR` / `sessionRestartAudio` JNI functions, and the
+  `enableIDROnFECFailure` connect-info field + `CHIAKI_EVENT_VIDEO_FEC_FAILURE` forwarding
+  (`idr_on_fec_failure` pref, default on).
   **Keep-alive rework** in `video-decoder.c` (required by StreamManager — do not revert):
   `set_surface(null)` no longer kills the codec (upstream did, and double-locked the
   non-recursive `codec_mutex` → ANR); it sets `surface_valid=false` +

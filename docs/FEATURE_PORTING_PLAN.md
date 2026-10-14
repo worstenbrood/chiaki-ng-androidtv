@@ -378,7 +378,7 @@ ships arm64-v8a + armeabi-v7a.
 
 **Phase 2 — JNI additions (touch `native/jni`, update UPSTREAM_SYNC divergence list)**
 5. Weak-WiFi warning (1.5)
-6. packet_loss_max + IDR-on-FEC (1.3 + 1.4)
+6. packet_loss_max (1.3) — ~~IDR-on-FEC (1.4)~~ done
 7. Hidden hosts, launcher dynamic shortcuts (3.3, 8.4)
 
 **Phase 3 — PSN follow-ups (flagship landed)**

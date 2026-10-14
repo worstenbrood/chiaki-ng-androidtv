@@ -17,6 +17,9 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
   console type (PS5/PS4) prefilled
 - **Remote Play** — H.264 / H.265 / H.265 HDR, up to 1080p60, auto or manual bitrate (2000–50000 kbps),
   display modes Fit / Zoom / Stretch (*Settings → Video → Display Mode*, also live on the HUD)
+- **Fast artifact recovery** — when a frame can't be repaired from redundant packets, the console
+  is immediately asked for a fresh keyframe instead of waiting for the next one
+  (*Settings → Stream → Request Keyframe on Frame Loss*, on by default)
 - **Session keep-alive** — leaving the app during a stream keeps the session connected (muted);
   returning resumes instantly without a reconnect, even after the app was recreated
 - **Sleep console on exit** — *Settings → General → Sleep Console on Exit* (Never/Ask/Always):
