@@ -22,12 +22,15 @@ object StreamStateConnected: StreamState()
 object StreamStateDisconnecting: StreamState()
 data class StreamStateCreateError(val error: CreateError): StreamState()
 data class StreamStateQuit(val reason: QuitReason, val reasonString: String?): StreamState()
-data class StreamStateLoginPinRequest(val pinIncorrect: Boolean): StreamState()
+data class StreamStateLoginPinRequest(val pinIncorrect: Boolean, val requestId: Long = 0L): StreamState()
+data class StreamStateRemoteProgress(val finished: Boolean): StreamState()
 
 class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, val logVerbose: Boolean, val input: StreamInput)
 {
 	var session: Session? = null
 		private set
+
+	var autoRegistCallback: ((RegistHost) -> Unit)? = null
 
 	private val _state = MutableStateFlow<StreamState>(StreamStateIdle)
 	val state: MutableStateFlow<StreamState> get() = _state
@@ -67,6 +70,8 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 	fun getStats(): LongArray? = session?.getStats()
 
 	@Volatile private var stopped = false
+	@Volatile private var remoteStarted = false
+	private var pinRequestId = 0L
 
 	fun shutdown(finalState: StreamState = StreamStateIdle)
 	{
@@ -113,6 +118,14 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 	{
 		if(session != null || disconnecting)
 			return
+		// A remote session's holepunch session is consumed (and freed) by the native session on quit,
+		// so it cannot be re-established without a fresh holepunch handshake — require a manual reconnect
+		if(connectInfo.holepunchSessionPtr != 0L && remoteStarted)
+		{
+			if(_state.value !is StreamStateQuit)
+				_state.value = StreamStateQuit(QuitReason(-1), "Remote session ended — reconnect to play again")
+			return
+		}
 		stopped = false
 		connected = false
 		retryCount = 0
@@ -120,6 +133,8 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 		try
 		{
 			val session = Session(connectInfo, logManager.createNewFile().file.absolutePath, logVerbose)
+			if(connectInfo.holepunchSessionPtr != 0L)
+				remoteStarted = true
 			_state.value = StreamStateConnecting
 			session.eventCallback = this::eventCallback
 			session.start()
@@ -162,7 +177,8 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 			is QuitEvent ->
 			{
 				val elapsed = SystemClock.elapsedRealtime() - startTime
-				if(!connected && retryCount < MAX_RETRIES && !disconnecting && event.reason.isError && elapsed < RETRY_WINDOW_MS)
+				if(!connected && retryCount < MAX_RETRIES && !disconnecting && event.reason.isError &&
+					elapsed < RETRY_WINDOW_MS && connectInfo.holepunchSessionPtr == 0L)
 				{
 					retryCount++
 					mainScope.launch {
@@ -179,10 +195,12 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 						)
 			}
 			is LoginPinRequestEvent -> _state.value = StreamStateLoginPinRequest(
-				event.pinIncorrect
+				event.pinIncorrect, ++pinRequestId
 			)
 			is RumbleEvent -> _rumbleState.value = event
 			is MotionResetEvent -> input.resetMotionControls()
+			is DataHolepunchEvent -> _state.value = StreamStateRemoteProgress(event.finished)
+			is AutoRegistEvent -> autoRegistCallback?.invoke(event.host)
 		}
 	}
 

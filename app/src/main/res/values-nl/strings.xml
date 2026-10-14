@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="app_name">Chiaki TV</string>
+
+	<!-- Common -->
+	<string name="back">Terug</string>
+	<string name="cancel">Annuleren</string>
+	<string name="save">Opslaan</string>
+	<string name="close">Sluiten</string>
+	<string name="done">Klaar</string>
+	<string name="quit">Verlaten</string>
+	<string name="settings">Instellingen</string>
+	<string name="on">AAN</string>
+	<string name="off">UIT</string>
+	<string name="ps5">PS5</string>
+	<string name="ps4">PS4</string>
+	<string name="playstation5">PlayStation 5</string>
+	<string name="playstation4">PlayStation 4</string>
+	<string name="none">Geen</string>
+
+	<!-- Home -->
+	<string name="discovery_on">Detectie: Aan</string>
+	<string name="discovery_off">Detectie: Uit</string>
+	<string name="local">Lokaal</string>
+	<string name="remote">Extern</string>
+	<string name="waiting_for_console">Wachten op %1$s…</string>
+	<string name="no_consoles_discovered">Nog geen consoles gevonden.\nZorg dat je console in de rustmodus staat of aan staat, en op hetzelfde netwerk.</string>
+	<string name="discovery_off_hint">Detectie staat uit.\nRegistreer een console of voeg er handmatig een toe.</string>
+	<string name="register_console">Console registreren</string>
+	<string name="add_manual_host">Handmatige host toevoegen</string>
+	<string name="refresh_psn_consoles">PSN-consoles vernieuwen</string>
+	<string name="found_count">Gevonden: %1$d</string>
+	<string name="found_error">Gevonden: -1 (fout)</string>
+	<string name="remote_play">Remote Play</string>
+	<string name="linking">Koppelen…</string>
+	<string name="ready">Klaar</string>
+	<string name="rest_mode">Rustmodus</string>
+	<string name="registered">Geregistreerd</string>
+	<string name="not_registered">Niet geregistreerd</string>
+	<string name="edit">Bewerken</string>
+	<string name="delete">Verwijderen</string>
+
+	<!-- Settings -->
+	<string name="stream">Stream</string>
+	<string name="resolution">Resolutie</string>
+	<string name="frames_per_second">Beelden per seconde</string>
+	<string name="video_codec">Videocodec</string>
+	<string name="bitrate">Bitsnelheid</string>
+	<string name="bitrate_auto">Auto (%1$d kbps)</string>
+	<string name="bitrate_kbps">%1$d kbps</string>
+	<string name="bitrate_summary">Links / rechts past met 500 kbps aan (ingehouden = sneller), OK schakelt Auto</string>
+	<string name="display_mode">Beeldmodus</string>
+	<string name="audio">Audio</string>
+	<string name="volume">Volume</string>
+	<string name="volume_percent">%1$d%%</string>
+	<string name="output_device">Uitvoerapparaat</string>
+	<string name="audio_buffer">Audiobuffer</string>
+	<string name="auto">Auto</string>
+	<string name="buffer_ms">%1$d ms</string>
+	<string name="controller">Controller</string>
+	<string name="swap_cross_moon">Kruis / Cirkel wisselen</string>
+	<string name="swap_cross_moon_summary">Wissel de betekenis van de A- en B-knop (Japanse console-indeling)</string>
+	<string name="dpad_as_controller">D-pad stuurt controller-invoer</string>
+	<string name="dpad_as_controller_summary">Gebruik de D-pad van de afstandsbediening als controller-D-pad tijdens het streamen</string>
+	<string name="rumble">Trillen</string>
+	<string name="rumble_summary">Laat de gamepad trillen bij trilgebeurtenissen van de console</string>
+	<string name="motion_controls">Bewegingsbediening</string>
+	<string name="motion_controls_summary">Gebruik de gyroscoop/accelerometer van het apparaat als controllerbeweging</string>
+	<string name="button_haptics">Knop-haptiek</string>
+	<string name="button_haptics_summary">Haptische feedback bij knopindrukkingen</string>
+	<string name="hud_shortcut">HUD-snelkoppeling</string>
+	<string name="general">Algemeen</string>
+	<string name="console_discovery">Console-detectie</string>
+	<string name="console_discovery_summary">Automatisch consoles op het lokale netwerk zoeken</string>
+	<string name="auto_connect_startup">Automatisch verbinden bij opstarten</string>
+	<string name="auto_connect_startup_summary">Wake en verbind automatisch met een console wanneer de app start</string>
+	<string name="sleep_console_on_exit">Console in slaap brengen bij afsluiten</string>
+	<string name="on_close">Bij afsluiten</string>
+	<string name="auto_connect_console">Automatisch verbinden met console</string>
+	<string name="verbose_logs">Uitgebreide logboeken</string>
+	<string name="verbose_logs_summary">Gedetailleerde sessielogboeken schrijven voor debugging</string>
+	<string name="session_logs">Sessielogboeken</string>
+	<string name="session_logs_summary">Bewaarde sessielogboeken bekijken</string>
+	<string name="registered_consoles">Geregistreerde consoles</string>
+	<string name="registered_consoles_none">Geen geregistreerd</string>
+	<string name="registered_consoles_count">%1$d geregistreerd</string>
+	<string name="playstation_network">PlayStation Network</string>
+	<string name="account">Account</string>
+	<string name="signed_in">Aangemeld</string>
+	<string name="sign_out">Afmelden</string>
+	<string name="sign_out_summary">PSN-inloggegevens van dit apparaat verwijderen</string>
+	<string name="sign_in_psn">Aanmelden met PSN</string>
+	<string name="sign_in_psn_summary">Vereist voor Remote Play via internet</string>
+	<string name="backup">Back-up</string>
+	<string name="export_settings">Instellingen exporteren</string>
+	<string name="export_settings_summary">Geregistreerde en handmatige hosts opslaan in een JSON-bestand</string>
+	<string name="import_settings">Instellingen importeren</string>
+	<string name="import_settings_summary">Hosts herstellen uit een chiaki-settings.json-bestand</string>
+	<string name="about">Over</string>
+	<string name="chiaki_ng_core">chiaki-ng-kern</string>
+
+	<!-- PSN login dialog -->
+	<string name="psn_login_title">Aanmelden met PSN</string>
+	<string name="psn_login_instructions">Scan deze QR-code met je telefoon en meld je aan bij PlayStation Network. Na het aanmelden komt je browser op een lege pagina — kopieer de volledige URL uit de adresbalk en plak die hieronder.</string>
+	<string name="psn_paste_hint">Omleidings-URL (of code) plakken</string>
+	<string name="psn_sign_in">Aanmelden</string>
+	<string name="psn_working">Bezig…</string>
+	<string name="psn_starting">Starten…</string>
+	<string name="psn_generating_uid">Apparaat-UID genereren…</string>
+	<string name="psn_exchanging">Autorisatiecode omwisselen bij Sony…</string>
+	<string name="psn_fetching_account">Account-id ophalen…</string>
+	<string name="psn_saving">Sessie opslaan…</string>
+	<string name="psn_signed_in_title">Aangemeld</string>
+	<string name="psn_signed_in_message">succesvol aangemeld bij PlayStation Network.\nAccount: %1$s</string>
+	<string name="psn_uid_failed">Apparaat-UID genereren mislukt</string>
+	<string name="psn_bad_code">Dat lijkt niet op de omleidings-URL of een code</string>
+	<string name="psn_signin_failed">Aanmelden mislukt</string>
+
+	<!-- Remote connect phases -->
+	<string name="remote_linking_with">Koppelen met %1$s via PSN…</string>
+	<string name="remote_refreshing_token">PSN-token vernieuwen…</string>
+	<string name="remote_creating_session">Externe sessie met %1$s aanmaken…</string>
+	<string name="remote_psn_required">PSN-aanmelding vereist</string>
+	<string name="remote_account_missing">PSN-account-id ontbreekt — meld je opnieuw aan</string>
+	<string name="remote_connect_failed">Externe verbinding mislukt: %1$s</string>
+	<string name="remote_data_connecting">Dataconnectie opbouwen…</string>
+	<string name="remote_data_connected">Dataconnectie opgebouwd</string>
+
+	<!-- Stream / HUD -->
+	<string name="connecting">Verbinden…</string>
+	<string name="disconnecting">Verbreken…</string>
+	<string name="connected">Verbonden</string>
+	<string name="remote_host_label">Extern</string>
+	<string name="video">Video</string>
+	<string name="video_value">%1$d×%2$d @ %3$d fps</string>
+	<string name="video_sub">%1$s • %2$d Mbps doel</string>
+	<string name="display">Beeld</string>
+	<string name="ok_to_cycle">OK om te wisselen</string>
+	<string name="fps_value">%1$.0f fps</string>
+	<string name="mbps_value">%1$.1f Mbps</string>
+	<string name="network">Netwerk</string>
+	<string name="loss_value">%1$.1f%% verlies</string>
+	<string name="ping_sub">ping %1$d ms • %2$d verloren</string>
+	<string name="enter_pin">Pincode invoeren</string>
+	<string name="pin_incorrect">Pincode onjuist</string>
+	<string name="pin_instructions">Voer de pincode in die op je tv/console-inlogscherm staat.</string>
+	<string name="pin">Pincode</string>
+	<string name="connect">Verbinden</string>
+	<string name="quit_stream_title">Stream verlaten?</string>
+	<string name="sleep">Slaap</string>
+	<string name="disconnect">Verbreken</string>
+
+	<!-- Logs -->
+	<string name="recorded_sessions">Opgenomen sessies</string>
+	<string name="no_logs">Nog geen logboeken bewaard.</string>
+	<string name="failed_to_read_log">Logboek lezen mislukt</string>
+	<string name="no_consoles_registered">Geen consoles geregistreerd.</string>
+
+	<!-- Regist -->
+	<string name="console_version">Console-versie</string>
+	<string name="ps4_ge_900">PS4 (9.00+)</string>
+	<string name="ps4_ge_700">PS4 (7.0+)</string>
+	<string name="ps4_lt_700">PS4 (&lt;7.0)</string>
+	<string name="host_address">Hostadres</string>
+	<string name="psn_online_id">PSN-online-id</string>
+	<string name="psn_account_id">PSN-account-id (base64)</string>
+	<string name="regist_pin_hint">Pincode (8 cijfers, getoond op het koppelscherm)</string>
+	<string name="regist_help_ps5">Op je PS5: Instellingen &gt; Systeem &gt; Remote Play &gt; Apparaat koppelen. De 8-cijferige pincode staat daar.</string>
+	<string name="regist_help_ps4">Op je console: Instellingen &gt; Remote Play-verbindingsinstellingen &gt; Apparaat toevoegen. De 8-cijferige pincode staat daar.</string>
+	<string name="register">Registreren</string>
+	<string name="regist_fill_in">Vul host, PSN-id en de 8-cijferige pincode in.</string>
+	<string name="regist_account_id_invalid">PSN-account-id moet een base64-tekenreeks van 44 tekens zijn (8 bytes).</string>
+	<string name="registering_console">Console registreren</string>
+	<string name="regist_running">Registreren…</string>
+	<string name="regist_success">Console succesvol geregistreerd!</string>
+	<string name="regist_duplicate">Console was al geregistreerd (bijgewerkt).</string>
+	<string name="regist_failed">Registratie mislukt.</string>
+	<string name="regist_cancelled">Registratie geannuleerd.</string>
+	<string name="regist_starting">Starten…</string>
+
+	<!-- Manual host dialog -->
+	<string name="manual_host_add">Handmatige host toevoegen</string>
+	<string name="manual_host_edit">Host bewerken</string>
+	<string name="manual_host_ip">IP-adres / hostnaam</string>
+	<string name="host_address_ip">Hostadres (IP)</string>
+
+	<!-- Stream dialogs -->
+	<string name="session_ended">Sessie beëindigd</string>
+	<string name="reconnect">Opnieuw verbinden</string>
+	<string name="disconnect_title">Verbreken</string>
+	<string name="disconnect_sleep_question">Wil je dat de console naar de slaapmodus gaat?</string>
+	<string name="failed_to_start_session">Sessie starten mislukt</string>
+	<string name="hud_close">SLUITEN</string>
+
+	<!-- MainActivity dialogs / banners -->
+	<string name="console_still_awake">Console is nog wakker</string>
+	<string name="away_sleep_question">Je bent een tijdje weg geweest. De console in slaap brengen?</string>
+	<string name="sleep_console">Console in slaap brengen</string>
+	<string name="keep_playing">Verder spelen</string>
+	<string name="replace">Vervangen</string>
+	<string name="merge">Samenvoegen</string>
+	<string name="import_replace_merge_question">Alle bestaande consoles vervangen door de geïmporteerde, of samenvoegen met de bestaande lijst?</string>
+	<string name="import_failed">Importeren mislukt: %1$s</string>
+	<string name="imported_count">%1$d console(s) geïmporteerd</string>
+	<string name="waking">Wordt wakker</string>
+	<string name="connecting_to">Verbinden met</string>
+	<string name="auto_connecting_to">Automatisch verbinden met</string>
+	<string name="wake_waiting">%1$s %2$s… wachten tot hij online komt</string>
+	<string name="console">console</string>
+	<string name="auto_registered_console">Console %1$s automatisch geregistreerd via PSN</string>
+</resources>

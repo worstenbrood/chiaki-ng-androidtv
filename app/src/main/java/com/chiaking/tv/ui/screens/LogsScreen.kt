@@ -11,12 +11,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chiaking.tv.R
 import com.chiaking.tv.common.LogFile
 import com.chiaking.tv.common.LogManager
 import com.chiaking.tv.common.RegisteredHost
+import com.chiaking.tv.ui.FocusMemory
 import com.chiaking.tv.ui.ScreenHeader
 import com.chiaking.tv.ui.SectionHeader
 import com.chiaking.tv.ui.SettingsCard
@@ -24,6 +28,7 @@ import com.chiaking.tv.ui.TvActionRow
 import com.chiaking.tv.ui.TvButton
 import com.chiaking.tv.ui.theme.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 @Composable
@@ -35,9 +40,10 @@ fun LogsScreen(logManager: LogManager, onBack: () -> Unit)
 	if(selected != null)
 	{
 		val content = remember { mutableStateOf("") }
+		val readFailed = stringResource(R.string.failed_to_read_log)
 		LaunchedEffect(selected) {
 			content.value = withContext(Dispatchers.IO) {
-				try { selected!!.file.readText() } catch(e: Exception) { "Failed to read log" }
+				try { selected!!.file.readText() } catch(e: Exception) { readFailed }
 			}
 		}
 		Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
@@ -53,14 +59,31 @@ fun LogsScreen(logManager: LogManager, onBack: () -> Unit)
 		return
 	}
 
+	val restore = remember { FocusMemory.get("logs") }
+	val rowFocus = remember { FocusRequester() }
+	val backFocus = remember { FocusRequester() }
+	LaunchedEffect(Unit) {
+		delay(100)
+		try { if(restore == 0) backFocus.requestFocus() else rowFocus.requestFocus() } catch(e: Exception) { }
+	}
+
 	Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-		ScreenHeader("Session Logs", onBack, fontSize = 28.sp)
-		SectionHeader("Recorded Sessions")
+		ScreenHeader(
+			stringResource(R.string.session_logs), onBack, fontSize = 28.sp,
+			backFocusRequester = if(restore == 0) backFocus else null,
+			onBackFocus = { if(it) FocusMemory.set("logs", 0) }
+		)
+		SectionHeader(stringResource(R.string.recorded_sessions))
 		SettingsCard {
 			if(files.isEmpty())
-				Text("No logs recorded yet.", modifier = Modifier.padding(20.dp), color = OnSurfaceMuted)
-			files.forEach { file ->
-				TvActionRow(file.date.toString(), null) { selected = file }
+				Text(stringResource(R.string.no_logs), modifier = Modifier.padding(20.dp), color = OnSurfaceMuted)
+			files.forEachIndexed { index, file ->
+				TvActionRow(
+					file.date.toString(), null,
+					onClick = { selected = file },
+					focusRequester = if(index + 1 == restore) rowFocus else null,
+					onFocus = { if(it) FocusMemory.set("logs", index + 1) }
+				)
 			}
 		}
 	}
@@ -73,17 +96,32 @@ fun ManageHostsScreen(
 	onBack: () -> Unit
 )
 {
+	val restore = remember { FocusMemory.get("hosts") }
+	val rowFocus = remember { FocusRequester() }
+	val backFocus = remember { FocusRequester() }
+	LaunchedEffect(Unit) {
+		delay(100)
+		try { if(restore == 0) backFocus.requestFocus() else rowFocus.requestFocus() } catch(e: Exception) { }
+	}
+
 	Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-		ScreenHeader("Registered Consoles", onBack, fontSize = 28.sp)
-		SectionHeader("Registered")
+		ScreenHeader(
+			stringResource(R.string.registered_consoles), onBack, fontSize = 28.sp,
+			backFocusRequester = if(restore == 0) backFocus else null,
+			onBackFocus = { if(it) FocusMemory.set("hosts", 0) }
+		)
+		SectionHeader(stringResource(R.string.registered))
 		SettingsCard {
 			if(registeredHosts.isEmpty())
-				Text("No consoles registered.", modifier = Modifier.padding(20.dp), color = OnSurfaceMuted)
-			registeredHosts.forEach { host ->
+				Text(stringResource(R.string.no_consoles_registered), modifier = Modifier.padding(20.dp), color = OnSurfaceMuted)
+			registeredHosts.forEachIndexed { index, host ->
 				TvActionRow(
 					host.serverNickname ?: host.serverMac.toString(),
-					"${host.serverMac} / ${if(host.target.isPS5) "PS5" else "PS4"}"
-				) { onDeleteRegistered(host) }
+					"${host.serverMac} / ${stringResource(if(host.target.isPS5) R.string.ps5 else R.string.ps4)}",
+					onClick = { onDeleteRegistered(host) },
+					focusRequester = if(index + 1 == restore) rowFocus else null,
+					onFocus = { if(it) FocusMemory.set("hosts", index + 1) }
+				)
 			}
 		}
 	}

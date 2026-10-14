@@ -24,7 +24,9 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import com.chiaking.tv.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chiaking.tv.ui.theme.*
@@ -74,6 +76,7 @@ fun TvButton(
 	onClick: () -> Unit,
 	modifier: Modifier = Modifier,
 	focusRequester: FocusRequester? = null,
+	onFocusChange: (Boolean) -> Unit = {},
 	colors: ButtonColors = ButtonDefaults.buttonColors(
 		containerColor = SurfaceCard,
 		contentColor = OnSurfaceLight
@@ -87,7 +90,13 @@ fun TvButton(
 		onClick = onClick,
 		modifier = modifier
 			.scale(scale)
-			.onFocusChanged { focused = it.isFocused },
+			.then(
+				if(focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier
+			)
+			.onFocusChanged {
+				focused = it.isFocused
+				onFocusChange(it.isFocused)
+			},
 		colors = colors,
 		shape = ButtonShape,
 		border = BorderStroke(
@@ -100,22 +109,45 @@ fun TvButton(
 }
 
 @Composable
-fun ScreenHeader(title: String, onBack: () -> Unit, modifier: Modifier = Modifier, fontSize: androidx.compose.ui.unit.TextUnit = 30.sp)
+fun ScreenHeader(
+	title: String,
+	onBack: () -> Unit,
+	modifier: Modifier = Modifier,
+	fontSize: androidx.compose.ui.unit.TextUnit = 30.sp,
+	backFocusRequester: FocusRequester? = null,
+	onBackFocus: (Boolean) -> Unit = {}
+)
 {
 	Row(modifier = modifier, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-		TvButton("Back", onClick = onBack)
+		TvButton(
+			stringResource(R.string.back),
+			onClick = onBack,
+			focusRequester = backFocusRequester,
+			onFocusChange = onBackFocus
+		)
 		Spacer(Modifier.width(20.dp))
 		Text(title, fontSize = fontSize, fontWeight = FontWeight.Bold)
 	}
 }
 
 @Composable
-private fun Modifier.tvRow(focused: MutableState<Boolean>, onClick: () -> Unit): Modifier =
+private fun Modifier.tvRow(
+	focused: MutableState<Boolean>,
+	onClick: () -> Unit,
+	focusRequester: FocusRequester?,
+	onFocus: (Boolean) -> Unit
+): Modifier =
 	this
 		.padding(vertical = 2.dp)
+		.then(
+			if(focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier
+		)
 		.clip(CardShape)
 		.background(if(focused.value) PsBlue.copy(alpha = 0.40f) else Color.Transparent)
-		.onFocusChanged { focused.value = it.isFocused }
+		.onFocusChanged {
+			focused.value = it.isFocused
+			onFocus(it.isFocused)
+		}
 		.clickable(onClick = onClick)
 		.padding(horizontal = 20.dp, vertical = 12.dp)
 
@@ -124,14 +156,16 @@ fun TvSwitchRow(
 	title: String,
 	summary: String?,
 	checked: Boolean,
-	onCheckedChange: (Boolean) -> Unit
+	onCheckedChange: (Boolean) -> Unit,
+	focusRequester: FocusRequester? = null,
+	onFocus: (Boolean) -> Unit = {}
 )
 {
 	val focused = remember { mutableStateOf(false) }
 	Row(
 		modifier = Modifier
 			.fillMaxWidth()
-			.tvRow(focused) { onCheckedChange(!checked) },
+			.tvRow(focused, { onCheckedChange(!checked) }, focusRequester, onFocus),
 		verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
 	) {
 		Column(modifier = Modifier.weight(1f)) {
@@ -147,7 +181,7 @@ fun TvSwitchRow(
 				.padding(horizontal = 14.dp, vertical = 5.dp)
 		) {
 			Text(
-				if(checked) "ON" else "OFF",
+				stringResource(if(checked) R.string.on else R.string.off),
 				fontSize = 14.sp,
 				fontWeight = FontWeight.Bold,
 				color = if(checked) Color.White else OnSurfaceMuted
@@ -157,13 +191,19 @@ fun TvSwitchRow(
 }
 
 @Composable
-fun TvCycleRow(title: String, value: String, onNext: () -> Unit)
+fun TvCycleRow(
+	title: String,
+	value: String,
+	onNext: () -> Unit,
+	focusRequester: FocusRequester? = null,
+	onFocus: (Boolean) -> Unit = {}
+)
 {
 	val focused = remember { mutableStateOf(false) }
 	Row(
 		modifier = Modifier
 			.fillMaxWidth()
-			.tvRow(focused, onNext),
+			.tvRow(focused, onNext, focusRequester, onFocus),
 		verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
 	) {
 		Text(title, fontSize = 18.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
@@ -190,7 +230,9 @@ fun TvStepperRow(
 	value: String,
 	summary: String?,
 	onStep: (Int) -> Unit,
-	onReset: () -> Unit
+	onReset: () -> Unit,
+	focusRequester: FocusRequester? = null,
+	onFocus: (Boolean) -> Unit = {}
 )
 {
 	val focused = remember { mutableStateOf(false) }
@@ -207,7 +249,7 @@ fun TvStepperRow(
 					else -> false
 				}
 			}
-			.tvRow(focused, onReset),
+			.tvRow(focused, onReset, focusRequester, onFocus),
 		verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
 	) {
 		Column(modifier = Modifier.weight(1f)) {
@@ -236,14 +278,16 @@ fun TvStepperRow(
 fun TvActionRow(
 	title: String,
 	summary: String?,
-	onClick: () -> Unit
+	onClick: () -> Unit,
+	focusRequester: FocusRequester? = null,
+	onFocus: (Boolean) -> Unit = {}
 )
 {
 	val focused = remember { mutableStateOf(false) }
 	Row(
 		modifier = Modifier
 			.fillMaxWidth()
-			.tvRow(focused, onClick),
+			.tvRow(focused, onClick, focusRequester, onFocus),
 		verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
 	) {
 		Column(modifier = Modifier.weight(1f)) {

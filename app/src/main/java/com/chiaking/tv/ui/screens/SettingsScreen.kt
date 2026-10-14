@@ -2,24 +2,22 @@
 
 package com.chiaking.tv.ui.screens
 
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.chiaking.tv.BuildConfig
+import com.chiaking.tv.R
 import com.chiaking.tv.common.AudioDevices
 import com.chiaking.tv.common.Preferences
 import com.chiaking.tv.common.RegisteredHost
 import com.chiaking.tv.ui.*
-import com.chiaking.tv.ui.theme.*
+import kotlinx.coroutines.delay
 
 // Keep in sync with CHIAKI_VERSION in external/chiaki-ng/CMakeLists.txt (see docs/UPSTREAM_SYNC.md)
 const val UPSTREAM_CHIAKI_VERSION = "1.10.0"
@@ -60,6 +58,8 @@ fun SettingsScreen(
 	val autoConnectOptions = remember(registeredHosts) { listOf<RegisteredHost?>(null) + registeredHosts }
 
 	val ctx = androidx.compose.ui.platform.LocalContext.current
+	var psnLoggedIn by remember { mutableStateOf(com.chiaking.tv.common.psn.PsnTokenStore.get(ctx).isLoggedIn) }
+	var showPsnLogin by remember { mutableStateOf(false) }
 	val audioDevices = remember { AudioDevices.outputDevices(ctx) }
 	var deviceIndex by remember { mutableStateOf(
 		(audioDevices.indexOfFirst { it.first == preferences.audioDeviceName }
@@ -67,39 +67,58 @@ fun SettingsScreen(
 			?: audioDevices.indexOfFirst { it.second == preferences.audioDeviceId })
 			.coerceAtLeast(0)) }
 
-	Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 24.dp)) {
-		ScreenHeader("Settings", onBack, modifier = Modifier.padding(horizontal = 32.dp))
+	val restore = remember { FocusMemory.get("settings") }
+	val rowFocus = remember { FocusRequester() }
+	val backFocus = remember { FocusRequester() }
+	LaunchedEffect(Unit) {
+		delay(100)
+		try { if(restore == 0) backFocus.requestFocus() else rowFocus.requestFocus() } catch(e: Exception) { }
+	}
+	fun fr(i: Int) = if(i == restore) rowFocus else null
+	fun fb(i: Int): (Boolean) -> Unit = { if(it) FocusMemory.set("settings", i) }
 
-		SectionHeader("Stream")
+	Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 24.dp)) {
+		ScreenHeader(
+			stringResource(R.string.settings), onBack,
+			modifier = Modifier.padding(horizontal = 32.dp),
+			backFocusRequester = if(restore == 0) backFocus else null,
+			onBackFocus = { if(it) FocusMemory.set("settings", 0) }
+		)
+
+		SectionHeader(stringResource(R.string.stream))
 		SettingsCard {
 			TvCycleRow(
-				title = "Resolution",
+				title = stringResource(R.string.resolution),
 				value = resolution.title,
 				onNext = {
 					resolution = Preferences.Resolution.values()[(resolution.ordinal + 1) % Preferences.Resolution.values().size]
 					preferences.resolution = resolution
-				}
+				},
+				focusRequester = fr(1), onFocus = fb(1)
 			)
 			TvCycleRow(
-				title = "Frames per Second",
+				title = stringResource(R.string.frames_per_second),
 				value = fps.title,
 				onNext = {
 					fps = Preferences.FPS.values()[(fps.ordinal + 1) % Preferences.FPS.values().size]
 					preferences.fps = fps
-				}
+				},
+				focusRequester = fr(2), onFocus = fb(2)
 			)
 			TvCycleRow(
-				title = "Video Codec",
+				title = stringResource(R.string.video_codec),
 				value = codec.title,
 				onNext = {
 					codec = Preferences.Codec.values()[(codec.ordinal + 1) % Preferences.Codec.values().size]
 					preferences.codec = codec
-				}
+				},
+				focusRequester = fr(3), onFocus = fb(3)
 			)
 			TvStepperRow(
-				title = "Bitrate",
-				value = if(bitrate == null) "Auto (${preferences.bitrateAuto} kbps)" else "$bitrate kbps",
-				summary = "Left / Right adjusts by 500 kbps (hold to go faster), OK toggles Auto",
+				title = stringResource(R.string.bitrate),
+				value = if(bitrate == null) stringResource(R.string.bitrate_auto, preferences.bitrateAuto)
+					else stringResource(R.string.bitrate_kbps, bitrate!!),
+				summary = stringResource(R.string.bitrate_summary),
 				onStep = { steps ->
 					val base = bitrate ?: preferences.bitrateAuto
 					bitrate = (base + steps * 500).coerceIn(2000, 50000)
@@ -108,133 +127,224 @@ fun SettingsScreen(
 				onReset = {
 					bitrate = if(bitrate == null) preferences.bitrateAuto else null
 					preferences.bitrate = bitrate
-				}
+				},
+				focusRequester = fr(4), onFocus = fb(4)
 			)
 			TvCycleRow(
-				title = "Display Mode",
+				title = stringResource(R.string.display_mode),
 				value = displayMode.title,
 				onNext = {
 					val values = Preferences.DisplayMode.values()
 					displayMode = values[(displayMode.ordinal + 1) % values.size]
 					preferences.displayMode = displayMode
-				}
+				},
+				focusRequester = fr(5), onFocus = fb(5)
 			)
 		}
 
-		SectionHeader("Audio")
+		SectionHeader(stringResource(R.string.audio))
 		SettingsCard {
 			TvCycleRow(
-				title = "Volume",
-				value = "$volume%",
+				title = stringResource(R.string.volume),
+				value = stringResource(R.string.volume_percent, volume),
 				onNext = {
 					volume = if(volume >= 100) 0 else volume + 25
 					preferences.audioVolume = volume
-				}
+				},
+				focusRequester = fr(6), onFocus = fb(6)
 			)
 			TvCycleRow(
-				title = "Output Device",
+				title = stringResource(R.string.output_device),
 				value = audioDevices[deviceIndex].first,
 				onNext = {
 					deviceIndex = (deviceIndex + 1) % audioDevices.size
 					preferences.audioDeviceId = audioDevices[deviceIndex].second
 					preferences.audioDeviceName = audioDevices[deviceIndex].first
-				}
+				},
+				focusRequester = fr(7), onFocus = fb(7)
 			)
 			TvCycleRow(
-				title = "Audio Buffer",
-				value = if(bufferMs == 0) "Auto" else "$bufferMs ms",
+				title = stringResource(R.string.audio_buffer),
+				value = if(bufferMs == 0) stringResource(R.string.auto) else stringResource(R.string.buffer_ms, bufferMs),
 				onNext = {
 					bufferMs = if(bufferMs >= 100) 0 else bufferMs + 10
 					preferences.audioBufferMs = bufferMs
-				}
+				},
+				focusRequester = fr(8), onFocus = fb(8)
 			)
 		}
 
-		SectionHeader("Controller")
+		SectionHeader(stringResource(R.string.controller))
 		SettingsCard {
 			TvSwitchRow(
-				"Swap Cross / Circular",
-				"Swap the A and B button meanings (Japanese console layout)",
-				swapCrossMoon
-			) { swapCrossMoon = it; preferences.swapCrossMoon = it }
+				stringResource(R.string.swap_cross_moon),
+				stringResource(R.string.swap_cross_moon_summary),
+				swapCrossMoon,
+				{ swapCrossMoon = it; preferences.swapCrossMoon = it },
+				focusRequester = fr(9), onFocus = fb(9)
+			)
 			TvSwitchRow(
-				"D-pad sends controller input",
-				"Use the remote control D-pad as the controller D-pad while streaming",
-				dpadAsController
-			) { dpadAsController = it; preferences.dpadAsController = it }
-			TvSwitchRow("Rumble", "Vibrate the gamepad on console rumble events", rumble)
-			{ rumble = it; preferences.rumbleEnabled = it }
-			TvSwitchRow("Motion Controls", "Use device gyroscope/accelerometer as controller motion", motion)
-			{ motion = it; preferences.motionEnabled = it }
-			TvSwitchRow("Button Haptics", "Haptic feedback on button presses", haptics)
-			{ haptics = it; preferences.buttonHapticEnabled = it }
+				stringResource(R.string.dpad_as_controller),
+				stringResource(R.string.dpad_as_controller_summary),
+				dpadAsController,
+				{ dpadAsController = it; preferences.dpadAsController = it },
+				focusRequester = fr(10), onFocus = fb(10)
+			)
+			TvSwitchRow(
+				stringResource(R.string.rumble),
+				stringResource(R.string.rumble_summary),
+				rumble,
+				{ rumble = it; preferences.rumbleEnabled = it },
+				focusRequester = fr(11), onFocus = fb(11)
+			)
+			TvSwitchRow(
+				stringResource(R.string.motion_controls),
+				stringResource(R.string.motion_controls_summary),
+				motion,
+				{ motion = it; preferences.motionEnabled = it },
+				focusRequester = fr(12), onFocus = fb(12)
+			)
+			TvSwitchRow(
+				stringResource(R.string.button_haptics),
+				stringResource(R.string.button_haptics_summary),
+				haptics,
+				{ haptics = it; preferences.buttonHapticEnabled = it },
+				focusRequester = fr(13), onFocus = fb(13)
+			)
 			TvCycleRow(
-				title = "HUD Shortcut",
+				title = stringResource(R.string.hud_shortcut),
 				value = menuShortcut.title,
 				onNext = {
 					val values = Preferences.MenuShortcut.values()
 					menuShortcut = values[(menuShortcut.ordinal + 1) % values.size]
 					preferences.menuShortcut = menuShortcut
-				}
+				},
+				focusRequester = fr(14), onFocus = fb(14)
 			)
 		}
 
-		SectionHeader("General")
+		SectionHeader(stringResource(R.string.general))
 		SettingsCard {
-			TvSwitchRow("Console Discovery", "Automatically find consoles on the local network", discovery)
-			{ discovery = it; preferences.discoveryEnabled = it }
-			TvSwitchRow("Auto-connect on Startup", "Wake and connect to a console automatically when the app starts", autoConnect)
-			{ autoConnect = it; preferences.autoConnectEnabled = it }
+			TvSwitchRow(
+				stringResource(R.string.console_discovery),
+				stringResource(R.string.console_discovery_summary),
+				discovery,
+				{ discovery = it; preferences.discoveryEnabled = it },
+				focusRequester = fr(15), onFocus = fb(15)
+			)
+			TvSwitchRow(
+				stringResource(R.string.auto_connect_startup),
+				stringResource(R.string.auto_connect_startup_summary),
+				autoConnect,
+				{ autoConnect = it; preferences.autoConnectEnabled = it },
+				focusRequester = fr(16), onFocus = fb(16)
+			)
 			TvCycleRow(
-				title = "Sleep Console on Exit",
+				title = stringResource(R.string.sleep_console_on_exit),
 				value = sleepConsoleOnExit.title,
 				onNext = {
 					val values = Preferences.SleepConsoleOnExit.values()
 					sleepConsoleOnExit = values[(sleepConsoleOnExit.ordinal + 1) % values.size]
 					preferences.sleepConsoleOnExit = sleepConsoleOnExit
-				}
+				},
+				focusRequester = fr(17), onFocus = fb(17)
 			)
 			TvCycleRow(
-				title = "On Close",
+				title = stringResource(R.string.on_close),
 				value = disconnectAction.title,
 				onNext = {
 					val values = Preferences.DisconnectAction.values()
 					disconnectAction = values[(disconnectAction.ordinal + 1) % values.size]
 					preferences.disconnectAction = disconnectAction
-				}
+				},
+				focusRequester = fr(18), onFocus = fb(18)
 			)
 			TvCycleRow(
-				title = "Auto-connect Console",
+				title = stringResource(R.string.auto_connect_console),
 				value = autoConnectOptions.getOrNull(autoConnectIndex)?.let {
-					it.serverNickname?.takeIf { n -> n.isNotBlank() } ?: (if(it.target.isPS5) "PlayStation 5" else "PlayStation 4")
-				} ?: "None",
+					it.serverNickname?.takeIf { n -> n.isNotBlank() }
+						?: stringResource(if(it.target.isPS5) R.string.playstation5 else R.string.playstation4)
+				} ?: stringResource(R.string.none),
 				onNext = {
 					autoConnectIndex = (autoConnectIndex + 1) % (autoConnectOptions.size.coerceAtLeast(1))
 					preferences.autoConnectMac = autoConnectOptions.getOrNull(autoConnectIndex)?.serverMac?.toString() ?: ""
-				}
+				},
+				focusRequester = fr(19), onFocus = fb(19)
 			)
-			TvSwitchRow("Verbose Logs", "Write detailed session logs for debugging", logVerbose)
-			{ logVerbose = it; preferences.logVerbose = it }
-			TvActionRow("Session Logs", "View recorded session logs", onShowLogs)
+			TvSwitchRow(
+				stringResource(R.string.verbose_logs),
+				stringResource(R.string.verbose_logs_summary),
+				logVerbose,
+				{ logVerbose = it; preferences.logVerbose = it },
+				focusRequester = fr(20), onFocus = fb(20)
+			)
 			TvActionRow(
-				"Registered Consoles",
-				if(registeredHostCount == 0) "None registered" else "$registeredHostCount registered",
-				onManageHosts
+				stringResource(R.string.session_logs),
+				stringResource(R.string.session_logs_summary),
+				onShowLogs,
+				focusRequester = fr(21), onFocus = fb(21)
+			)
+			TvActionRow(
+				stringResource(R.string.registered_consoles),
+				if(registeredHostCount == 0) stringResource(R.string.registered_consoles_none)
+					else stringResource(R.string.registered_consoles_count, registeredHostCount),
+				onManageHosts,
+				focusRequester = fr(22), onFocus = fb(22)
 			)
 		}
 
-		SectionHeader("Backup")
+		SectionHeader(stringResource(R.string.playstation_network))
 		SettingsCard {
-			TvActionRow("Export Settings", "Save registered and manual hosts to a JSON file", onExportSettings)
-			TvActionRow("Import Settings", "Restore hosts from a chiaki-settings.json file", onImportSettings)
+			if(psnLoggedIn)
+			{
+				TvInfoRow(stringResource(R.string.account), stringResource(R.string.signed_in))
+				TvActionRow(
+					stringResource(R.string.sign_out),
+					stringResource(R.string.sign_out_summary),
+					{
+						com.chiaking.tv.common.psn.PsnTokenStore.get(ctx).logout()
+						psnLoggedIn = false
+					},
+					focusRequester = fr(23), onFocus = fb(23)
+				)
+			}
+			else
+				TvActionRow(
+					stringResource(R.string.sign_in_psn),
+					stringResource(R.string.sign_in_psn_summary),
+					{ showPsnLogin = true },
+					focusRequester = fr(23), onFocus = fb(23)
+				)
 		}
 
-		SectionHeader("About")
+		SectionHeader(stringResource(R.string.backup))
 		SettingsCard {
-			TvInfoRow("Chiaki TV", BuildConfig.VERSION_NAME)
-			TvInfoRow("chiaki-ng core", UPSTREAM_CHIAKI_VERSION)
+			TvActionRow(
+				stringResource(R.string.export_settings),
+				stringResource(R.string.export_settings_summary),
+				onExportSettings,
+				focusRequester = fr(24), onFocus = fb(24)
+			)
+			TvActionRow(
+				stringResource(R.string.import_settings),
+				stringResource(R.string.import_settings_summary),
+				onImportSettings,
+				focusRequester = fr(25), onFocus = fb(25)
+			)
+		}
+
+		SectionHeader(stringResource(R.string.about))
+		SettingsCard {
+			TvInfoRow(stringResource(R.string.app_name), BuildConfig.VERSION_NAME)
+			TvInfoRow(stringResource(R.string.chiaki_ng_core), UPSTREAM_CHIAKI_VERSION)
 		}
 
 		Spacer(Modifier.height(32.dp))
 	}
+
+	if(showPsnLogin)
+		PsnLoginDialog(
+			onDismiss = { showPsnLogin = false },
+			onLoggedIn = { psnLoggedIn = true; showPsnLogin = false }
+		)
 }

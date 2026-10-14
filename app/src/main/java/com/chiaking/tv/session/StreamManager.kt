@@ -48,6 +48,39 @@ object StreamManager
 		return session
 	}
 
+	/**
+	 * Starts a Remote Play over Internet session on a holepunch session previously created via
+	 * [com.metallic.chiaki.lib.Holepunch.createSession]. Ownership of the holepunch session
+	 * transfers to the native session (freed when it terminates).
+	 */
+	fun startRemote(context: Context, preferences: Preferences, logManager: LogManager,
+		holepunchSessionPtr: Long, psnAccountId: ByteArray, ps5: Boolean,
+		autoRegist: Boolean = true): StreamSession?
+	{
+		if(session != null)
+			return session
+		val connectInfo = ConnectInfo(
+			ps5,
+			"",
+			ByteArray(16),
+			ByteArray(16),
+			preferences.videoProfile,
+			psnAccountId,
+			holepunchSessionPtr,
+			autoRegist
+		)
+		val input = StreamInput(context.applicationContext, preferences)
+		val session = StreamSession(connectInfo, logManager, preferences.logVerbose, input)
+		this.input = input
+		this.displayHost = null
+		this.session = session
+		session.resume()
+		session.applyAudioSettings(preferences.audioVolume,
+			AudioDevices.resolveDeviceId(context, preferences.audioDeviceName, preferences.audioDeviceId),
+			preferences.audioBufferMs)
+		return session
+	}
+
 	fun clear(session: StreamSession? = null)
 	{
 		if(session == null || this.session === session)

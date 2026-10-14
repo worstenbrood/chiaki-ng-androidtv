@@ -10,10 +10,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chiaking.tv.R
 import com.metallic.chiaki.lib.RegistInfo
 import com.metallic.chiaki.lib.Target
 import com.chiaking.tv.regist.RegistExecuteViewModel
@@ -47,26 +49,28 @@ fun RegistScreen(
 		modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(32.dp),
 		horizontalAlignment = Alignment.CenterHorizontally
 	) {
-		ScreenHeader("Register Console", onBack, modifier = Modifier.fillMaxWidth())
+		ScreenHeader(stringResource(R.string.register_console), onBack, modifier = Modifier.fillMaxWidth())
 
 		Spacer(Modifier.height(24.dp))
 
 		SettingsCard {
 			Column(modifier = Modifier.padding(vertical = 12.dp)) {
-				Text("Console Version", fontSize = 18.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 20.dp, top = 8.dp))
+				Text(stringResource(R.string.console_version), fontSize = 18.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 20.dp, top = 8.dp))
 				Row(
 					horizontalArrangement = Arrangement.spacedBy(8.dp),
 					modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
 				) {
 					ConsoleVersion.entries.forEach { v ->
 						TvButton(
-							text = when(v)
-							{
-								ConsoleVersion.PS5 -> "PS5"
-								ConsoleVersion.PS4_GE_8 -> "PS4 (9.00+)"
-								ConsoleVersion.PS4_GE_7 -> "PS4 (7.0+)"
-								ConsoleVersion.PS4_LT_7 -> "PS4 (<7.0)"
-							},
+							text = stringResource(
+								when(v)
+								{
+									ConsoleVersion.PS5 -> R.string.ps5
+									ConsoleVersion.PS4_GE_8 -> R.string.ps4_ge_900
+									ConsoleVersion.PS4_GE_7 -> R.string.ps4_ge_700
+									ConsoleVersion.PS4_LT_7 -> R.string.ps4_lt_700
+								}
+							),
 							onClick = { version = v },
 							colors = if(version == v)
 								ButtonDefaults.buttonColors(containerColor = PsBlue, contentColor = Color.White)
@@ -76,12 +80,12 @@ fun RegistScreen(
 					}
 				}
 
-				TvTextField("Host Address", host) { host = it }
+				TvTextField(stringResource(R.string.host_address), host) { host = it }
 				TvTextField(
-					if(version == ConsoleVersion.PS4_LT_7) "PSN Online ID" else "PSN Account ID (base64)",
+					stringResource(if(version == ConsoleVersion.PS4_LT_7) R.string.psn_online_id else R.string.psn_account_id),
 					psnId
 				) { psnId = it }
-				TvTextField("PIN (8 digits, shown on pairing screen)", pin) {
+				TvTextField(stringResource(R.string.regist_pin_hint), pin) {
 					if(it.length <= 8 && it.all { c -> c.isDigit() }) pin = it
 				}
 			}
@@ -90,11 +94,7 @@ fun RegistScreen(
 		Spacer(Modifier.height(16.dp))
 
 		Text(
-			when(version)
-			{
-				ConsoleVersion.PS5 -> "On your PS5: Settings > System > Remote Play > Link Device. The 8-digit PIN is shown there."
-				else -> "On your console: Settings > Remote Play Connection Settings > Add Device. The 8-digit PIN is shown there."
-			},
+			stringResource(if(version == ConsoleVersion.PS5) R.string.regist_help_ps5 else R.string.regist_help_ps4),
 			color = OnSurfaceMuted,
 			fontSize = 14.sp,
 			textAlign = TextAlign.Center,
@@ -106,15 +106,17 @@ fun RegistScreen(
 		if(error != null)
 			Text(error!!, color = ErrorRed, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
 
-		TvButton(
-			text = "Register",
+	val fillInMsg = stringResource(R.string.regist_fill_in)
+	val accountIdInvalidMsg = stringResource(R.string.regist_account_id_invalid)
+	TvButton(
+			text = stringResource(R.string.register),
 			onClick = {
 				val hostValid = host.isNotEmpty()
 				val pinValid = pin.length == 8
 				val psnValid = psnId.isNotEmpty()
 				if(!hostValid || !pinValid || !psnValid)
 				{
-					error = "Fill in host, PSN ID and the 8-digit PIN."
+					error = fillInMsg
 					return@TvButton
 				}
 				error = null
@@ -131,7 +133,7 @@ fun RegistScreen(
 				val psnOnlineId: String? = if(version == ConsoleVersion.PS4_LT_7) psnId else null
 				if(version != ConsoleVersion.PS4_LT_7 && (psnAccountId == null || psnAccountId.size != RegistInfo.ACCOUNT_ID_SIZE))
 				{
-					error = "PSN Account ID must be a 44-character base64 string (8 bytes)."
+					error = accountIdInvalidMsg
 					return@TvButton
 				}
 				onStartRegist(RegistInfo(target, host, host == "255.255.255.255", psnOnlineId, psnAccountId, pin.toInt()), null)
@@ -142,11 +144,12 @@ fun RegistScreen(
 }
 
 @Composable
-fun TvTextField(label: String, value: String, onValueChange: (String) -> Unit)
+fun TvTextField(label: String, value: String, enabled: Boolean = true, onValueChange: (String) -> Unit)
 {
 	OutlinedTextField(
 		value = value,
 		onValueChange = onValueChange,
+		enabled = enabled,
 		label = { Text(label) },
 		colors = OutlinedTextFieldDefaults.colors(
 			focusedBorderColor = PsBlueLight,
@@ -166,17 +169,17 @@ fun RegistExecuteScreen(viewModel: RegistExecuteViewModel, onDone: () -> Unit)
 		modifier = Modifier.fillMaxSize().padding(32.dp),
 		horizontalAlignment = Alignment.CenterHorizontally
 	) {
-		Text("Registering Console", fontSize = 30.sp, fontWeight = FontWeight.Bold)
+		Text(stringResource(R.string.registering_console), fontSize = 30.sp, fontWeight = FontWeight.Bold)
 		Spacer(Modifier.height(24.dp))
 
 		val (text, color) = when(state)
 		{
-			RegistExecuteViewModel.State.RUNNING -> "Registering..." to PsBlueLight
-			RegistExecuteViewModel.State.SUCCESSFUL -> "Console registered successfully!" to SuccessGreen
-			RegistExecuteViewModel.State.SUCCESSFUL_DUPLICATE -> "Console was already registered (updated)." to WarningAmber
-			RegistExecuteViewModel.State.FAILED -> "Registration failed." to ErrorRed
-			RegistExecuteViewModel.State.STOPPED -> "Registration cancelled." to OnSurfaceMuted
-			RegistExecuteViewModel.State.IDLE -> "Starting..." to OnSurfaceMuted
+			RegistExecuteViewModel.State.RUNNING -> stringResource(R.string.regist_running) to PsBlueLight
+			RegistExecuteViewModel.State.SUCCESSFUL -> stringResource(R.string.regist_success) to SuccessGreen
+			RegistExecuteViewModel.State.SUCCESSFUL_DUPLICATE -> stringResource(R.string.regist_duplicate) to WarningAmber
+			RegistExecuteViewModel.State.FAILED -> stringResource(R.string.regist_failed) to ErrorRed
+			RegistExecuteViewModel.State.STOPPED -> stringResource(R.string.regist_cancelled) to OnSurfaceMuted
+			RegistExecuteViewModel.State.IDLE -> stringResource(R.string.regist_starting) to OnSurfaceMuted
 		}
 		Text(text, fontSize = 22.sp, color = color, fontWeight = FontWeight.Bold)
 		Spacer(Modifier.height(16.dp))
@@ -195,7 +198,7 @@ fun RegistExecuteScreen(viewModel: RegistExecuteViewModel, onDone: () -> Unit)
 		{
 			Spacer(Modifier.height(16.dp))
 			TvButton(
-				text = "Done",
+				text = stringResource(R.string.done),
 				onClick = onDone,
 				colors = ButtonDefaults.buttonColors(containerColor = PsBlue, contentColor = Color.White)
 			)

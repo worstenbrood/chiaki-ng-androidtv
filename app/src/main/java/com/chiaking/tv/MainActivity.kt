@@ -78,6 +78,7 @@ class MainActivity: ComponentActivity()
 	private var pendingDeepLinkMac by mutableStateOf<MacAddress?>(null)
 	private var awayJob: kotlinx.coroutines.Job? = null
 	private var awaySleepPrompt by mutableStateOf(false)
+	private var remoteConnectingText by mutableStateOf<String?>(null)
 
 	private val screenStack = mutableStateListOf<Screen>()
 	private var showManualHostDialog by mutableStateOf(false)
@@ -105,7 +106,7 @@ class MainActivity: ComponentActivity()
 				pendingImport = settings
 			} catch(e: Exception) {
 				android.util.Log.e("MainActivity", "Import failed", e)
-				android.widget.Toast.makeText(this@MainActivity, "Import failed: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+				android.widget.Toast.makeText(this@MainActivity, getString(R.string.import_failed, e.message), android.widget.Toast.LENGTH_LONG).show()
 			}
 		}
 	}
@@ -117,10 +118,10 @@ class MainActivity: ComponentActivity()
 		lifecycleScope.launch {
 			try {
 				importSettings(database, settings, replace)
-				android.widget.Toast.makeText(this@MainActivity, "Imported ${settings.registeredHosts.size} console(s)", android.widget.Toast.LENGTH_SHORT).show()
+				android.widget.Toast.makeText(this@MainActivity, getString(R.string.imported_count, settings.registeredHosts.size), android.widget.Toast.LENGTH_SHORT).show()
 			} catch(e: Exception) {
 				android.util.Log.e("MainActivity", "Import failed", e)
-				android.widget.Toast.makeText(this@MainActivity, "Import failed: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+				android.widget.Toast.makeText(this@MainActivity, getString(R.string.import_failed, e.message), android.widget.Toast.LENGTH_LONG).show()
 			}
 		}
 	}
@@ -133,6 +134,7 @@ class MainActivity: ComponentActivity()
 		preferences = Preferences(this)
 		database = getDatabase(this)
 		logManager = LogManager(this)
+		com.chiaking.tv.common.psn.CaBundle.ensure(this)
 		screenStack.add(ScreenHome)
 		StreamManager.session?.let { screenStack.add(ScreenStream(it)) }
 
@@ -147,15 +149,15 @@ class MainActivity: ComponentActivity()
 						pendingImport?.let {
 							androidx.compose.material3.AlertDialog(
 								onDismissRequest = { pendingImport = null },
-								title = { androidx.compose.material3.Text("Import Settings") },
-								text = { androidx.compose.material3.Text("Replace all existing consoles with the imported ones, or merge them into the existing list?") },
+								title = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.import_settings)) },
+								text = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.import_replace_merge_question)) },
 								confirmButton = {
 									androidx.compose.material3.TextButton(onClick = { doImport(true) })
-									{ androidx.compose.material3.Text("Replace") }
+									{ androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.replace)) }
 								},
 								dismissButton = {
 									androidx.compose.material3.TextButton(onClick = { doImport(false) })
-									{ androidx.compose.material3.Text("Merge") }
+									{ androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.merge)) }
 								}
 							)
 						}
@@ -207,7 +209,7 @@ class MainActivity: ComponentActivity()
 			if(found.state == DiscoveryHost.State.READY)
 				startStream(DiscoveredDisplayHost(reg, found))
 			else if(found.state == DiscoveryHost.State.STANDBY)
-				wakeupAndConnect(viewModel, DiscoveredDisplayHost(reg, found), "Connecting to")
+				wakeupAndConnect(viewModel, DiscoveredDisplayHost(reg, found), getString(R.string.connecting_to))
 		}
 	}
 
@@ -225,19 +227,32 @@ class MainActivity: ComponentActivity()
 		when(val screen = screenStack.last())
 		{
 			ScreenHome -> {
-				val viewModel = remember { MainViewModel(database, preferences) }
+				val viewModel = remember { MainViewModel(this, database, preferences) }
 				val hosts by viewModel.displayHosts.collectAsState()
 				val discoveryActive by viewModel.discoveryActive.collectAsState()
+				val psnLoggedIn by viewModel.psnLoggedIn.collectAsState()
+				val psnDevices by viewModel.psnDevices.collectAsState()
+				val psnLoading by viewModel.psnLoading.collectAsState()
+				val psnDeviceCount by viewModel.psnDeviceCount.collectAsState()
 				LaunchedEffect(Unit) { viewModel.discoveryManager.resume() }
 				LaunchedEffect(pendingDeepLinkMac) { pendingDeepLinkMac?.let { deepLinkConnect(viewModel, it) } }
 				LaunchedEffect(Unit) { maybeAutoConnect(viewModel) }
+				LaunchedEffect(Unit) { viewModel.refreshPsnLoginState(); if(viewModel.psnLoggedIn.value) viewModel.refreshPsnDevices() }
 				DisposableEffect(Unit) { onDispose { viewModel.discoveryManager.pause() } }
 				Box {
-					HomeScreen(hosts, discoveryActive, wakingHost, wakeBannerText, { cancelWakeup() }) { action ->
+					HomeScreen(hosts, discoveryActive, wakingHost, wakeBannerText, { cancelWakeup() },
+						psnLoggedIn = psnLoggedIn,
+						psnDevices = psnDevices,
+						psnLoading = psnLoading,
+						psnDeviceCount = psnDeviceCount,
+						remoteConnectingText = remoteConnectingText
+					) { action ->
 						when(action)
 						{
 							is ConnectHost -> startStream(action.host)
 							is WakeupHost -> wakeupAndConnect(viewModel, action.host)
+							is ConnectRemoteConsole -> connectRemote(action.device)
+							RefreshPsnDevices -> viewModel.refreshPsnDevices()
 							is EditManualHost -> {
 								editingManualHost = action.manualHost
 								showManualHostDialog = true
@@ -317,17 +332,17 @@ class MainActivity: ComponentActivity()
 				if(awaySleepPrompt)
 					androidx.compose.material3.AlertDialog(
 						onDismissRequest = { keepPlaying() },
-						title = { androidx.compose.material3.Text("Console still awake") },
-						text = { androidx.compose.material3.Text("You have been away for a while. Put the console to sleep?") },
+						title = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.console_still_awake)) },
+						text = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.away_sleep_question)) },
 						confirmButton = {
 							androidx.compose.material3.TextButton(onClick = {
 								awaySleepPrompt = false
 								sleepConsoleAway()
-							}) { androidx.compose.material3.Text("Sleep console") }
+							}) { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.sleep_console)) }
 						},
 						dismissButton = {
 							androidx.compose.material3.TextButton(onClick = { keepPlaying() })
-							{ androidx.compose.material3.Text("Keep playing") }
+							{ androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.keep_playing)) }
 						}
 					)
 			}
@@ -335,7 +350,7 @@ class MainActivity: ComponentActivity()
 			ScreenLogs -> LogsScreen(logManager) { screenStack.removeAt(screenStack.size - 1) }
 
 			ScreenManageHosts -> {
-				val viewModel = viewModel(database, preferences)
+				val viewModel = viewModel(this, database, preferences)
 				val hosts = remember { mutableStateOf<List<RegisteredHost>>(emptyList()) }
 				LaunchedEffect(Unit) {
 					database.registeredHostDao().getAll().collect { hosts.value = it }
@@ -348,10 +363,10 @@ class MainActivity: ComponentActivity()
 	}
 
 	@Composable
-	private fun viewModel(db: AppDatabase, prefs: Preferences) =
-		androidx.lifecycle.viewmodel.compose.viewModel { MainViewModel(db, prefs) }
+	private fun viewModel(context: android.content.Context, db: AppDatabase, prefs: Preferences) =
+		androidx.lifecycle.viewmodel.compose.viewModel { MainViewModel(context, db, prefs) }
 
-	private fun wakeupAndConnect(viewModel: MainViewModel, host: DisplayHost, message: String = "Waking")
+	private fun wakeupAndConnect(viewModel: MainViewModel, host: DisplayHost, message: String = getString(R.string.waking))
 	{
 		val reg = host.registeredHost ?: return
 		if(wakingHost?.host == host.host)
@@ -363,7 +378,7 @@ class MainActivity: ComponentActivity()
 		viewModel.discoveryManager.sendWakeup(host.host, reg.rpRegistKey, reg.target.isPS5)
 		val mac = (host as? DiscoveredDisplayHost)?.discoveredHost?.serverMac ?: return
 		wakingHost = host
-		wakeBannerText = "$message ${host.name ?: "console"}… waiting for it to come online"
+		wakeBannerText = getString(R.string.wake_waiting, message, host.name ?: getString(R.string.console))
 		wakeJob = lifecycleScope.launch {
 			val deadline = android.os.SystemClock.elapsedRealtime() + WAKE_TIMEOUT_MS
 			var ready: DiscoveryHost? = null
@@ -418,7 +433,116 @@ class MainActivity: ComponentActivity()
 			if(found.state == DiscoveryHost.State.READY)
 				startStream(DiscoveredDisplayHost(reg, found))
 			else if(found.state == DiscoveryHost.State.STANDBY)
-				wakeupAndConnect(viewModel, DiscoveredDisplayHost(reg, found), "Auto-connecting to")
+				wakeupAndConnect(viewModel, DiscoveredDisplayHost(reg, found), getString(R.string.auto_connecting_to))
+		}
+	}
+
+	private fun connectRemote(device: com.metallic.chiaki.lib.HolepunchDevice, internal: Boolean = false, attempt: Int = 0)
+	{
+		if(StreamManager.session != null || (remoteConnectingText != null && !internal))
+			return
+		val deviceName = device.name.ifBlank { getString(R.string.console) }
+		remoteConnectingText = getString(R.string.remote_linking_with, deviceName)
+		lifecycleScope.launch {
+			try
+			{
+				remoteConnectingText = getString(R.string.remote_refreshing_token)
+				val store = com.chiaking.tv.common.psn.PsnTokenStore.get(this@MainActivity)
+				val token = withContext(Dispatchers.IO) { store.ensureFreshToken() }
+				if(token == null)
+				{
+					remoteConnectingText = null
+					android.widget.Toast.makeText(this@MainActivity, R.string.remote_psn_required, android.widget.Toast.LENGTH_LONG).show()
+					return@launch
+				}
+				val accountIdBytes = store.accountIdBytes()
+				if(accountIdBytes == null)
+				{
+					remoteConnectingText = null
+					android.widget.Toast.makeText(this@MainActivity, R.string.remote_account_missing, android.widget.Toast.LENGTH_LONG).show()
+					return@launch
+				}
+				remoteConnectingText = getString(R.string.remote_creating_session, deviceName)
+				val result = withContext(Dispatchers.IO) { com.metallic.chiaki.lib.Holepunch.createSession(token, device.duid, device.isPS5) }
+				if(!result.errorCode.isSuccess)
+				{
+					// Right after auto-registration the console is busy finishing the regist session
+					// and may not answer a new holepunch offer for a while — retry a few times.
+					if(internal && attempt < 3)
+					{
+						android.util.Log.i("MainActivity", "Holepunch create failed (${result.errorCode}), retry ${attempt + 1}/3")
+						delay(6000)
+						connectRemote(device, internal = true, attempt = attempt + 1)
+						return@launch
+					}
+					remoteConnectingText = null
+					android.util.Log.e("MainActivity", "Holepunch create failed: ${result.errorCode}")
+					android.widget.Toast.makeText(this@MainActivity, getString(R.string.remote_connect_failed, result.errorCode), android.widget.Toast.LENGTH_LONG).show()
+					return@launch
+				}
+				// First connect to a console: the session only performs the PSN auto-registration
+				// and then stops (upstream design). Save the host, then reconnect to actually stream.
+				val autoRegist = device.duid !in preferences.autoRegistDuids
+				val session = StreamManager.startRemote(this@MainActivity, preferences, logManager,
+					result.ptr, accountIdBytes, device.isPS5, autoRegist)
+				if(session == null)
+				{
+					com.metallic.chiaki.lib.Holepunch.fini(result.ptr)
+					remoteConnectingText = null
+					return@launch
+				}
+				if(!autoRegist)
+				{
+					remoteConnectingText = null
+					screenStack.add(ScreenStream(session))
+					return@launch
+				}
+				val registOk = kotlinx.coroutines.CompletableDeferred<Boolean>()
+				var registSeen = false
+				session.autoRegistCallback = { host ->
+					registSeen = true
+					lifecycleScope.launch {
+						try
+						{
+							val reg = RegisteredHost(host)
+							database.registeredHostDao().deleteByMac(reg.serverMac)
+							database.registeredHostDao().insert(reg)
+							preferences.autoRegistDuids = preferences.autoRegistDuids + device.duid
+							android.util.Log.i("MainActivity", "Auto-registered console ${reg.serverMac} over PSN")
+							registOk.complete(true)
+						}
+						catch(e: Exception)
+						{
+							android.util.Log.e("MainActivity", "Failed to save auto-registered host", e)
+							registOk.complete(false)
+						}
+					}
+				}
+				lifecycleScope.launch {
+					session.state.collect { st ->
+						if(st is StreamStateQuit && !registSeen && !registOk.isCompleted)
+							registOk.complete(false)
+					}
+				}
+				val ok = withTimeoutOrNull(40000) { registOk.await() } ?: false
+				StreamManager.clear(session)
+				if(ok)
+				{
+					delay(4000) // let the console settle after the regist session
+					connectRemote(device, internal = true)
+				}
+				else
+				{
+					remoteConnectingText = null
+					android.widget.Toast.makeText(this@MainActivity, R.string.regist_failed, android.widget.Toast.LENGTH_LONG).show()
+				}
+			}
+			catch(e: Exception)
+			{
+				android.util.Log.e("MainActivity", "Remote connect failed", e)
+				remoteConnectingText = null
+				android.widget.Toast.makeText(this@MainActivity, getString(R.string.remote_connect_failed, e.message), android.widget.Toast.LENGTH_LONG).show()
+			}
 		}
 	}
 
@@ -711,17 +835,17 @@ private fun ManualHostDialog(initial: String, onDismiss: () -> Unit, onSave: (St
 	var value by remember { mutableStateOf(initial) }
 	androidx.compose.material3.AlertDialog(
 		onDismissRequest = onDismiss,
-		title = { androidx.compose.material3.Text(if(initial.isEmpty()) "Add Manual Host" else "Edit Host") },
+		title = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(if(initial.isEmpty()) R.string.manual_host_add else R.string.manual_host_edit)) },
 		text = {
-			com.chiaking.tv.ui.screens.TvTextField("Host Address (IP)", value) { value = it }
+			com.chiaking.tv.ui.screens.TvTextField(androidx.compose.ui.res.stringResource(R.string.host_address_ip), value) { value = it }
 		},
 		confirmButton = {
 			androidx.compose.material3.TextButton(
 				onClick = { if(value.isNotBlank()) onSave(value.trim()) }
-			) { androidx.compose.material3.Text("Save") }
+			) { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.save)) }
 		},
 		dismissButton = {
-			androidx.compose.material3.TextButton(onClick = onDismiss) { androidx.compose.material3.Text("Cancel") }
+			androidx.compose.material3.TextButton(onClick = onDismiss) { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.cancel)) }
 		}
 	)
 }

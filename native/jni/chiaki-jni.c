@@ -9,8 +9,10 @@
 #include <chiaki/session.h>
 #include <chiaki/discoveryservice.h>
 #include <chiaki/regist.h>
+#include <chiaki/remote/holepunch.h>
 
 #include <string.h>
+#include <stdlib.h>
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <arpa/inet.h>
@@ -55,6 +57,41 @@ static jbyteArray jnibytearray_create(JNIEnv *env, const uint8_t *buf, size_t bu
 	return r;
 }
 
+static jobject jnistr_from_ascii_or_empty(JNIEnv *env, const char *str)
+{
+	jobject r = jnistr_from_ascii(env, str);
+	if(!r)
+		r = E->NewStringUTF(env, "");
+	return r;
+}
+
+// Cached in JNI_OnLoad (app classloader context). FindClass from a native session
+// thread uses the system classloader and would fail to find app classes.
+static jclass global_target_class;
+static jmethodID global_target_from_value;
+static jclass global_regist_host_class;
+static jmethodID global_regist_host_ctor;
+
+static jobject create_jni_regist_host(JNIEnv *env, ChiakiRegisteredHost *host)
+{
+	jclass target_class = global_target_class;
+	jmethodID target_from_value = global_target_from_value;
+	jobject target_obj = E->CallStaticObjectMethod(env, target_class, target_from_value, (jint)host->target);
+	jclass host_class = global_regist_host_class;
+	jmethodID host_ctor = global_regist_host_ctor;
+	return E->NewObject(env, host_class, host_ctor,
+			target_obj,
+			jnistr_from_ascii_or_empty(env, host->ap_ssid),
+			jnistr_from_ascii_or_empty(env, host->ap_bssid),
+			jnistr_from_ascii_or_empty(env, host->ap_key),
+			jnistr_from_ascii_or_empty(env, host->ap_name),
+			jnibytearray_create(env, host->server_mac, sizeof(host->server_mac)),
+			jnistr_from_ascii_or_empty(env, host->server_nickname),
+			jnibytearray_create(env, (const uint8_t *)host->rp_regist_key, sizeof(host->rp_regist_key)),
+			(jint)host->rp_key_type,
+			jnibytearray_create(env, host->rp_key, sizeof(host->rp_key)));
+}
+
 static jobject get_kotlin_global_object(JNIEnv *env, const char *id)
 {
 	size_t idlen = strlen(id);
@@ -78,6 +115,28 @@ JavaVM *global_vm;
 JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved)
 {
 	global_vm = vm;
+
+	JNIEnv *env;
+	if((*vm)->GetEnv(vm, (void **)&env, JNI_VERSION) == JNI_OK)
+	{
+		jclass target_class = (*env)->FindClass(env, BASE_PACKAGE"/Target");
+		global_target_class = (jclass)(*env)->NewGlobalRef(env, target_class);
+		global_target_from_value = (*env)->GetStaticMethodID(env, target_class, "fromValue", "(I)L"BASE_PACKAGE"/Target;");
+		(*env)->DeleteLocalRef(env, target_class);
+		global_regist_host_class = (jclass)(*env)->NewGlobalRef(env, (*env)->FindClass(env, BASE_PACKAGE"/RegistHost"));
+		global_regist_host_ctor = (*env)->GetMethodID(env, global_regist_host_class, "<init>", "("
+			"L"BASE_PACKAGE"/Target;"
+			"Ljava/lang/String;"
+			"Ljava/lang/String;"
+			"Ljava/lang/String;"
+			"Ljava/lang/String;"
+			"[B"
+			"Ljava/lang/String;"
+			"[B"
+			"I"
+			"[B"
+			")V");
+	}
 
 	android_chiaki_file_log_init(&global_log, CHIAKI_LOG_ALL & ~CHIAKI_LOG_VERBOSE, NULL);
 	CHIAKI_LOGI(&global_log, "Loading Chiaki Library");
@@ -135,6 +194,8 @@ typedef struct android_chiaki_session_t
 	jmethodID java_session_event_quit_meth;
 	jmethodID java_session_event_rumble_meth;
 	jmethodID java_session_event_motion_reset_meth;
+	jmethodID java_session_event_data_holepunch_meth;
+	jmethodID java_session_event_regist_meth;
 	jfieldID java_controller_state_buttons;
 	jfieldID java_controller_state_l2_state;
 	jfieldID java_controller_state_r2_state;
@@ -204,6 +265,20 @@ static void android_chiaki_event_cb(ChiakiEvent *event, void *user)
 			E->CallVoidMethod(env, session->java_session,
 							  session->java_session_event_motion_reset_meth);
 			break;
+		case CHIAKI_EVENT_HOLEPUNCH:
+			E->CallVoidMethod(env, session->java_session,
+							  session->java_session_event_data_holepunch_meth,
+							  (jboolean)event->data_holepunch.finished);
+			break;
+		case CHIAKI_EVENT_REGIST:
+		{
+			jobject java_host = create_jni_regist_host(env, &event->host);
+			E->CallVoidMethod(env, session->java_session,
+							  session->java_session_event_regist_meth,
+							  java_host);
+			E->DeleteLocalRef(env, java_host);
+			break;
+		}
 		default:
 			break;
 	}
@@ -222,6 +297,7 @@ JNIEXPORT void JNICALL JNI_FCN(sessionCreate)(JNIEnv *env, jobject obj, jobject 
 
 	ChiakiErrorCode err = CHIAKI_ERR_SUCCESS;
 	char *host_str = NULL;
+	bool holepunch_owned = false;
 
 	jclass result_class = E->GetObjectClass(env, result);
 
@@ -265,6 +341,20 @@ JNIEXPORT void JNICALL JNI_FCN(sessionCreate)(JNIEnv *env, jobject obj, jobject 
 	memcpy(connect_info.morning, bytes, sizeof(connect_info.morning));
 	E->ReleaseByteArrayElements(env, morning_array, bytes, JNI_ABORT);
 
+	connect_info.auto_regist = E->GetBooleanField(env, connect_info_obj, E->GetFieldID(env, connect_info_class, "autoRegist", "Z"));
+	connect_info.holepunch_session = (ChiakiHolepunchSession)E->GetLongField(env, connect_info_obj, E->GetFieldID(env, connect_info_class, "holepunchSessionPtr", "J"));
+	if(connect_info.holepunch_session)
+	{
+		jbyteArray psn_account_id_array = E->GetObjectField(env, connect_info_obj, E->GetFieldID(env, connect_info_class, "psnAccountId", "[B"));
+		if(!psn_account_id_array || E->GetArrayLength(env, psn_account_id_array) != sizeof(connect_info.psn_account_id))
+		{
+			CHIAKI_LOGE(log, "PSN Account-ID passed from Java has invalid length");
+			err = CHIAKI_ERR_INVALID_DATA;
+			goto beach;
+		}
+		E->GetByteArrayRegion(env, psn_account_id_array, 0, sizeof(connect_info.psn_account_id), (jbyte *)connect_info.psn_account_id);
+	}
+
 	connect_info.video_profile.width = (unsigned int)E->GetIntField(env, connect_video_profile_obj, E->GetFieldID(env, connect_video_profile_class, "width", "I"));
 	connect_info.video_profile.height = (unsigned int)E->GetIntField(env, connect_video_profile_obj, E->GetFieldID(env, connect_video_profile_class, "height", "I"));
 	connect_info.video_profile.max_fps = (unsigned int)E->GetIntField(env, connect_video_profile_obj, E->GetFieldID(env, connect_video_profile_class, "maxFPS", "I"));
@@ -307,6 +397,7 @@ JNIEXPORT void JNICALL JNI_FCN(sessionCreate)(JNIEnv *env, jobject obj, jobject 
 
 	android_chiaki_audio_decoder_set_cb(&session->audio_decoder, android_chiaki_audio_output_settings, android_chiaki_audio_output_frame, session->audio_output);
 
+	holepunch_owned = true; // chiaki_session_init takes ownership of holepunch_session on all paths
 	err = chiaki_session_init(&session->session, &connect_info, log);
 	if(err != CHIAKI_ERR_SUCCESS)
 	{
@@ -326,6 +417,8 @@ JNIEXPORT void JNICALL JNI_FCN(sessionCreate)(JNIEnv *env, jobject obj, jobject 
 	session->java_session_event_quit_meth = E->GetMethodID(env, session->java_session_class, "eventQuit", "(ILjava/lang/String;)V");
 	session->java_session_event_rumble_meth = E->GetMethodID(env, session->java_session_class, "eventRumble", "(II)V");
 	session->java_session_event_motion_reset_meth = E->GetMethodID(env, session->java_session_class, "eventMotionReset", "()V");
+	session->java_session_event_data_holepunch_meth = E->GetMethodID(env, session->java_session_class, "eventDataHolepunch", "(Z)V");
+	session->java_session_event_regist_meth = E->GetMethodID(env, session->java_session_class, "eventRegist", "(L"BASE_PACKAGE"/RegistHost;)V");
 
 	jclass controller_state_class = E->FindClass(env, BASE_PACKAGE"/ControllerState");
 	session->java_controller_state_buttons = E->GetFieldID(env, controller_state_class, "buttons", "I");
@@ -365,6 +458,8 @@ beach:
 		android_chiaki_file_log_fini(log);
 		free(log);
 	}
+	if(!session && !holepunch_owned && connect_info.holepunch_session)
+		chiaki_holepunch_session_fini(connect_info.holepunch_session);
 
 	free(host_str);
 	E->SetIntField(env, result, E->GetFieldID(env, result_class, "errorCode", "I"), (jint)err);
@@ -887,4 +982,147 @@ JNIEXPORT void JNICALL JNI_FCN(registFree)(JNIEnv *env, jobject obj, jlong ptr)
 	chiaki_regist_fini(&regist->regist);
 	android_chiaki_regist_fini_partial(env, regist);
 	free(regist);
+}
+
+JNIEXPORT jstring JNICALL JNI_FCN(holepunchGenerateClientDeviceUid)(JNIEnv *env, jobject obj)
+{
+	char duid[CHIAKI_DUID_STR_SIZE];
+	size_t duid_size = sizeof(duid);
+	ChiakiErrorCode err = chiaki_holepunch_generate_client_device_uid(duid, &duid_size);
+	if(err != CHIAKI_ERR_SUCCESS)
+		return E->NewStringUTF(env, "");
+	return E->NewStringUTF(env, duid);
+}
+
+JNIEXPORT jobjectArray JNICALL JNI_FCN(holepunchListDevices)(JNIEnv *env, jobject obj, jobject result, jstring token_java, jboolean ps5)
+{
+	jclass result_class = E->GetObjectClass(env, result);
+	ChiakiErrorCode err;
+	jobjectArray r = NULL;
+
+	const char *token = E->GetStringUTFChars(env, token_java, NULL);
+	ChiakiHolepunchDeviceInfo *devices = NULL;
+	size_t device_count = 0;
+	err = chiaki_holepunch_list_devices(token,
+		ps5 ? CHIAKI_HOLEPUNCH_CONSOLE_TYPE_PS5 : CHIAKI_HOLEPUNCH_CONSOLE_TYPE_PS4,
+		&devices, &device_count, &global_log);
+	E->ReleaseStringUTFChars(env, token_java, token);
+
+	if(err != CHIAKI_ERR_SUCCESS)
+		goto beach;
+
+	jclass device_class = E->FindClass(env, BASE_PACKAGE"/HolepunchDevice");
+	jmethodID device_ctor = E->GetMethodID(env, device_class, "<init>", "(ZZLjava/lang/String;Ljava/lang/String;)V");
+	r = E->NewObjectArray(env, (jsize)device_count, device_class, NULL);
+	for(size_t i=0; i<device_count; i++)
+	{
+		char uid_hex[sizeof(devices[i].device_uid) * 2 + 1];
+		static const char hexdig[] = "0123456789abcdef";
+		for(size_t j=0; j<sizeof(devices[i].device_uid); j++)
+		{
+			uid_hex[j*2] = hexdig[devices[i].device_uid[j] >> 4];
+			uid_hex[j*2+1] = hexdig[devices[i].device_uid[j] & 0xf];
+		}
+		uid_hex[sizeof(uid_hex) - 1] = '\0';
+		jobject device = E->NewObject(env, device_class, device_ctor,
+			(jboolean)(devices[i].type == CHIAKI_HOLEPUNCH_CONSOLE_TYPE_PS5),
+			(jboolean)devices[i].remoteplay_enabled,
+			jnistr_from_ascii_or_empty(env, devices[i].device_name),
+			E->NewStringUTF(env, uid_hex));
+		E->SetObjectArrayElement(env, r, i, device);
+	}
+	chiaki_holepunch_free_device_list(&devices);
+
+beach:
+	E->SetIntField(env, result, E->GetFieldID(env, result_class, "errorCode", "I"), (jint)err);
+	return r;
+}
+
+JNIEXPORT void JNICALL JNI_FCN(holepunchSessionCreate)(JNIEnv *env, jobject obj, jobject result, jstring token_java, jstring duid_java, jboolean ps5)
+{
+	jclass result_class = E->GetObjectClass(env, result);
+	ChiakiErrorCode err = CHIAKI_ERR_SUCCESS;
+	ChiakiHolepunchSession session = NULL;
+
+	const char *token = E->GetStringUTFChars(env, token_java, NULL);
+	session = chiaki_holepunch_session_init(token, &global_log);
+	E->ReleaseStringUTFChars(env, token_java, token);
+	if(!session)
+	{
+		CHIAKI_LOGE(&global_log, "Holepunch session init failed");
+		err = CHIAKI_ERR_MEMORY;
+		goto beach;
+	}
+
+	const char *duid_str = E->GetStringUTFChars(env, duid_java, NULL);
+	size_t duid_len = strlen(duid_str);
+	uint8_t duid_bytes[32];
+	if(duid_len % 2 || duid_len / 2 > sizeof(duid_bytes))
+	{
+		E->ReleaseStringUTFChars(env, duid_java, duid_str);
+		err = CHIAKI_ERR_INVALID_DATA;
+		goto beach;
+	}
+	for(size_t i=0; i<duid_len/2; i++)
+	{
+		char byte_str[3] = { duid_str[i*2], duid_str[i*2+1], 0 };
+		duid_bytes[i] = (uint8_t)strtoul(byte_str, NULL, 16);
+	}
+	E->ReleaseStringUTFChars(env, duid_java, duid_str);
+
+	ChiakiHolepunchConsoleType console_type = ps5 ? CHIAKI_HOLEPUNCH_CONSOLE_TYPE_PS5 : CHIAKI_HOLEPUNCH_CONSOLE_TYPE_PS4;
+	err = chiaki_holepunch_upnp_discover(session);
+	if(err != CHIAKI_ERR_SUCCESS)
+	{
+		CHIAKI_LOGE(&global_log, "Holepunch UPNP discover failed");
+		goto beach;
+	}
+	err = chiaki_holepunch_session_create(session);
+	if(err != CHIAKI_ERR_SUCCESS)
+	{
+		CHIAKI_LOGE(&global_log, "Holepunch session create failed");
+		goto beach;
+	}
+	err = holepunch_session_create_offer(session);
+	if(err != CHIAKI_ERR_SUCCESS)
+	{
+		CHIAKI_LOGE(&global_log, "Holepunch create offer failed");
+		goto beach;
+	}
+	err = chiaki_holepunch_session_start(session, duid_bytes, console_type);
+	if(err != CHIAKI_ERR_SUCCESS)
+	{
+		CHIAKI_LOGE(&global_log, "Holepunch session start failed");
+		goto beach;
+	}
+	err = chiaki_holepunch_session_punch_hole(session, CHIAKI_HOLEPUNCH_PORT_TYPE_CTRL);
+	if(err != CHIAKI_ERR_SUCCESS)
+	{
+		CHIAKI_LOGE(&global_log, "Holepunch ctrl hole punch failed");
+		goto beach;
+	}
+
+beach:
+	if(err != CHIAKI_ERR_SUCCESS && session)
+	{
+		chiaki_holepunch_main_thread_cancel(session, true);
+		chiaki_holepunch_session_fini(session);
+		session = NULL;
+	}
+	E->SetIntField(env, result, E->GetFieldID(env, result_class, "errorCode", "I"), (jint)err);
+	E->SetLongField(env, result, E->GetFieldID(env, result_class, "ptr", "J"), (jlong)session);
+}
+
+JNIEXPORT void JNICALL JNI_FCN(holepunchCancel)(JNIEnv *env, jobject obj, jlong ptr, jboolean stop_thread)
+{
+	if(!ptr)
+		return;
+	chiaki_holepunch_main_thread_cancel((ChiakiHolepunchSession)ptr, stop_thread);
+}
+
+JNIEXPORT void JNICALL JNI_FCN(holepunchFini)(JNIEnv *env, jobject obj, jlong ptr)
+{
+	if(!ptr)
+		return;
+	chiaki_holepunch_session_fini((ChiakiHolepunchSession)ptr);
 }

@@ -69,7 +69,10 @@ data class ConnectInfo(
 	val host: String,
 	val registKey: ByteArray,
 	val morning: ByteArray,
-	val videoProfile: ConnectVideoProfile
+	val videoProfile: ConnectVideoProfile,
+	val psnAccountId: ByteArray? = null,
+	val holepunchSessionPtr: Long = 0L,
+	val autoRegist: Boolean = false
 ): Parcelable
 
 private class ChiakiNative
@@ -106,7 +109,51 @@ private class ChiakiNative
 		@JvmStatic external fun registStart(result: CreateResult, registInfo: RegistInfo, javaLog: ChiakiLog, javaRegist: Regist)
 		@JvmStatic external fun registStop(ptr: Long)
 		@JvmStatic external fun registFree(ptr: Long)
+		@JvmStatic external fun holepunchGenerateClientDeviceUid(): String
+		@JvmStatic external fun holepunchListDevices(result: CreateResult, token: String, ps5: Boolean): Array<HolepunchDevice>?
+		@JvmStatic external fun holepunchSessionCreate(result: CreateResult, token: String, duid: String, ps5: Boolean)
+		@JvmStatic external fun holepunchCancel(ptr: Long, stopThread: Boolean)
+		@JvmStatic external fun holepunchFini(ptr: Long)
 	}
+}
+
+data class HolepunchDevice(
+	val isPS5: Boolean,
+	val remotePlayEnabled: Boolean,
+	val name: String,
+	val duid: String
+)
+
+object Holepunch
+{
+	fun generateClientDeviceUid(): String =
+		ChiakiNative.holepunchGenerateClientDeviceUid()
+
+	class DeviceList(val errorCode: ErrorCode, val devices: List<HolepunchDevice>)
+
+	fun listDevices(token: String, ps5: Boolean): DeviceList
+	{
+		val result = ChiakiNative.CreateResult(0, 0)
+		val devices = ChiakiNative.holepunchListDevices(result, token, ps5)
+		return DeviceList(ErrorCode(result.errorCode), devices?.toList() ?: emptyList())
+	}
+
+	class SessionCreateResult(val errorCode: ErrorCode, val ptr: Long)
+
+	/**
+	 * Runs the full holepunch setup (UPNP, PSN session create/offer/start, control hole punch).
+	 * Blocking — call from a background thread. On success the returned ptr is owned by the
+	 * [Session] created with a matching ConnectInfo; on failure it is already released.
+	 */
+	fun createSession(token: String, duid: String, ps5: Boolean): SessionCreateResult
+	{
+		val result = ChiakiNative.CreateResult(0, 0)
+		ChiakiNative.holepunchSessionCreate(result, token, duid, ps5)
+		return SessionCreateResult(ErrorCode(result.errorCode), result.ptr)
+	}
+
+	fun cancel(ptr: Long, stopThread: Boolean) = ChiakiNative.holepunchCancel(ptr, stopThread)
+	fun fini(ptr: Long) = ChiakiNative.holepunchFini(ptr)
 }
 
 class ErrorCode(val value: Int)
@@ -325,6 +372,8 @@ data class LoginPinRequestEvent(val pinIncorrect: Boolean): Event()
 data class QuitEvent(val reason: QuitReason, val reasonString: String?): Event()
 	data class RumbleEvent(val left: UByte, val right: UByte): Event()
 	object MotionResetEvent: Event()
+data class DataHolepunchEvent(val finished: Boolean): Event()
+data class AutoRegistEvent(val host: RegistHost): Event()
 
 class CreateError(val errorCode: ErrorCode): Exception("Failed to create a native object: $errorCode")
 
@@ -388,6 +437,16 @@ class Session(connectInfo: ConnectInfo, logFile: String?, logVerbose: Boolean)
 	private fun eventMotionReset()
 	{
 		event(MotionResetEvent)
+	}
+
+	private fun eventDataHolepunch(finished: Boolean)
+	{
+		event(DataHolepunchEvent(finished))
+	}
+
+	private fun eventRegist(host: RegistHost)
+	{
+		event(AutoRegistEvent(host))
 	}
 
 	fun setSurface(surface: Surface?)

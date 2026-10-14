@@ -88,6 +88,8 @@ class Preferences(context: Context)
 		const val audioBufferMsKey = "audio_buffer_ms"
 		const val autoConnectEnabledKey = "auto_connect_enabled"
 		const val autoConnectMacKey = "auto_connect_mac"
+		const val autoRegistDuidsKey = "auto_regist_duids"
+		const val loginPinKey = "login_pin"
 		const val menuShortcutKey = "menu_shortcut"
 		const val sleepConsoleOnExitKey = "sleep_console_on_exit"
 		const val disconnectActionKey = "disconnect_action"
@@ -160,6 +162,14 @@ class Preferences(context: Context)
 	var autoConnectMac
 		get() = sharedPreferences.getString(autoConnectMacKey, "") ?: ""
 		set(value) { sharedPreferences.edit().putString(autoConnectMacKey, value).apply() }
+
+	var autoRegistDuids: Set<String>
+		get() = sharedPreferences.getStringSet(autoRegistDuidsKey, emptySet()) ?: emptySet()
+		set(value) { sharedPreferences.edit().putStringSet(autoRegistDuidsKey, value).apply() }
+
+	var loginPin
+		get() = sharedPreferences.getString(loginPinKey, "") ?: ""
+		set(value) { sharedPreferences.edit().putString(loginPinKey, value).apply() }
 
 	var menuShortcut
 		get() = MenuShortcut.values().firstOrNull { it.value == sharedPreferences.getString(menuShortcutKey, MenuShortcut.L3_R3.value) } ?: MenuShortcut.L3_R3

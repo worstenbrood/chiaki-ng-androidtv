@@ -11,6 +11,8 @@ activityCompose = "1.9.3"
 coreKtx = "1.15.0"
 oboe = "1.10.0"
 tvprovider = "1.1.0"
+securityCrypto = "1.1.0-alpha06"
+zxing = "3.5.3"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
@@ -40,6 +42,9 @@ moshi-kotlin-codegen = { module = "com.squareup.moshi:moshi-kotlin-codegen", ver
 oboe = { module = "com.google.oboe:oboe", version.ref = "oboe" }
 
 tvprovider = { module = "androidx.tvprovider:tvprovider", version.ref = "tvprovider" }
+
+security-crypto = { module = "androidx.security:security-crypto", version.ref = "securityCrypto" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

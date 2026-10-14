@@ -29,6 +29,11 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -flto=thin")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -flto=thin")
 
+# curl >= 8.0 no longer reads the CURL_CA_BUNDLE env var; the default trust store
+# must be baked in at compile time. CaBundle.kt extracts the bundled Mozilla
+# cacert.pem asset to exactly this path before any holepunch call runs.
+set(CURL_CA_BUNDLE "/data/data/com.chiaking.tv/files/ca-bundle.pem" CACHE STRING "Default CA bundle" FORCE)
+
 list(APPEND CMAKE_MODULE_PATH "${CHIAKI_ROOT}/cmake")
 
 find_package(PythonInterp 3 REQUIRED) # Make sure nanopb doesn't find Python 2.7

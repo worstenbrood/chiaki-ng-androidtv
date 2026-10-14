@@ -42,6 +42,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.chiaking.tv.R
+import com.chiaking.tv.ui.FocusMemory
 import com.metallic.chiaki.lib.Codec
 import com.metallic.chiaki.lib.ConnectInfo
 import com.chiaking.tv.common.AudioDevices
@@ -126,7 +129,8 @@ fun StreamScreen(
 		if(hudVisible)
 		{
 			delay(400)
-			hudFocusIdx = 0
+			hudFocusIdx = FocusMemory.get("hud").coerceIn(0, 6)
+			delay(50)
 			try { hudFocus.requestFocus() } catch(e: Exception)
 			{ android.util.Log.e("StreamScreen", "HUD focus request failed", e) }
 		}
@@ -185,8 +189,12 @@ fun StreamScreen(
 
 		when(state)
 		{
-			StreamStateConnecting, StreamStateIdle -> HudSpinner("Connecting...")
-			StreamStateDisconnecting -> HudSpinner("Disconnecting...")
+			StreamStateConnecting, StreamStateIdle -> HudSpinner(stringResource(R.string.connecting))
+			is StreamStateRemoteProgress -> HudSpinner(stringResource(
+				if((state as StreamStateRemoteProgress).finished) R.string.remote_data_connected
+				else R.string.remote_data_connecting
+			))
+			StreamStateDisconnecting -> HudSpinner(stringResource(R.string.disconnecting))
 			else -> {}
 		}
 
@@ -217,59 +225,65 @@ fun StreamScreen(
 					modifier = Modifier.horizontalScroll(hudScroll)
 				) {
 					HudItem(
-						label = if(session.connectInfo.ps5) "PS5" else "PS4",
-						value = session.connectInfo.host,
-						sub = when(state)
-						{
-							is StreamStateConnected -> "Connected"
-							is StreamStateDisconnecting -> "Disconnecting"
-							else -> "Connecting"
-						},
-						focusReq = hudFocus,
+						label = stringResource(if(session.connectInfo.ps5) R.string.ps5 else R.string.ps4),
+						value = session.connectInfo.host.ifEmpty { stringResource(R.string.remote_host_label) },
+						sub = stringResource(
+							when(state)
+							{
+								is StreamStateConnected -> R.string.connected
+								is StreamStateDisconnecting -> R.string.disconnecting
+								else -> R.string.connecting
+							}
+						),
+						focusReq = if(hudFocusIdx == 0) hudFocus else null,
 						selected = hudFocusIdx == 0,
-						onSelect = { if(it) hudFocusIdx = 0 }
+						onSelect = { if(it) { hudFocusIdx = 0; FocusMemory.set("hud", 0) } }
 					)
 					HudDivider()
 					HudItem(
-						label = "Video",
-						value = "${vp.width}x${vp.height} @ ${vp.maxFPS} fps",
-						sub = "$codecLabel • ${vp.bitrate / 1000} Mbps target",
+						label = stringResource(R.string.video),
+						value = stringResource(R.string.video_value, vp.width, vp.height, vp.maxFPS),
+						sub = stringResource(R.string.video_sub, codecLabel, vp.bitrate / 1000),
+						focusReq = if(hudFocusIdx == 1) hudFocus else null,
 						selected = hudFocusIdx == 1,
-						onSelect = { if(it) hudFocusIdx = 1 }
+						onSelect = { if(it) { hudFocusIdx = 1; FocusMemory.set("hud", 1) } }
 					)
 					HudDivider()
 					HudItem(
-						label = "Display",
+						label = stringResource(R.string.display),
 						value = displayMode.title,
-						sub = "OK to cycle",
+						sub = stringResource(R.string.ok_to_cycle),
 						onClick = {
 							val values = Preferences.DisplayMode.values()
 							displayMode = values[(displayMode.ordinal + 1) % values.size]
 							preferences.displayMode = displayMode
 						},
+						focusReq = if(hudFocusIdx == 2) hudFocus else null,
 						selected = hudFocusIdx == 2,
-						onSelect = { if(it) hudFocusIdx = 2 }
+						onSelect = { if(it) { hudFocusIdx = 2; FocusMemory.set("hud", 2) } }
 					)
 					HudDivider()
 					HudItem(
-						label = "Stream",
-						value = hudStats?.let { String.format("%.0f fps", it.fps) } ?: "—",
-						sub = hudStats?.let { String.format("%.1f Mbps", it.kbps / 1000.0) } ?: "",
+						label = stringResource(R.string.stream),
+						value = hudStats?.let { stringResource(R.string.fps_value, it.fps) } ?: "—",
+						sub = hudStats?.let { stringResource(R.string.mbps_value, it.kbps / 1000.0) } ?: "",
+						focusReq = if(hudFocusIdx == 3) hudFocus else null,
 						selected = hudFocusIdx == 3,
-						onSelect = { if(it) hudFocusIdx = 3 }
+						onSelect = { if(it) { hudFocusIdx = 3; FocusMemory.set("hud", 3) } }
 					)
 					HudDivider()
 					HudItem(
-						label = "Network",
-						value = hudStats?.let { String.format("%.1f%% loss", it.packetLossPct) } ?: "—",
-						sub = hudStats?.let { String.format("ping %d ms • %d lost", it.rttMs, it.framesLost) } ?: "",
+						label = stringResource(R.string.network),
+						value = hudStats?.let { stringResource(R.string.loss_value, it.packetLossPct) } ?: "—",
+						sub = hudStats?.let { stringResource(R.string.ping_sub, it.rttMs, it.framesLost) } ?: "",
+						focusReq = if(hudFocusIdx == 4) hudFocus else null,
 						selected = hudFocusIdx == 4,
-						onSelect = { if(it) hudFocusIdx = 4 }
+						onSelect = { if(it) { hudFocusIdx = 4; FocusMemory.set("hud", 4) } }
 					)
 					HudDivider()
 					HudItem(
-						label = "Audio",
-						value = "$volume%",
+						label = stringResource(R.string.audio),
+						value = stringResource(R.string.volume_percent, volume),
 						sub = deviceName,
 						onClick = {
 							deviceIndex = (deviceIndex + 1) % audioDevices.size
@@ -283,8 +297,9 @@ fun StreamScreen(
 							preferences.audioVolume = volume
 							session.setVolumePercent(volume)
 						},
+						focusReq = if(hudFocusIdx == 5) hudFocus else null,
 						selected = hudFocusIdx == 5,
-						onSelect = { if(it) hudFocusIdx = 5 }
+						onSelect = { if(it) { hudFocusIdx = 5; FocusMemory.set("hud", 5) } }
 					)
 					HudDivider()
 					Column(
@@ -293,7 +308,8 @@ fun StreamScreen(
 							.widthIn(min = 140.dp)
 							.clip(RoundedCornerShape(10.dp))
 							.background(if(hudFocusIdx == 6) Color.White.copy(alpha = 0.16f) else Color.Transparent)
-							.onFocusEvent { if(it.isFocused) hudFocusIdx = 6 }
+							.then(if(hudFocusIdx == 6) Modifier.focusRequester(hudFocus) else Modifier)
+							.onFocusEvent { if(it.isFocused) { hudFocusIdx = 6; FocusMemory.set("hud", 6) } }
 							.onKeyEvent { ev ->
 								if(ev.key == Key.ButtonA && ev.type == KeyEventType.KeyUp)
 								{
@@ -307,7 +323,7 @@ fun StreamScreen(
 							.padding(horizontal = 10.dp, vertical = 4.dp)
 					) {
 						Text(
-							"CLOSE",
+							stringResource(R.string.hud_close),
 							fontSize = 11.sp,
 							color = PsBlueLight,
 							letterSpacing = 2.sp,
@@ -348,27 +364,28 @@ fun StreamScreen(
 
 	if(pinDialog != null)
 	{
-		var pin by remember { mutableStateOf("") }
+		var pin by remember(pinDialog!!.requestId) { mutableStateOf(preferences.loginPin) }
 		AlertDialog(
 			onDismissRequest = onQuit,
-			title = { Text(if(pinDialog!!.pinIncorrect) "PIN Incorrect" else "Enter PIN") },
+			title = { Text(stringResource(if(pinDialog!!.pinIncorrect) R.string.pin_incorrect else R.string.enter_pin)) },
 			text = {
 				Column {
-					Text("Enter the PIN shown on your TV/console login screen.")
+					Text(stringResource(R.string.pin_instructions))
 					Spacer(Modifier.height(12.dp))
-					TvTextField("PIN", pin) {
+					TvTextField(stringResource(R.string.pin), pin) {
 						if(it.all { c -> c.isDigit() } && it.length <= 8) pin = it
 					}
 				}
 			},
 			confirmButton = {
 				TextButton(onClick = {
+					preferences.loginPin = pin
 					session.setLoginPin(pin)
 					pinDialog = null
-				}) { Text("Connect", color = PsBlueLight) }
+				}) { Text(stringResource(R.string.connect), color = PsBlueLight) }
 			},
 			dismissButton = {
-				TextButton(onClick = onQuit) { Text("Quit", color = OnSurfaceMuted) }
+				TextButton(onClick = onQuit) { Text(stringResource(R.string.quit), color = OnSurfaceMuted) }
 			}
 		)
 	}
@@ -377,7 +394,7 @@ fun StreamScreen(
 	{
 		AlertDialog(
 			onDismissRequest = onQuit,
-			title = { Text("Session Ended") },
+			title = { Text(stringResource(R.string.session_ended)) },
 			text = {
 				Text(
 					quitDialog!!.reason.toString() +
@@ -390,10 +407,10 @@ fun StreamScreen(
 					quitDialog = null
 					session.shutdown(StreamStateIdle)
 					session.resumeDelayed(1500)
-				}) { Text("Reconnect", color = PsBlueLight) }
+				}) { Text(stringResource(R.string.reconnect), color = PsBlueLight) }
 			},
 			dismissButton = {
-				TextButton(onClick = onQuit) { Text("Quit", color = OnSurfaceMuted) }
+				TextButton(onClick = onQuit) { Text(stringResource(R.string.quit), color = OnSurfaceMuted) }
 			}
 		)
 	}
@@ -402,20 +419,20 @@ fun StreamScreen(
 	{
 		AlertDialog(
 			onDismissRequest = { session.dismissDisconnectDialog() },
-			title = { Text("Disconnect") },
-			text = { Text("Do you want the Console to go into sleep mode?") },
+			title = { Text(stringResource(R.string.disconnect_title)) },
+			text = { Text(stringResource(R.string.disconnect_sleep_question)) },
 			confirmButton = {
 				TextButton(onClick = {
 					session.dismissDisconnectDialog()
 					session.gotoBed()
 					onSleep()
-				}) { Text("Sleep", color = PsBlueLight) }
+				}) { Text(stringResource(R.string.sleep), color = PsBlueLight) }
 			},
 			dismissButton = {
 				TextButton(onClick = {
 					session.dismissDisconnectDialog()
 					onQuit()
-				}) { Text("Disconnect", color = OnSurfaceMuted) }
+				}) { Text(stringResource(R.string.disconnect), color = OnSurfaceMuted) }
 			}
 		)
 	}
@@ -424,9 +441,9 @@ fun StreamScreen(
 	{
 		AlertDialog(
 			onDismissRequest = onQuit,
-			title = { Text("Failed to Start Session") },
+			title = { Text(stringResource(R.string.failed_to_start_session)) },
 			text = { Text(createError!!.error.errorCode.toString(), color = OnSurfaceMuted) },
-			confirmButton = { TextButton(onClick = onQuit) { Text("Quit", color = OnSurfaceMuted) } }
+			confirmButton = { TextButton(onClick = onQuit) { Text(stringResource(R.string.quit), color = OnSurfaceMuted) } }
 		)
 	}
 }

@@ -1,3 +1,4 @@
 {
-    "cmake.sourceDirectory": "C:/Users/tim/Documents/Repositories/Personal/chiaki-ng-androidtv/native"
+    "cmake.sourceDirectory": "C:/Users/tim/Documents/Repositories/Personal/chiaki-ng-androidtv/native",
+    "java.configuration.updateBuildConfiguration": "interactive"
 }
