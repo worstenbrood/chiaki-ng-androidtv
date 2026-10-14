@@ -20,7 +20,7 @@ android {
 		versionName "1.11.0-tv"
 
         ndk {
-            def abis = providers.gradleProperty("abis").getOrElse("arm64-v8a")
+	def abis = providers.gradleProperty("abis").getOrElse("arm64-v8a,armeabi-v7a")
             abiFilters.addAll(abis.split(",").collect { it.trim() })
         }
 

@@ -83,7 +83,8 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
    2. In Chiaki TV open *Settings → Sign in with PSN*. A QR code appears on the TV.
    3. Scan it with your phone (or open the same URL on a PC), sign in to PlayStation Network,
       then copy the full URL your browser lands on (a blank page) and paste it into the dialog
-      on the TV. The app exchanges the code and stores the tokens encrypted on the device.
+      on the TV — or just paste the authorization **code** alone (the `code=` value from that URL).
+      The app exchanges the code and stores the tokens encrypted on the device.
    4. Your PS5 consoles appear in the **Remote** section of the home screen. Selecting one
       connects over the internet (the first connection auto-registers the console — no PIN
       needed; afterwards it behaves like a locally registered console).
