@@ -11,9 +11,16 @@
 
 #include <atomic>
 #include <chrono>
+#include <cmath>
+#include <cstdint>
+#include <cstring>
 #include <memory>
 #include <mutex>
 #include <thread>
+
+#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+#include <arm_neon.h>
+#endif
 
 #define BUFFER_CHUNK_SIZE 1024
 #define BUFFER_CHUNKS_COUNT 32
@@ -71,6 +78,35 @@ extern "C" void android_chiaki_audio_output_free(void *audio_output)
 		(*holder)->stream = nullptr;
 	}
 	delete holder;
+}
+
+// Q15 fixed-point gain with rounding (truncating float multiply biased the signal toward zero)
+static void apply_volume_gain(int16_t *samples, size_t num_samples, float vol)
+{
+	int32_t q = (int32_t)lrintf(vol * 32768.0f);
+	if(q <= 0)
+	{
+		memset(samples, 0, num_samples * sizeof(int16_t));
+		return;
+	}
+	if(q >= 32768)
+		return;
+	const int16_t q16 = (int16_t)q;
+	size_t i = 0;
+#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+	const int32x4_t round = vdupq_n_s32(1 << 14);
+	for(; i + 8 <= num_samples; i += 8)
+	{
+		int16x8_t in = vld1q_s16(samples + i);
+		int32x4_t lo = vmlal_n_s16(round, vget_low_s16(in), q16);
+		int32x4_t hi = vmlal_n_s16(round, vget_high_s16(in), q16);
+		int16x4_t out_lo = vshrn_n_s32(lo, 15);
+		int16x4_t out_hi = vshrn_n_s32(hi, 15);
+		vst1q_s16(samples + i, vcombine_s16(out_lo, out_hi));
+	}
+#endif
+	for(; i < num_samples; i++)
+		samples[i] = (int16_t)(((int32_t)samples[i] * q16 + (1 << 14)) >> 15);
 }
 
 static AudioOutput *get_ao(void *audio_output)
@@ -258,12 +294,7 @@ oboe::DataCallbackResult AudioOutputCallback::onAudioReady(oboe::AudioStream *st
 
 	float vol = audio_output->volume.load(std::memory_order_relaxed);
 	if(vol != 1.0f)
-	{
-		auto samples = reinterpret_cast<int16_t *>(audio_data);
-		size_t num_samples = buf_size_delivered / sizeof(int16_t);
-		for(size_t i = 0; i < num_samples; i++)
-			samples[i] = static_cast<int16_t>(static_cast<float>(samples[i]) * vol);
-	}
+		apply_volume_gain(reinterpret_cast<int16_t *>(audio_data), buf_size_delivered / sizeof(int16_t), vol);
 
 	return oboe::DataCallbackResult::Continue;
 }

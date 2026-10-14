@@ -7,10 +7,13 @@
 #include <media/NdkMediaCodec.h>
 #include <media/NdkMediaFormat.h>
 #include <android/native_window_jni.h>
+#include <android/api-level.h>
 
 #include <string.h>
 
-#define INPUT_BUFFER_TIMEOUT_MS 0
+// small grace period instead of instantly dropping a whole frame when the codec input
+// is momentarily full (a burst of packets is normal at frame boundaries)
+#define INPUT_BUFFER_TIMEOUT_MS 5
 
 static void *android_chiaki_video_decoder_output_thread_func(void *user);
 
@@ -126,6 +129,9 @@ void android_chiaki_video_decoder_set_surface(AndroidChiakiVideoDecoder *decoder
 	AMediaFormat_setString(format, AMEDIAFORMAT_KEY_MIME, mime);
 	AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_WIDTH, decoder->target_width);
 	AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_HEIGHT, decoder->target_height);
+	if(android_get_device_api_level() >= 30)
+		// AMEDIAFORMAT_KEY_LOW_LATENCY is __INTRODUCED_IN(30), so use the literal key with a runtime check
+		AMediaFormat_setInt32(format, "android.media.key.lowlatency", 1);
 
 	media_status_t r = AMediaCodec_configure(decoder->codec, format, decoder->window, NULL, 0);
 	if(r != AMEDIA_OK)
@@ -169,10 +175,10 @@ bool android_chiaki_video_decoder_video_sample(uint8_t *buf, size_t buf_size, in
 {
 	bool r = true;
 	AndroidChiakiVideoDecoder *decoder = user;
-	decoder->frames_queued++;
-	decoder->bytes_queued += buf_size;
+	__atomic_add_fetch(&decoder->frames_queued, 1, __ATOMIC_RELAXED);
+	__atomic_add_fetch(&decoder->bytes_queued, (uint64_t)buf_size, __ATOMIC_RELAXED);
 	if(frames_lost > 0)
-		decoder->frames_lost += (uint64_t)frames_lost;
+		__atomic_add_fetch(&decoder->frames_lost, (uint64_t)frames_lost, __ATOMIC_RELAXED);
 	chiaki_mutex_lock(&decoder->codec_mutex);
 
 	if(!decoder->codec)
@@ -251,7 +257,7 @@ static void *android_chiaki_video_decoder_output_thread_func(void *user)
 }
 void android_chiaki_video_decoder_get_stats(AndroidChiakiVideoDecoder *decoder, uint64_t *frames, uint64_t *bytes, uint64_t *frames_lost)
 {
-	*frames = decoder->frames_queued;
-	*bytes = decoder->bytes_queued;
-	*frames_lost = decoder->frames_lost;
+	*frames = __atomic_load_n(&decoder->frames_queued, __ATOMIC_RELAXED);
+	*bytes = __atomic_load_n(&decoder->bytes_queued, __ATOMIC_RELAXED);
+	*frames_lost = __atomic_load_n(&decoder->frames_lost, __ATOMIC_RELAXED);
 }

@@ -24,9 +24,10 @@ typedef struct android_chiaki_video_decoder_t
 	int32_t target_width;
 	int32_t target_height;
 	ChiakiCodec target_codec;
-	volatile uint64_t frames_queued;
-	volatile uint64_t bytes_queued;
-	volatile uint64_t frames_lost;
+	// accessed via __atomic_* builtins (relaxed) from the network and UI threads
+	uint64_t frames_queued;
+	uint64_t bytes_queued;
+	uint64_t frames_lost;
 } AndroidChiakiVideoDecoder;
 
 ChiakiErrorCode android_chiaki_video_decoder_init(AndroidChiakiVideoDecoder *decoder, ChiakiLog *log, int32_t target_width, int32_t target_height, ChiakiCodec codec);
