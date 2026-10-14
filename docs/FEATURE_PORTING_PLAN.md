@@ -15,9 +15,9 @@ Legend:
 - **SKIP** = desktop-only or no Android equivalent
 
 Key native fact: `lib/src/remote/holepunch.c` + `rudp.c` **are already compiled** into our
-`libchiaki` (they are unconditional in `external/chiaki-ng/lib/CMakeLists.txt:90-92`), but
-`native/jni/chiaki-jni.c` exposes none of it. PSN remote play is therefore "JNI + Kotlin work",
-not "new native dependency work" (curl/jsonc already linked).
+`libchiaki` (they are unconditional in `external/chiaki-ng/lib/CMakeLists.txt:90-92`).
+PSN remote play over the internet is **implemented** (see section 4): JNI wrappers in
+`native/jni/chiaki-jni.c` + Kotlin flow in `connect/RemoteConnectController.kt`.
 
 ---
 
@@ -27,7 +27,8 @@ Discovery + wake-up on standby, registration (PIN, all targets), manual hosts (a
 stream session with video profile (res/fps/codec/bitrate), audio volume/output-device/buffer-size
 (our JNI additions), stats HUD (L3+R3), login PIN dialog, Sleep-vs-Disconnect dialog, goto-bed,
 gamepad input incl. motion + rumble + PS-button remap + touchpad click, D-pad-as-controller,
-per-session log files (keep 5) + LogsScreen, settings export/import (SAF), screen-on keep-alive.
+per-session log files (keep 5) + LogsScreen, settings export/import (SAF), screen-on keep-alive,
+**PSN sign-in + Remote Play over the internet** (see section 4).
 
 ---
 
@@ -76,8 +77,8 @@ hold ≥8 repeats → ×5 step, OK toggles Auto; clamped 2000–50000)
 ### 1.6 Audio/video disabled modes — **SKIP**
 - Debug oddity (`settings.h:241`), not a real TV feature.
 
-### 1.7 Port guessing for remote play (`portGuessingEnabled/Count/SocketCount`) — **DEFER**
-- Only matters with PSN remote play (10.x). Fold into that project.
+### 1.7 Port guessing for remote play (`portGuessingEnabled/Count/SocketCount`) — **TODO**
+- PSN remote play (section 4) landed — port guessing is now relevant; fold into the remote-profiles work.
 
 ---
 
@@ -122,10 +123,11 @@ covers the console still holding the old session after a background→foreground
 - **How**: in `StreamSession` QuitEvent handling: if quit happened < 20 s after start and reason is error → auto `shutdown + resumeDelayed(2000)` once (add `retried` flag). Keep manual Reconnect button as fallback.
 - **Effort**: S.
 
-### 2.6 Console PIN storage + auto-entry — **PORT (high priority)**
+### 2.6 Console PIN storage + auto-entry — **PARTIAL** (`preferences.loginPin` stored and
+pre-filled into the dialog; auto-submit on `LoginPinRequestEvent` when a PIN is stored still
+pending — today the user must press Verbinden, which also means a wrong saved PIN just re-prompts)
 - **What**: store 4-digit Remote Play PIN per registered host; auto-submit when session requests login PIN
   (`ConsolePinDialog.qml`, `qmlbackend.cpp:1183-1188, 1299-1306`, `host.cpp:43-46`).
-- **Status**: PIN dialog is always manual (`StreamScreen.kt` LoginPinRequestEvent).
 - **How**:
   1. `RegisteredHost` Room entity: add `rpPin: String?` column (Room migration!), `RegistScreen`/`ManageHostsScreen` field to set/edit it.
   2. `StreamSession`: on `LoginPinRequestEvent`, if stored PIN present call `session.setLoginPin` immediately; show dialog only on `pinIncorrect` or when unset.
@@ -136,9 +138,12 @@ covers the console still holding the old session after a background→foreground
 - Qt surfaces `cantDisplay` (HDR unsupported). Our HDR codec path is minimal; revisit if HDR issues appear.
 
 ### 2.8 Interactive HUD chips — **DONE** (all items focusable via D-pad/hat/stick, single shared
-`hudFocusIdx` grey highlight, horizontal scroll + edge arrows, opens focused on first item)
+`hudFocusIdx` grey highlight, horizontal scroll + edge arrows, opens focused on the remembered item)
 - HUD is no longer read-only: every item is a focusable chip; Audio chip = OK cycles output device
   live, D-pad up/down adjusts volume ±5%; ✕ chip opens the Sleep/Disconnect dialog.
+- All HUD code (UI, scroll, focus-restore, stats polling) lives in `ui/screens/StreamHud.kt`;
+  edge arrows key off `hudFocusIdx` bounds, not `hudScroll.value` (auto-scroll to a remembered
+  item does not always reach the scroll edge).
 - DualSense D-pad arrives as `HAT_X`/`HAT_Y` motion axes (not DPAD key events) — `MainActivity`
   synthesizes DPAD key events from hat + left stick while the HUD is open, and swallows all other
   gamepad buttons (L3/R3/circle/options…) so only cross activates.
@@ -154,9 +159,9 @@ STANDBY → wake-on-connect (3.2) with "Auto-connecting to…" banner; skipped w
 auto-connect (8.4) is active; cancel = BACK/Cancel button/re-click, once per launch)
 - **What**: pick a console (`autoConnectMac`); on launch, when discovery reports it READY (wake it if standby, wait ≤25 s), connect automatically (`qmlbackend.cpp:2351-2360, 847, 1530-1552`; `AutoConnectView.qml` "Waiting for console…" + cancel).
 
-### 3.2 Wake-on-connect for standby hosts — **DONE** (`MainActivity.wakeupAndConnect`: sends wakeup,
-polls discovery for READY ≤25 s ("Waking…" banner + Cancel, BACK cancels, re-click toggles off),
-then auto-starts the stream; only starts if still on HomeScreen)
+### 3.2 Wake-on-connect for standby hosts — **DONE** (`connect/WakeConnectController`: sends wakeup,
+polls discovery for READY ≤25 s, then auto-starts the stream; progress is the modal
+`TvProgressDialog` (spinner + text + Cancel; BACK cancels); same dialog used by remote connect)
 - **What**: Qt wakes a standby console then connects (`qmlbackend.cpp:1530-1552`). We wake but don't auto-connect after wake completes.
 
 ### 3.3 Hide discovered console — **PORT**
@@ -189,34 +194,31 @@ success toast shows imported console count)
 
 ---
 
-## 4. PSN / remote play over the internet
+## 4. PSN / remote play over the internet — **DONE** (2026-10, verified end-to-end over WAN)
 
-### 4.1 PSN OAuth login + token storage/refresh — **PORT (big, flagship)**
-- **What**: OAuth via `psnaccountid.h` (LOGIN_URL/TOKEN_URL/CLIENT_ID/SECRET, generated DUID via
-  `chiaki_holepunch_generate_client_device_uid`); tokens+expiry+account-id persisted; auto-refresh
-  1 min before expiry (`psntoken.cpp`, `qmlbackend.cpp:1675-1710, 2524-2569`).
-- **TV constraint**: no browser on TV and typing is hell. Port the **manual URL flow**: show short URL
-  + code, user completes on phone, then paste redirect URL via Android TV soft keyboard (or pair-code flow if PSN offers one — verify current PSN endpoints still work; Qt's client id/secret are in `psnaccountid.h:17-25`).
-- **How**:
-  1. JNI: wrap `chiaki_holepunch_generate_client_device_uid`, token exchange/refresh are plain HTTPS — do them in Kotlin (OkHttp/Retrofit already? check deps; else HttpURLConnection) — no native needed for OAuth itself.
-  2. `common/psn/PsnAuth.kt`: token model in EncryptedSharedPreferences (tokens are credentials — do NOT put in plain prefs or export file).
-  3. SettingsScreen "PlayStation Network" section: login/logout, account ID display, expiry.
-- **Effort**: L. **Verify PSN flow viability first** (spend 1 session spike: does the Qt flow still authenticate in 2026?).
+### 4.1 PSN OAuth login + token storage/refresh — **DONE**
+- `common/psn/PsnAuth.kt` (OAuth code flow with manual URL/code paste — QR + short code shown in
+  `ui/screens/PsnLoginDialog.kt`, full redirect URL or bare code accepted),
+  `common/psn/PsnTokenStore.kt` (tokens + expiry, `ensureFreshToken` refresh before use),
+  `common/psn/CaBundle.kt` (bundled CA certs for the HTTPS calls).
+- Settings → "PSN Account" section: sign in / sign out / account display.
 
-### 4.2 Remote console list + remote connect (holepunch) — **PORT (big, depends on 4.1)**
-- **What**: `chiaki_holepunch_list_devices` for PS5 devices; connect flow states Linking→Registering→DataConnection with cancel; failure hints for symmetric NAT (`qmlbackend.cpp:2571-2641`, `PsnView.qml`, `streamsession.cpp:2671-2747`).
-- **How**:
-  1. JNI additions in `native/jni/chiaki-jni.c`: `holepunchListDevices`, `holepunchLinkConsole`/`registerConsole`, `holepunchCreateDataSession` (mirror `streamsession.cpp` usage of `lib/include/chiaki/remote/holepunch.h`), pass returned session pointer into `ConnectInfo` (new `holepunchSession` field, native side).
-  2. Kotlin `PsnViewModel` with state machine mirroring `PsnConnectState` (`qmlbackend.h:99-113`).
-  3. HomeScreen: PSN section cards; `StreamSession` accepts PSN connect info.
-  4. Then 1.1 remote profiles + 1.7 port guessing become relevant.
-- **Effort**: XL. Highest-value differentiator (no other Android TV client does remote play away from LAN).
+### 4.2 Remote console list + remote connect (holepunch) — **DONE**
+- JNI wrappers in `native/jni/chiaki-jni.c` (device list, link/register, data session) +
+  `connect/RemoteConnectController.kt` state machine (Linking → Registering → DataConnection,
+  `cancel()` tears down the regist session, 3× retry with settle delay on createSession failure).
+- HomeScreen **Remote** section lists PSN devices (`Holepunch.listDevices`); progress is the shared
+  `TvProgressDialog`. TV-channel programs deep-link straight into a remote session
+  (`EXTRA_REMOTE_CONNECT_DUID/PS5/NAME` via `LocalConnectController`).
 
-### 4.3 Auto-registration over PSN — **PORT (with 4.2)**
-- `auto_regist` flag in connect info (`streamsession.cpp:478`, `qmlbackend.cpp:1417-1474`). Falls out of 4.2 with a flag.
+### 4.3 Auto-registration over PSN — **DONE**
+- `auto_regist` connect flag; duids tracked in `Preferences.autoRegistDuids`. First remote connect
+  to a console registers it without PIN (upstream auto_regist session quits after regist —
+  `lib/src/session.c:481` — the app handles the follow-up connect itself).
 
-### 4.4 Auto-connect over PSN (wait for internet, retry ≤6) — **PORT (with 4.2)**
-- `qmlbackend.cpp:347-372, 604-629`. Extend 3.1 with PSN fallback when LAN discovery finds nothing.
+### 4.4 Auto-connect over PSN — **PARTIAL**
+- Remote deep-link connect (TV-channel program / intent extra) works. Startup auto-connect is still
+  LAN-discovery only (`auto_connect_mac`); PSN fallback when LAN discovery finds nothing is not wired.
 
 ---
 
@@ -366,23 +368,26 @@ noted in UPSTREAM_SYNC)
 ## Suggested phasing
 
 **Done since planning** (2026-10): 1.2, 2.1, 2.5, 2.8, 3.1, 3.2, 3.4, 5.3, 5.8, 6.1, 6.3,
-7.2, 8.1, 8.4 (deep-link half), 8.5, 9.4.
-Build tooling: `build.ps1` mounts `.docker-cache/gradle` (cold build ~25 min → ~9 min incremental).
+7.2, 8.1, 8.4 (deep-link half), 8.5, 9.4, **4.1–4.3 (PSN sign-in + Remote Play over the
+internet — the flagship)**, 2.6 (storage/pre-fill half).
+Build tooling: `build.ps1` keeps a persistent Docker build container (Gradle daemon +
+`.docker-cache/gradle` alive between runs): warm debug ~40 s, cold ~4 min; release ~15 min;
+ships arm64-v8a + armeabi-v7a.
 
 **Phase 1 — polish what exists (no native changes, ~small PRs each)**
-1. Console PIN storage + auto-entry (2.6)
-2. Stream menu: display mode zoom/stretch, video presets (2.2 + 7.2)
-3. Per-PS4/PS5 video profiles (1.1)
-4. Quit-action pref, Go Home, rumble intensity, button-haptics wiring, import UX (2.3, 2.4, 5.1, 5.2, 3.6, 9.2, 9.4)
+1. Console PIN auto-entry (2.6 remaining half)
+2. Stream menu: video presets + remaining quick settings (2.2)
+3. Per-PS4/PS5 video profiles incl. remote variants (1.1) + port guessing (1.7)
+4. Go Home, rumble intensity, button-haptics wiring, error-string audit (2.3, 5.1, 5.2, 9.2)
 
 **Phase 2 — JNI additions (touch `native/jni`, update UPSTREAM_SYNC divergence list)**
 5. Weak-WiFi warning (1.5)
 6. packet_loss_max + IDR-on-FEC (1.3 + 1.4)
 7. Hidden hosts, launcher dynamic shortcuts (3.3, 8.4)
 
-**Phase 3 — flagship (spike first)**
-10. PSN spike: verify OAuth + holepunch still work from this codebase (4.1)
-11. PSN login/token UI (4.1) → remote list/connect (4.2) → auto-regist (4.3) → PSN auto-connect (4.4) → remote profiles + port guessing (1.1 remote keys, 1.7)
+**Phase 3 — PSN follow-ups (flagship landed)**
+8. PSN fallback for startup auto-connect when LAN discovery finds nothing (4.4)
+9. Remote video profiles wired into the remote connect flow (1.1 remote keys)
 
 **Backlog / undecided**: mic streaming (6.2), dpad→touchpad (5.4), profiles (3.5), running-app badge (3.4), streamer mode (9.1), log sanitize (9.6).
 
