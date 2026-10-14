@@ -60,6 +60,16 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
   import asks to **Replace** or **Merge** with existing consoles and reports failures instead of
   silently ignoring them
 
+## Screenshots
+
+| Home | Settings |
+| --- | --- |
+| ![Home console list with local and PSN remote sections](docs/screenshots/home.jpg) | ![Settings screen](docs/screenshots/settings.jpg) |
+
+| Console registration | In-stream HUD |
+| --- | --- |
+| ![Console registration screen with PIN flow](docs/screenshots/regist.jpg) | ![Stream with the HUD bar open](docs/screenshots/stream_hud.jpg) |
+
 ## Requirements
 
 - Android TV 7.0+ (API 24), arm64-v8a (e.g. Shield TV, most modern TV boxes)
