@@ -49,6 +49,14 @@
 	<string name="bitrate_kbps">%1$d kbps</string>
 	<string name="bitrate_summary">Links / rechts past met 500 kbps aan (ingehouden = sneller), OK schakelt Auto</string>
 	<string name="display_mode">Beeldmodus</string>
+	<string name="display_mode_fit">Inpas</string>
+	<string name="display_mode_zoom">Zoom</string>
+	<string name="display_mode_stretch">Uitrek</string>
+	<string name="value_never">Nooit</string>
+	<string name="value_ask">Vragen</string>
+	<string name="value_always">Altijd</string>
+	<string name="action_sleep_console">Console in slaap brengen</string>
+	<string name="action_do_nothing">Niets doen</string>
 	<string name="audio">Audio</string>
 	<string name="volume">Volume</string>
 	<string name="volume_percent">%1$d%%</string>

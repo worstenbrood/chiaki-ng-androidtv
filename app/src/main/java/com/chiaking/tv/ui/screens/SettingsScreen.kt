@@ -137,7 +137,7 @@ fun SettingsScreen(
 			)
 			TvCycleRow(
 				title = stringResource(R.string.display_mode),
-				value = displayMode.title,
+				value = stringResource(displayMode.titleRes),
 				onNext = {
 					val values = Preferences.DisplayMode.values()
 					displayMode = values[(displayMode.ordinal + 1) % values.size]
@@ -246,7 +246,7 @@ fun SettingsScreen(
 			)
 			TvCycleRow(
 				title = stringResource(R.string.sleep_console_on_exit),
-				value = sleepConsoleOnExit.title,
+				value = stringResource(sleepConsoleOnExit.titleRes),
 				onNext = {
 					val values = Preferences.SleepConsoleOnExit.values()
 					sleepConsoleOnExit = values[(sleepConsoleOnExit.ordinal + 1) % values.size]
@@ -256,7 +256,7 @@ fun SettingsScreen(
 			)
 			TvCycleRow(
 				title = stringResource(R.string.on_close),
-				value = disconnectAction.title,
+				value = stringResource(disconnectAction.titleRes),
 				onNext = {
 					val values = Preferences.DisconnectAction.values()
 					disconnectAction = values[(disconnectAction.ordinal + 1) % values.size]

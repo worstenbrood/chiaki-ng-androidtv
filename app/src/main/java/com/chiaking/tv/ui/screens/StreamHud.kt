@@ -183,7 +183,7 @@ fun StreamHud(
 				HudDivider()
 				HudItem(
 					label = stringResource(R.string.display),
-					value = displayMode.title,
+					value = stringResource(displayMode.titleRes),
 					sub = stringResource(R.string.ok_to_cycle),
 					onClick = onCycleDisplayMode,
 					focusReq = if(hudFocusIdx == 2) hudFocus else null,

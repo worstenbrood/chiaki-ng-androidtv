@@ -4,6 +4,7 @@ package com.chiaking.tv.common
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.chiaking.tv.R
 import com.metallic.chiaki.lib.Codec
 import com.metallic.chiaki.lib.ConnectVideoProfile
 import com.metallic.chiaki.lib.VideoFPSPreset
@@ -44,25 +45,25 @@ class Preferences(context: Context)
 		SHOULDERS("shoulders", "L1 + R1 + L2 + R2")
 	}
 
-	enum class DisplayMode(val value: String, val title: String)
+	enum class DisplayMode(val value: String, val titleRes: Int)
 	{
-		FIT("fit", "Fit"),
-		ZOOM("zoom", "Zoom"),
-		STRETCH("stretch", "Stretch")
+		FIT("fit", R.string.display_mode_fit),
+		ZOOM("zoom", R.string.display_mode_zoom),
+		STRETCH("stretch", R.string.display_mode_stretch)
 	}
 
-	enum class SleepConsoleOnExit(val value: String, val title: String)
+	enum class SleepConsoleOnExit(val value: String, val titleRes: Int)
 	{
-		NEVER("never", "Never"),
-		ASK("ask", "Ask"),
-		ALWAYS("always", "Always")
+		NEVER("never", R.string.value_never),
+		ASK("ask", R.string.value_ask),
+		ALWAYS("always", R.string.value_always)
 	}
 
-	enum class DisconnectAction(val value: String, val title: String)
+	enum class DisconnectAction(val value: String, val titleRes: Int)
 	{
-		ASK("ask", "Ask"),
-		SLEEP("sleep", "Sleep Console"),
-		NOTHING("nothing", "Do Nothing")
+		ASK("ask", R.string.value_ask),
+		SLEEP("sleep", R.string.action_sleep_console),
+		NOTHING("nothing", R.string.action_do_nothing)
 	}
 
 	companion object

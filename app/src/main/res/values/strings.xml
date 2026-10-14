@@ -50,6 +50,14 @@
 	<string name="bitrate_kbps">%1$d kbps</string>
 	<string name="bitrate_summary">Left / Right adjusts by 500 kbps (hold to go faster), OK toggles Auto</string>
 	<string name="display_mode">Display Mode</string>
+	<string name="display_mode_fit">Fit</string>
+	<string name="display_mode_zoom">Zoom</string>
+	<string name="display_mode_stretch">Stretch</string>
+	<string name="value_never">Never</string>
+	<string name="value_ask">Ask</string>
+	<string name="value_always">Always</string>
+	<string name="action_sleep_console">Sleep Console</string>
+	<string name="action_do_nothing">Do Nothing</string>
 	<string name="audio">Audio</string>
 	<string name="volume">Volume</string>
 	<string name="volume_percent">%1$d%%</string>
