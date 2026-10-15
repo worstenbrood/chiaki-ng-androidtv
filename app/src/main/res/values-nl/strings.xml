@@ -26,7 +26,7 @@
 	<string name="no_consoles_discovered">Nog geen consoles gevonden.\nZorg dat je console in de rustmodus staat of aan staat, en op hetzelfde netwerk.</string>
 	<string name="discovery_off_hint">Detectie staat uit.\nRegistreer een console of voeg er handmatig een toe.</string>
 	<string name="register_console">Console registreren</string>
-	<string name="add_manual_host">Handmatige host toevoegen</string>
+	<string name="add_manual_host">Handmatig host toevoegen</string>
 	<string name="refresh_psn_consoles">PSN-consoles vernieuwen</string>
 	<string name="found_count">Gevonden: %1$d</string>
 	<string name="found_error">Gevonden: -1 (fout)</string>
@@ -42,7 +42,7 @@
 	<!-- Settings -->
 	<string name="stream">Stream</string>
 	<string name="resolution">Resolutie</string>
-	<string name="frames_per_second">Beelden per seconde</string>
+	<string name="frames_per_second">Frames per seconde</string>
 	<string name="video_codec">Videocodec</string>
 	<string name="bitrate">Bitsnelheid</string>
 	<string name="bitrate_auto">Auto (%1$d kbps)</string>
@@ -51,9 +51,9 @@
 	<string name="display_mode">Beeldmodus</string>
 	<string name="idr_on_fec_failure">Keyframe aanvragen bij frameverlies</string>
 	<string name="idr_on_fec_failure_summary">Vraag de console om een nieuw keyframe wanneer een frame niet hersteld kan worden, zodat beeldfouten sneller herstellen</string>
-	<string name="display_mode_fit">Inpas</string>
+	<string name="display_mode_fit">Inpassen</string>
 	<string name="display_mode_zoom">Zoom</string>
-	<string name="display_mode_stretch">Uitrek</string>
+	<string name="display_mode_stretch">Uitrekken</string>
 	<string name="value_never">Nooit</string>
 	<string name="value_ask">Vragen</string>
 	<string name="value_always">Altijd</string>
@@ -110,7 +110,7 @@
 	<string name="import_settings">Instellingen importeren</string>
 	<string name="import_settings_summary">Hosts herstellen uit een chiaki-settings.json-bestand</string>
 	<string name="about">Over</string>
-	<string name="chiaki_ng_core">chiaki-ng-kern</string>
+	<string name="chiaki_ng_core">chiaki-ng-core</string>
 
 	<!-- PSN login dialog -->
 	<string name="psn_login_title">Aanmelden met PSN</string>
@@ -192,7 +192,7 @@
 	<string name="regist_starting">Starten…</string>
 
 	<!-- Manual host dialog -->
-	<string name="manual_host_add">Handmatige host toevoegen</string>
+	<string name="manual_host_add">Handmatig host toevoegen</string>
 	<string name="manual_host_edit">Host bewerken</string>
 	<string name="manual_host_ip">IP-adres / hostnaam</string>
 	<string name="host_address_ip">Hostadres (IP)</string>
