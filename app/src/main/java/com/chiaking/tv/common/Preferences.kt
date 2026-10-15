@@ -100,6 +100,7 @@ class Preferences(context: Context)
 		const val sleepConsoleOnExitKey = "sleep_console_on_exit"
 		const val disconnectActionKey = "disconnect_action"
 		const val idrOnFecFailureKey = "idr_on_fec_failure"
+		const val hudShowCpuKey = "hud_show_cpu"
 
 		val resolutionDefault = Resolution.RES_1080P
 		val fpsDefault = FPS.FPS_60
@@ -203,6 +204,10 @@ class Preferences(context: Context)
 	var idrOnFecFailure
 		get() = sharedPreferences.getBoolean(idrOnFecFailureKey, true)
 		set(value) { sharedPreferences.edit().putBoolean(idrOnFecFailureKey, value).apply() }
+
+	var hudShowCpu
+		get() = sharedPreferences.getBoolean(hudShowCpuKey, true)
+		set(value) { sharedPreferences.edit().putBoolean(hudShowCpuKey, value).apply() }
 
 	var resolution
 		get() = sharedPreferences.getString(resolutionDefaultKey, resolutionDefault.value)?.let { value ->

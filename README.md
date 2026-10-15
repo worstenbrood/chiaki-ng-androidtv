@@ -50,8 +50,9 @@ home with ambient glow and pill buttons, two-pane settings) and full D-pad/gamep
   (HDMI, Bluetooth, USB, ...) with automatic fallback to the system default, and
   audio buffer size (Auto or 10–100 ms in 10 ms steps, like the Qt app)
 - **In-stream HUD** — press **L3 + R3** (configurable: Select + Start or L1+R1+L2+R2 via
-  *Settings → Controller → HUD Shortcut*) while streaming to toggle an interactive bar with live
-  FPS, measured bitrate, packet loss %, ping, lost frames and the current video/audio config.
+  *Settings → HUD → HUD Shortcut*) while streaming to toggle an interactive bar with live
+  FPS, measured bitrate, packet loss %, ping, lost frames, app CPU usage (of one core +
+  cores used; toggle via *Settings → HUD → CPU Usage*) and the current video/audio config.
   Navigate the chips with the **D-pad** (gamepad D-pad *and* left stick are both understood):
   the **Audio** chip cycles the output device with **cross** and adjusts volume with **D-pad
    up/down**, the **Display** chip cycles Fit/Zoom/Stretch; the bar ends with a **✕** chip that
@@ -60,8 +61,9 @@ home with ambient glow and pill buttons, two-pane settings) and full D-pad/gamep
 - **Clean disconnect** — closing the stream (HUD ✕ or remote Back, per the *On Close* setting)
    shows a "Disconnecting" spinner and returns to the main screen once the session has fully shut down
 - **Settings** — PS5-style two-pane layout (category list on the left, options on the right):
-  Stream, Audio, Controller, General, PlayStation Network, Backup and About pages incl.
-  resolution, FPS, codec, bitrate, audio, controller options, verbose logging and session log viewer
+  Stream, Audio, Controller, HUD, General, PlayStation Network, Backup and About pages incl.
+  resolution, FPS, codec, bitrate, audio, controller options, HUD options, verbose logging and
+  session log viewer
 - **Login PIN auto-entry** — store the console's Remote Play login PIN per console
   (*Registered consoles → console → Login PIN*) or as a global default
   (*Settings → General → Login PIN*); it is submitted automatically when the console asks,

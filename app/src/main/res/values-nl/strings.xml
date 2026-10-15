@@ -77,7 +77,10 @@
 	<string name="motion_controls_summary">Gebruik de gyroscoop/accelerometer van het apparaat als controllerbeweging</string>
 	<string name="button_haptics">Knop-haptiek</string>
 	<string name="button_haptics_summary">Haptische feedback bij knopindrukkingen</string>
+	<string name="category_hud">HUD</string>
 	<string name="hud_shortcut">HUD-snelkoppeling</string>
+	<string name="cpu_usage">CPU-gebruik</string>
+	<string name="cpu_usage_summary">Toon cpu-gebruik van de app in de hud</string>
 	<string name="general">Algemeen</string>
 	<string name="console_discovery">Console-detectie</string>
 	<string name="console_discovery_summary">Automatisch consoles op het lokale netwerk zoeken</string>
@@ -154,6 +157,9 @@
 	<string name="network">Netwerk</string>
 	<string name="loss_value">%1$.1f%% verlies</string>
 	<string name="ping_sub">ping %1$d ms • %2$d verloren</string>
+	<string name="cpu">CPU</string>
+	<string name="cpu_value">%1$.0f%%</string>
+	<string name="cpu_sub">≈ %1$.1f kernen</string>
 	<string name="enter_pin">Pincode invoeren</string>
 	<string name="pin_incorrect">Pincode onjuist</string>
 	<string name="pin_instructions">Voer de pincode in die op je tv/console-inlogscherm staat.</string>

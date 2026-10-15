@@ -78,7 +78,10 @@
 	<string name="motion_controls_summary">Use device gyroscope/accelerometer as controller motion</string>
 	<string name="button_haptics">Button Haptics</string>
 	<string name="button_haptics_summary">Haptic feedback on button presses</string>
+	<string name="category_hud">HUD</string>
 	<string name="hud_shortcut">HUD Shortcut</string>
+	<string name="cpu_usage">CPU Usage</string>
+	<string name="cpu_usage_summary">Show app CPU usage in the HUD</string>
 	<string name="general">General</string>
 	<string name="console_discovery">Console Discovery</string>
 	<string name="console_discovery_summary">Automatically find consoles on the local network</string>
@@ -155,6 +158,9 @@
 	<string name="network">Network</string>
 	<string name="loss_value">%1$.1f%% loss</string>
 	<string name="ping_sub">ping %1$d ms • %2$d lost</string>
+	<string name="cpu">CPU</string>
+	<string name="cpu_value">%1$.0f%%</string>
+	<string name="cpu_sub">≈ %1$.1f cores</string>
 	<string name="enter_pin">Enter PIN</string>
 	<string name="pin_incorrect">PIN Incorrect</string>
 	<string name="pin_instructions">Enter the PIN shown on your TV/console login screen.</string>

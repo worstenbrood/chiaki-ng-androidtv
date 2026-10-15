@@ -48,17 +48,32 @@ import com.chiaking.tv.ui.theme.*
 import com.metallic.chiaki.lib.Codec
 import kotlinx.coroutines.delay
 
-private data class HudStats(val fps: Double, val kbps: Double, val framesLost: Long, val packetLossPct: Double, val rttMs: Long)
+private data class HudStats(val fps: Double, val kbps: Double, val framesLost: Long, val packetLossPct: Double, val rttMs: Long, val cpuAppPct: Double, val cpuCores: Double)
 
 private const val HUD_STATS_POLL_MS = 1000L
 private const val HUD_FOCUS_SETTLE_MS = 400L
 private const val HUD_FOCUS_REQUEST_MS = 50L
-private const val HUD_LAST_IDX = 6
 private const val NS_PER_S = 1_000_000_000.0
 private const val BITS_PER_BYTE = 8.0
 private const val BITS_PER_KBIT = 1000.0
 private const val PACKET_LOSS_PCT_SCALE = 10000.0
 private const val MICROS_PER_MS = 1000
+private const val KERNEL_HZ = 100.0
+
+private fun readSelfCpuTicks(): Long?
+{
+	return try
+	{
+		val line = java.io.File("/proc/self/stat").readText()
+		val fields = line.substringAfterLast(')').trim().split(Regex("\\s+"))
+		// after (comm): state=0 ... utime=11, stime=12
+		fields[11].toLong() + fields[12].toLong()
+	}
+	catch(e: Exception)
+	{
+		null
+	}
+}
 
 @Composable
 fun StreamHud(
@@ -74,6 +89,9 @@ fun StreamHud(
 {
 	val hudScroll = rememberScrollState()
 	val hudFocus = remember { FocusRequester() }
+	val showCpu = preferences.hudShowCpu
+	val closeIdx = if(showCpu) 7 else 6
+	val lastIdx = closeIdx
 	var hudFocusIdx by remember { mutableStateOf(0) }
 	var hudStats by remember { mutableStateOf<HudStats?>(null) }
 	var volume by remember { mutableStateOf(preferences.audioVolume) }
@@ -86,7 +104,7 @@ fun StreamHud(
 			.coerceAtLeast(0)) }
 	val deviceName = audioDevices[deviceIndex].first
 
-	LaunchedEffect(hudVisible)
+	LaunchedEffect(hudVisible, showCpu)
 	{
 		if(!hudVisible)
 		{
@@ -95,24 +113,34 @@ fun StreamHud(
 		}
 		var lastStats: LongArray? = null
 		var lastTime = 0L
+		var lastCpuTicks: Long? = null
 		while(hudVisible)
 		{
 			val now = System.nanoTime()
 			val stats = session.getStats()
+			val cpuTicks = if(showCpu) readSelfCpuTicks() else null
 			if(stats != null && lastStats != null && lastTime != 0L)
 			{
 				val dt = (now - lastTime) / NS_PER_S
 				if(dt > 0.0)
+				{
+					val cpuAppPct = if(cpuTicks != null && lastCpuTicks != null)
+						(cpuTicks - lastCpuTicks) * 100.0 / (dt * KERNEL_HZ)
+						else 0.0
 					hudStats = HudStats(
 						(stats[0] - lastStats[0]) / dt,
 						(stats[1] - lastStats[1]) * BITS_PER_BYTE / dt / BITS_PER_KBIT,
 						stats[2],
 						stats[3] / PACKET_LOSS_PCT_SCALE,
-						stats[4] / MICROS_PER_MS
+						stats[4] / MICROS_PER_MS,
+						cpuAppPct,
+						cpuAppPct / 100.0
 					)
+				}
 			}
 			lastStats = stats
 			lastTime = now
+			lastCpuTicks = cpuTicks
 			delay(HUD_STATS_POLL_MS)
 		}
 	}
@@ -122,7 +150,7 @@ fun StreamHud(
 		if(hudVisible)
 		{
 			delay(HUD_FOCUS_SETTLE_MS)
-			hudFocusIdx = FocusMemory.get("hud").coerceIn(0, HUD_LAST_IDX)
+			hudFocusIdx = FocusMemory.get("hud").coerceIn(0, lastIdx)
 			delay(HUD_FOCUS_REQUEST_MS)
 			try { hudFocus.requestFocus() } catch(e: Exception)
 			{ android.util.Log.e("StreamHud", "HUD focus request failed", e) }
@@ -229,15 +257,27 @@ fun StreamHud(
 					selected = hudFocusIdx == 5,
 					onSelect = { if(it) { hudFocusIdx = 5; FocusMemory.set("hud", 5) } }
 				)
+				if(showCpu)
+				{
+					HudDivider()
+					HudItem(
+						label = stringResource(R.string.cpu),
+						value = hudStats?.let { stringResource(R.string.cpu_value, it.cpuAppPct) } ?: "—",
+						sub = hudStats?.let { stringResource(R.string.cpu_sub, it.cpuCores) } ?: "",
+						focusReq = if(hudFocusIdx == 6) hudFocus else null,
+						selected = hudFocusIdx == 6,
+						onSelect = { if(it) { hudFocusIdx = 6; FocusMemory.set("hud", 6) } }
+					)
+				}
 				HudDivider()
 				Column(
 					horizontalAlignment = Alignment.CenterHorizontally,
 					modifier = Modifier
 						.widthIn(min = 140.dp)
 						.clip(SelectionShape)
-						.background(if(hudFocusIdx == 6) HudChipFocus else Color.Transparent)
-						.then(if(hudFocusIdx == 6) Modifier.focusRequester(hudFocus) else Modifier)
-						.onFocusEvent { if(it.isFocused) { hudFocusIdx = 6; FocusMemory.set("hud", 6) } }
+						.background(if(hudFocusIdx == closeIdx) HudChipFocus else Color.Transparent)
+						.then(if(hudFocusIdx == closeIdx) Modifier.focusRequester(hudFocus) else Modifier)
+						.onFocusEvent { if(it.isFocused) { hudFocusIdx = closeIdx; FocusMemory.set("hud", closeIdx) } }
 						.onKeyEvent { ev ->
 							if(ev.key == Key.ButtonA && ev.type == KeyEventType.KeyUp)
 							{
@@ -278,7 +318,7 @@ fun StreamHud(
 					tint = OnVideo,
 					modifier = Modifier.align(Alignment.CenterStart).size(36.dp)
 				)
-			if(hudScroll.maxValue > 0 && hudFocusIdx < HUD_LAST_IDX)
+			if(hudScroll.maxValue > 0 && hudFocusIdx < lastIdx)
 				Icon(
 					Icons.Default.KeyboardArrowRight,
 					contentDescription = null,
