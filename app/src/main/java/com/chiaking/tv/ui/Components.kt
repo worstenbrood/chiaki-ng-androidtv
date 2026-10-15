@@ -40,6 +40,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import com.chiaking.tv.R
+import com.chiaking.tv.common.SettingsTransfer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chiaking.tv.ui.theme.*
@@ -114,6 +115,29 @@ fun TvProgressDialog(text: String, onCancel: () -> Unit)
 			TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel), color = PsBlueLight) }
 		}
 	)
+}
+
+/**
+ * Replace/Merge prompt shown while a settings import is pending on [SettingsTransfer].
+ */
+@Composable
+fun ImportSettingsDialog(settingsTransfer: SettingsTransfer)
+{
+	settingsTransfer.pendingImport?.let {
+		PsAlertDialog(
+			onDismissRequest = { settingsTransfer.dismissImport() },
+			title = { Text(stringResource(R.string.import_settings)) },
+			text = { Text(stringResource(R.string.import_replace_merge_question)) },
+			confirmButton = {
+				TextButton(onClick = { settingsTransfer.confirmImport(true) })
+				{ Text(stringResource(R.string.replace)) }
+			},
+			dismissButton = {
+				TextButton(onClick = { settingsTransfer.confirmImport(false) })
+				{ Text(stringResource(R.string.merge)) }
+			}
+		)
+	}
 }
 
 /**

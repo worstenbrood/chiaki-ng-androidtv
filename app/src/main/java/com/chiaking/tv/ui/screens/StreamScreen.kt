@@ -17,11 +17,13 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.res.stringResource
 import com.chiaking.tv.R
+import com.chiaking.tv.common.AppDatabase
 import com.chiaking.tv.common.Preferences
 import com.chiaking.tv.session.*
 import com.chiaking.tv.ui.PsAlertDialog
 import com.chiaking.tv.ui.theme.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private const val RECONNECT_RESUME_DELAY_MS = 1500L
 private const val FIRST_FRAME_POLL_MS = 100L
@@ -247,6 +249,47 @@ fun StreamScreen(
 			confirmButton = { TextButton(onClick = onQuit) { Text(stringResource(R.string.quit), color = OnSurfaceMuted) } }
 		)
 	}
+}
+
+@Composable
+fun StreamRoute(
+	session: StreamSession,
+	preferences: Preferences,
+	database: AppDatabase,
+	awayController: AwayController,
+	onQuit: () -> Unit,
+	onSleep: () -> Unit,
+	onKeepPlaying: () -> Unit,
+	onSleepAway: () -> Unit
+)
+{
+	val scope = rememberCoroutineScope()
+	RumbleFeedback(session, preferences.rumbleEnabled)
+	StreamScreen(session, preferences,
+		onQuit = onQuit,
+		onSleep = onSleep,
+		onPinStored = { pin ->
+			val hostId = session.loginPinHostId
+			if(hostId != null)
+				scope.launch { database.registeredHostDao().setPin(hostId, pin) }
+			else
+				preferences.loginPin = pin
+		})
+	if(awayController.sleepPrompt)
+		PsAlertDialog(
+			onDismissRequest = onKeepPlaying,
+			title = { Text(stringResource(R.string.console_still_awake)) },
+			text = { Text(stringResource(R.string.away_sleep_question)) },
+			confirmButton = {
+				TextButton(onClick = {
+					awayController.dismissPrompt()
+					onSleepAway()
+				}) { Text(stringResource(R.string.sleep_console)) }
+			},
+			dismissButton = {
+				TextButton(onClick = onKeepPlaying) { Text(stringResource(R.string.keep_playing)) }
+			}
+		)
 }
 
 @Composable

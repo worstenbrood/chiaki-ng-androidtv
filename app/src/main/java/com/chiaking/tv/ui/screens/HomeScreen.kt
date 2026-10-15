@@ -2,6 +2,7 @@
 
 package com.chiaking.tv.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -19,6 +20,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -26,9 +28,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chiaking.tv.MainViewModel
 import com.chiaking.tv.R
 import com.chiaking.tv.common.*
+import com.chiaking.tv.connect.LocalConnectController
+import com.chiaking.tv.connect.RemoteConnectController
+import com.chiaking.tv.connect.WakeConnectController
+import com.chiaking.tv.discovery.DiscoveryManager
 import com.metallic.chiaki.lib.DiscoveryHost
+import com.metallic.chiaki.lib.HolepunchDevice
 import com.chiaking.tv.ui.*
 import com.chiaking.tv.ui.theme.*
 import kotlinx.coroutines.delay
@@ -405,6 +413,87 @@ private fun AddCard(
 			Text(text, fontSize = 15.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
 			if(sub != null)
 				Text(sub, fontSize = 13.sp, color = if(sub.contains("-1")) WarningAmber else OnSurfaceMuted)
+		}
+	}
+}
+
+@Composable
+fun HomeRoute(
+	database: AppDatabase,
+	preferences: Preferences,
+	wakeController: WakeConnectController,
+	remoteController: RemoteConnectController,
+	localController: LocalConnectController,
+	onStartStream: (DisplayHost) -> Unit,
+	onWakeup: (DiscoveryManager, DisplayHost) -> Unit,
+	onRemoteConnect: (HolepunchDevice) -> Unit,
+	onRegist: (String?, Boolean?) -> Unit,
+	onOpenSettings: () -> Unit
+)
+{
+	val context = LocalContext.current
+	val viewModel = remember { MainViewModel(context, database, preferences) }
+	val hosts by viewModel.displayHosts.collectAsState()
+	val discoveryActive by viewModel.discoveryActive.collectAsState()
+	val psnLoggedIn by viewModel.psnLoggedIn.collectAsState()
+	val psnDevices by viewModel.psnDevices.collectAsState()
+	val psnLoading by viewModel.psnLoading.collectAsState()
+	val psnDeviceCount by viewModel.psnDeviceCount.collectAsState()
+	var showManualHostDialog by remember { mutableStateOf(false) }
+	var editingManualHost by remember { mutableStateOf<ManualHost?>(null) }
+
+	LaunchedEffect(Unit) { viewModel.discoveryManager.resume() }
+	LaunchedEffect(localController.pendingDeepLinkMac, localController.pendingRemoteDevice) { localController.connectDeepLink(viewModel.discoveryManager) }
+	LaunchedEffect(Unit) { localController.autoConnect(viewModel.discoveryManager) }
+	LaunchedEffect(Unit) { viewModel.refreshPsnLoginState(); if(viewModel.psnLoggedIn.value) viewModel.refreshPsnDevices() }
+	DisposableEffect(Unit) { onDispose { viewModel.discoveryManager.pause() } }
+	BackHandler(enabled = showManualHostDialog) { showManualHostDialog = false }
+
+	Box {
+		HomeScreen(hosts, discoveryActive,
+			psnLoggedIn = psnLoggedIn,
+			psnDevices = psnDevices,
+			psnLoading = psnLoading,
+			psnDeviceCount = psnDeviceCount
+		) { action ->
+			when(action)
+			{
+				is ConnectHost -> onStartStream(action.host)
+				is WakeupHost -> onWakeup(viewModel.discoveryManager, action.host)
+				is ConnectRemoteConsole -> onRemoteConnect(action.device)
+				RefreshPsnDevices -> viewModel.refreshPsnDevices()
+				is EditManualHost -> {
+					editingManualHost = action.manualHost
+					showManualHostDialog = true
+				}
+				is DeleteManualHost -> viewModel.deleteManualHost(action.manualHost)
+				RegisterNew -> onRegist(null, null)
+				is RegisterHost -> onRegist(action.host, action.ps5)
+				AddManualHost -> {
+					editingManualHost = null
+					showManualHostDialog = true
+				}
+				OpenSettings -> onOpenSettings()
+				ToggleDiscovery -> viewModel.discoveryManager.active = !viewModel.discoveryManager.active
+			}
+		}
+		if(showManualHostDialog)
+			ManualHostDialog(
+				initial = editingManualHost?.host ?: "",
+				onDismiss = { showManualHostDialog = false },
+				onSave = { value ->
+					val current = editingManualHost
+					if(current != null)
+						viewModel.updateManualHost(current, value)
+					else
+						viewModel.addManualHost(value)
+					showManualHostDialog = false
+				}
+			)
+		if(wakeController.wakingHost != null)
+			TvProgressDialog(wakeController.bannerText ?: "", wakeController::cancel)
+		remoteController.connectingText?.let {
+			TvProgressDialog(it, remoteController::cancel)
 		}
 	}
 }

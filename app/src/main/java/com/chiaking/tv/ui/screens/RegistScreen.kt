@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chiaking.tv.R
+import com.chiaking.tv.common.AppDatabase
 import com.metallic.chiaki.lib.RegistInfo
 import com.metallic.chiaki.lib.Target
 import com.chiaking.tv.regist.RegistExecuteViewModel
@@ -221,4 +222,12 @@ fun RegistExecuteScreen(viewModel: RegistExecuteViewModel, onDone: () -> Unit)
 			)
 		}
 	}
+}
+
+@Composable
+fun RegistExecuteRoute(database: AppDatabase, info: RegistInfo, assignManualHostId: Long?, onDone: () -> Unit)
+{
+	val viewModel = remember { RegistExecuteViewModel(database) }
+	LaunchedEffect(Unit) { viewModel.start(info, assignManualHostId) }
+	RegistExecuteScreen(viewModel, onDone)
 }

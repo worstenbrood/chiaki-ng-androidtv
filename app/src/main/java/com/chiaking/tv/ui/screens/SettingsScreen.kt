@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chiaking.tv.BuildConfig
 import com.chiaking.tv.R
+import com.chiaking.tv.common.AppDatabase
 import com.chiaking.tv.common.AudioDevices
 import com.chiaking.tv.common.Preferences
 import com.chiaking.tv.common.RegisteredHost
@@ -573,4 +574,31 @@ private fun SettingsNavItem(
 			}
 		)
 	}
+}
+
+@Composable
+fun SettingsRoute(
+	preferences: Preferences,
+	database: AppDatabase,
+	onBack: () -> Unit,
+	onShowLogs: () -> Unit,
+	onManageHosts: () -> Unit,
+	onExportSettings: () -> Unit,
+	onImportSettings: () -> Unit
+)
+{
+	val registeredHosts = remember { mutableStateOf<List<RegisteredHost>>(emptyList()) }
+	LaunchedEffect(Unit) {
+		database.registeredHostDao().getAll().collect { registeredHosts.value = it }
+	}
+	SettingsScreen(
+		preferences = preferences,
+		registeredHostCount = registeredHosts.value.size,
+		registeredHosts = registeredHosts.value,
+		onBack = onBack,
+		onShowLogs = onShowLogs,
+		onManageHosts = onManageHosts,
+		onExportSettings = onExportSettings,
+		onImportSettings = onImportSettings
+	)
 }

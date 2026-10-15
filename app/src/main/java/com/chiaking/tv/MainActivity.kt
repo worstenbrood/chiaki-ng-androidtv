@@ -22,31 +22,17 @@ import com.chiaking.tv.connect.LocalConnectController
 import com.chiaking.tv.connect.RemoteConnectController
 import com.chiaking.tv.connect.WakeConnectController
 import com.chiaking.tv.discovery.DiscoveryManager
-import com.metallic.chiaki.lib.RegistInfo
-import com.chiaking.tv.regist.RegistExecuteViewModel
 import com.chiaking.tv.session.AwayController
-import com.chiaking.tv.session.RumbleFeedback
 import com.chiaking.tv.session.StreamManager
-import com.chiaking.tv.session.StreamSession
 import com.chiaking.tv.session.StreamStateConnected
 import com.chiaking.tv.session.StreamStateDisconnecting
-import com.chiaking.tv.ui.PsAlertDialog
-import com.chiaking.tv.ui.TvProgressDialog
+import com.chiaking.tv.ui.*
 import com.chiaking.tv.ui.screens.*
 import com.chiaking.tv.ui.theme.ChiakiTvTheme
 import com.chiaking.tv.ui.theme.TvBackground
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-private sealed class Screen
-private object ScreenHome: Screen()
-private object ScreenSettings: Screen()
-private class ScreenRegist(val host: String?, val ps5: Boolean?): Screen()
-private class ScreenRegistExecute(val info: RegistInfo, val assignManualHostId: Long?): Screen()
-private class ScreenStream(val session: StreamSession): Screen()
-private object ScreenLogs: Screen()
-private object ScreenManageHosts: Screen()
 
 class MainActivity: ComponentActivity()
 {
@@ -65,8 +51,6 @@ class MainActivity: ComponentActivity()
 	private lateinit var settingsTransfer: SettingsTransfer
 
 	private val screenStack = mutableStateListOf<Screen>()
-	private var showManualHostDialog by mutableStateOf(false)
-	private var editingManualHost by mutableStateOf<ManualHost?>(null)
 
 	override fun onCreate(savedInstanceState: Bundle?)
 	{
@@ -103,21 +87,7 @@ class MainActivity: ComponentActivity()
 				) {
 					Box {
 						Navigation()
-						settingsTransfer.pendingImport?.let {
-							PsAlertDialog(
-								onDismissRequest = { settingsTransfer.dismissImport() },
-								title = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.import_settings)) },
-								text = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.import_replace_merge_question)) },
-								confirmButton = {
-									androidx.compose.material3.TextButton(onClick = { settingsTransfer.confirmImport(true) })
-									{ androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.replace)) }
-								},
-								dismissButton = {
-									androidx.compose.material3.TextButton(onClick = { settingsTransfer.confirmImport(false) })
-									{ androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.merge)) }
-								}
-							)
-						}
+						ImportSettingsDialog(settingsTransfer)
 					}
 				}
 			}
@@ -139,164 +109,60 @@ class MainActivity: ComponentActivity()
 	@Composable
 	private fun Navigation()
 	{
-		BackHandler(enabled = screenStack.size > 1 || showManualHostDialog)
+		BackHandler(enabled = screenStack.size > 1)
 		{
-			if(showManualHostDialog)
-				showManualHostDialog = false
-			else if(screenStack.size > 1)
+			if(screenStack.size > 1)
 				screenStack.removeAt(screenStack.size - 1)
 		}
 		when(val screen = screenStack.last())
 		{
-			ScreenHome -> {
-				val viewModel = remember { MainViewModel(this, database, preferences) }
-				val hosts by viewModel.displayHosts.collectAsState()
-				val discoveryActive by viewModel.discoveryActive.collectAsState()
-				val psnLoggedIn by viewModel.psnLoggedIn.collectAsState()
-				val psnDevices by viewModel.psnDevices.collectAsState()
-				val psnLoading by viewModel.psnLoading.collectAsState()
-				val psnDeviceCount by viewModel.psnDeviceCount.collectAsState()
-				LaunchedEffect(Unit) { viewModel.discoveryManager.resume() }
-				LaunchedEffect(localController.pendingDeepLinkMac, localController.pendingRemoteDevice) { localController.connectDeepLink(viewModel.discoveryManager) }
-				LaunchedEffect(Unit) { localController.autoConnect(viewModel.discoveryManager) }
-				LaunchedEffect(Unit) { viewModel.refreshPsnLoginState(); if(viewModel.psnLoggedIn.value) viewModel.refreshPsnDevices() }
-				DisposableEffect(Unit) { onDispose { viewModel.discoveryManager.pause() } }
-				Box {
-					HomeScreen(hosts, discoveryActive,
-						psnLoggedIn = psnLoggedIn,
-						psnDevices = psnDevices,
-						psnLoading = psnLoading,
-						psnDeviceCount = psnDeviceCount
-					) { action ->
-						when(action)
-						{
-							is ConnectHost -> startStream(action.host)
-							is WakeupHost -> wakeupAndConnect(viewModel.discoveryManager, action.host)
-							is ConnectRemoteConsole -> remoteController.connect(action.device)
-							RefreshPsnDevices -> viewModel.refreshPsnDevices()
-							is EditManualHost -> {
-								editingManualHost = action.manualHost
-								showManualHostDialog = true
-							}
-							is DeleteManualHost -> viewModel.deleteManualHost(action.manualHost)
-							RegisterNew -> screenStack.add(ScreenRegist(null, null))
-							is RegisterHost -> screenStack.add(ScreenRegist(action.host, action.ps5))
-							AddManualHost -> {
-								editingManualHost = null
-								showManualHostDialog = true
-							}
-							OpenSettings -> screenStack.add(ScreenSettings)
-							ToggleDiscovery -> viewModel.discoveryManager.active = !viewModel.discoveryManager.active
-						}
-					}
-					if(showManualHostDialog)
-						ManualHostDialog(
-							initial = editingManualHost?.host ?: "",
-							onDismiss = { showManualHostDialog = false },
-							onSave = { value ->
-								val current = editingManualHost
-								if(current != null)
-									viewModel.updateManualHost(current, value)
-								else
-									viewModel.addManualHost(value)
-								showManualHostDialog = false
-							}
-						)
-					if(wakeController.wakingHost != null)
-						TvProgressDialog(wakeController.bannerText ?: "", wakeController::cancel)
-					remoteController.connectingText?.let {
-						TvProgressDialog(it, remoteController::cancel)
-					}
-				}
-			}
+			ScreenHome -> HomeRoute(database, preferences, wakeController, remoteController, localController,
+				onStartStream = { startStream(it) },
+				onWakeup = { discoveryManager, host -> wakeupAndConnect(discoveryManager, host) },
+				onRemoteConnect = { remoteController.connect(it) },
+				onRegist = { host, ps5 -> screenStack.add(ScreenRegist(host, ps5)) },
+				onOpenSettings = { screenStack.add(ScreenSettings) })
 
-			ScreenSettings -> {
-				val registeredHosts = remember { mutableStateOf<List<RegisteredHost>>(emptyList()) }
-				LaunchedEffect(Unit) {
-					database.registeredHostDao().getAll().collect { registeredHosts.value = it }
-				}
-				SettingsScreen(
-					preferences = preferences,
-					registeredHostCount = registeredHosts.value.size,
-					registeredHosts = registeredHosts.value,
-					onBack = { screenStack.removeAt(screenStack.size - 1) },
-					onShowLogs = { screenStack.add(ScreenLogs) },
-					onManageHosts = { screenStack.add(ScreenManageHosts) },
-					onExportSettings = { settingsTransfer.launchExport() },
-					onImportSettings = { settingsTransfer.launchImport() }
-				)
-			}
+			ScreenSettings -> SettingsRoute(preferences, database,
+				onBack = { popScreen() },
+				onShowLogs = { screenStack.add(ScreenLogs) },
+				onManageHosts = { screenStack.add(ScreenManageHosts) },
+				onExportSettings = { settingsTransfer.launchExport() },
+				onImportSettings = { settingsTransfer.launchImport() })
 
 			is ScreenRegist -> RegistScreen(
 				initialHost = screen.host,
 				initialPs5 = screen.ps5,
-				onBack = { screenStack.removeAt(screenStack.size - 1) },
+				onBack = { popScreen() },
 				onStartRegist = { info, assignId ->
 					screenStack.add(ScreenRegistExecute(info, assignId))
 				}
 			)
 
-			is ScreenRegistExecute -> {
-				val registViewModel = remember { RegistExecuteViewModel(database) }
-				LaunchedEffect(Unit) { registViewModel.start(screen.info, screen.assignManualHostId) }
-				RegistExecuteScreen(registViewModel) {
-					repeat(2) { if(screenStack.size > 1) screenStack.removeAt(screenStack.size - 1) }
-				}
+			is ScreenRegistExecute -> RegistExecuteRoute(database, screen.info, screen.assignManualHostId) {
+				repeat(2) { if(screenStack.size > 1) screenStack.removeAt(screenStack.size - 1) }
 			}
 
-			is ScreenStream -> {
-				RumbleFeedback(screen.session, preferences.rumbleEnabled)
-				StreamScreen(screen.session, preferences,
-					onQuit = { disconnectStream() },
-					onSleep = {
-						StreamManager.markDisplayHostStandby()
-						disconnectStream()
-					},
-					onPinStored = { pin ->
-						val hostId = screen.session.loginPinHostId
-						if(hostId != null)
-							lifecycleScope.launch { database.registeredHostDao().setPin(hostId, pin) }
-						else
-							preferences.loginPin = pin
-					})
-				if(awayController.sleepPrompt)
-					PsAlertDialog(
-						onDismissRequest = { keepPlaying() },
-						title = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.console_still_awake)) },
-						text = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.away_sleep_question)) },
-						confirmButton = {
-							androidx.compose.material3.TextButton(onClick = {
-								awayController.dismissPrompt()
-								sleepConsoleAway()
-							}) { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.sleep_console)) }
-						},
-						dismissButton = {
-							androidx.compose.material3.TextButton(onClick = { keepPlaying() })
-							{ androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.keep_playing)) }
-						}
-					)
-			}
+			is ScreenStream -> StreamRoute(screen.session, preferences, database, awayController,
+				onQuit = { disconnectStream() },
+				onSleep = {
+					StreamManager.markDisplayHostStandby()
+					disconnectStream()
+				},
+				onKeepPlaying = { keepPlaying() },
+				onSleepAway = { sleepConsoleAway() })
 
-			ScreenLogs -> LogsScreen(logManager) { screenStack.removeAt(screenStack.size - 1) }
+			ScreenLogs -> LogsScreen(logManager) { popScreen() }
 
-			ScreenManageHosts -> {
-				val viewModel = viewModel(this, database, preferences)
-				val hosts = remember { mutableStateOf<List<RegisteredHost>>(emptyList()) }
-				LaunchedEffect(Unit) {
-					database.registeredHostDao().getAll().collect { hosts.value = it }
-				}
-				ManageHostsScreen(hosts.value,
-					{ viewModel.deleteRegisteredHost(it) },
-					{ host, pin -> lifecycleScope.launch { database.registeredHostDao().setPin(host.id, pin) } }) {
-					screenStack.removeAt(screenStack.size - 1)
-				}
-			}
+			ScreenManageHosts -> ManageHostsRoute(database, preferences) { popScreen() }
 		}
 	}
 
-	@Composable
-	private fun viewModel(context: android.content.Context, db: AppDatabase, prefs: Preferences) =
-		androidx.lifecycle.viewmodel.compose.viewModel { MainViewModel(context, db, prefs) }
+	private fun popScreen()
+	{
+		if(screenStack.size > 1)
+			screenStack.removeAt(screenStack.size - 1)
+	}
 
 	private fun wakeupAndConnect(discoveryManager: DiscoveryManager, host: DisplayHost, message: String = getString(R.string.waking))
 	{

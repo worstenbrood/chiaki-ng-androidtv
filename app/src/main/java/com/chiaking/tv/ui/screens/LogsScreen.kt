@@ -12,13 +12,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chiaking.tv.MainViewModel
 import com.chiaking.tv.R
+import com.chiaking.tv.common.AppDatabase
 import com.chiaking.tv.common.LogFile
 import com.chiaking.tv.common.LogManager
+import com.chiaking.tv.common.Preferences
 import com.chiaking.tv.common.RegisteredHost
 import com.chiaking.tv.ui.FocusMemory
 import com.chiaking.tv.ui.PsAlertDialog
@@ -30,6 +34,7 @@ import com.chiaking.tv.ui.TvButton
 import com.chiaking.tv.ui.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val FOCUS_RESTORE_DELAY_MS = 100L
@@ -208,4 +213,19 @@ fun ManageHostsScreen(
 			}
 		)
 	}
+}
+
+@Composable
+fun ManageHostsRoute(database: AppDatabase, preferences: Preferences, onBack: () -> Unit)
+{
+	val context = LocalContext.current
+	val viewModel = androidx.lifecycle.viewmodel.compose.viewModel { MainViewModel(context, database, preferences) }
+	val hosts = remember { mutableStateOf<List<RegisteredHost>>(emptyList()) }
+	val scope = rememberCoroutineScope()
+	LaunchedEffect(Unit) {
+		database.registeredHostDao().getAll().collect { hosts.value = it }
+	}
+	ManageHostsScreen(hosts.value,
+		{ viewModel.deleteRegisteredHost(it) },
+		{ host, pin -> scope.launch { database.registeredHostDao().setPin(host.id, pin) } }) { onBack() }
 }
