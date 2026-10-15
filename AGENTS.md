@@ -45,6 +45,7 @@ docker build --platform linux/amd64 -f docker/Dockerfile.build -t chiaki-tv-buil
 .\build.ps1                          # assembleDebug
 .\build.ps1 assembleRelease          # release APK (signed with the repo debug.keystore)
 .\build.ps1 "assembleDebug --offline" # extra gradlew args are passed through
+.\build.ps1 -SkipNative              # skip CMake/NDK tasks (~25 s) — only when native/ and external/ are unchanged
 .\build.ps1 -Fresh                   # recreate the container (after an image rebuild or repo move)
 .\build.ps1 -Stop                    # stop/remove the build container
 

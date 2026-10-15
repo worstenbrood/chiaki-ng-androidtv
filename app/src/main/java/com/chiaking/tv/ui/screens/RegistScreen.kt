@@ -85,7 +85,14 @@ fun RegistScreen(
 					stringResource(if(version == ConsoleVersion.PS4_LT_7) R.string.psn_online_id else R.string.psn_account_id),
 					psnId
 				) { psnId = it }
-				TvTextField(stringResource(R.string.regist_pin_hint), pin) {
+				TvTextField(
+					stringResource(R.string.regist_pin_hint), pin,
+					textStyle = androidx.compose.ui.text.TextStyle(
+						fontSize = 26.sp,
+						letterSpacing = 8.sp,
+						fontWeight = FontWeight.Bold
+					)
+				) {
 					if(it.length <= 8 && it.all { c -> c.isDigit() }) pin = it
 				}
 			}
@@ -108,7 +115,7 @@ fun RegistScreen(
 
 	val fillInMsg = stringResource(R.string.regist_fill_in)
 	val accountIdInvalidMsg = stringResource(R.string.regist_account_id_invalid)
-	TvButton(
+	PsButton(
 			text = stringResource(R.string.register),
 			onClick = {
 				val hostValid = host.isNotEmpty()
@@ -117,7 +124,7 @@ fun RegistScreen(
 				if(!hostValid || !pinValid || !psnValid)
 				{
 					error = fillInMsg
-					return@TvButton
+					return@PsButton
 				}
 				error = null
 				val target = when(version)
@@ -134,11 +141,10 @@ fun RegistScreen(
 				if(version != ConsoleVersion.PS4_LT_7 && (psnAccountId == null || psnAccountId.size != RegistInfo.ACCOUNT_ID_SIZE))
 				{
 					error = accountIdInvalidMsg
-					return@TvButton
+					return@PsButton
 				}
 				onStartRegist(RegistInfo(target, host, host == "255.255.255.255", psnOnlineId, psnAccountId, pin.toInt()), null)
-			},
-			colors = ButtonDefaults.buttonColors(containerColor = PsBlue, contentColor = Color.White)
+			}
 		)
 	}
 }
@@ -150,6 +156,7 @@ fun TvTextField(
 	enabled: Boolean = true,
 	imeAction: androidx.compose.ui.text.input.ImeAction = androidx.compose.ui.text.input.ImeAction.Default,
 	keyboardActions: androidx.compose.foundation.text.KeyboardActions = androidx.compose.foundation.text.KeyboardActions.Default,
+	textStyle: androidx.compose.ui.text.TextStyle = androidx.compose.ui.text.TextStyle.Default,
 	onValueChange: (String) -> Unit
 )
 {
@@ -158,6 +165,7 @@ fun TvTextField(
 		onValueChange = onValueChange,
 		enabled = enabled,
 		label = { Text(label) },
+		textStyle = textStyle,
 		keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = imeAction),
 		keyboardActions = keyboardActions,
 		singleLine = true,
@@ -207,10 +215,9 @@ fun RegistExecuteScreen(viewModel: RegistExecuteViewModel, onDone: () -> Unit)
 		if(state != RegistExecuteViewModel.State.RUNNING)
 		{
 			Spacer(Modifier.height(16.dp))
-			TvButton(
+			PsButton(
 				text = stringResource(R.string.done),
-				onClick = onDone,
-				colors = ButtonDefaults.buttonColors(containerColor = PsBlue, contentColor = Color.White)
+				onClick = onDone
 			)
 		}
 	}

@@ -2,27 +2,56 @@
 
 package com.chiaking.tv.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.chiaking.tv.BuildConfig
 import com.chiaking.tv.R
 import com.chiaking.tv.common.AudioDevices
 import com.chiaking.tv.common.Preferences
 import com.chiaking.tv.common.RegisteredHost
 import com.chiaking.tv.ui.*
+import com.chiaking.tv.ui.theme.*
 import kotlinx.coroutines.delay
 
 // Keep in sync with CHIAKI_VERSION in external/chiaki-ng/CMakeLists.txt (see docs/UPSTREAM_SYNC.md)
 const val UPSTREAM_CHIAKI_VERSION = "1.10.0"
 
 private const val FOCUS_RESTORE_DELAY_MS = 100L
+
+private enum class SettingsCategory(val titleRes: Int, val icon: ImageVector)
+{
+	STREAM(R.string.stream, Icons.Default.Stream),
+	AUDIO(R.string.audio, Icons.Default.VolumeUp),
+	CONTROLLER(R.string.controller, Icons.Default.SportsEsports),
+	GENERAL(R.string.general, Icons.Default.Settings),
+	PSN(R.string.playstation_network, Icons.Default.AccountCircle),
+	BACKUP(R.string.backup, Icons.Default.SaveAlt),
+	ABOUT(R.string.about, Icons.Default.Info)
+}
 
 @Composable
 fun SettingsScreen(
@@ -72,294 +101,371 @@ fun SettingsScreen(
 			?: audioDevices.indexOfFirst { it.second == preferences.audioDeviceId })
 			.coerceAtLeast(0)) }
 
-	val restore = remember { FocusMemory.get("settings") }
+	var category by remember { mutableStateOf(
+		SettingsCategory.entries.getOrElse(FocusMemory.get("settings_cat")) { SettingsCategory.STREAM }) }
+	val restoreRow = FocusMemory.get("settings_row_${category.ordinal}")
+
+	val navFocus = remember { FocusRequester() }
 	val rowFocus = remember { FocusRequester() }
 	val backFocus = remember { FocusRequester() }
 	LaunchedEffect(Unit) {
 		delay(FOCUS_RESTORE_DELAY_MS)
-		try { if(restore == 0) backFocus.requestFocus() else rowFocus.requestFocus() } catch(e: Exception) { }
+		try
+		{
+			if(restoreRow == 0) backFocus.requestFocus() else rowFocus.requestFocus()
+		}
+		catch(e: Exception)
+		{
+			try { navFocus.requestFocus() } catch(e2: Exception) { }
+		}
 	}
-	fun fr(i: Int) = if(i == restore) rowFocus else null
-	fun fb(i: Int): (Boolean) -> Unit = { if(it) FocusMemory.set("settings", i) }
+	fun fr(i: Int) = if(i == restoreRow) rowFocus else null
+	fun fb(i: Int): (Boolean) -> Unit = { if(it) FocusMemory.set("settings_row_${category.ordinal}", i) }
 
-	Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 24.dp)) {
+	Column(modifier = Modifier.fillMaxSize().padding(top = 24.dp)) {
 		ScreenHeader(
 			stringResource(R.string.settings), onBack,
-			modifier = Modifier.padding(horizontal = 32.dp),
-			backFocusRequester = if(restore == 0) backFocus else null,
-			onBackFocus = { if(it) FocusMemory.set("settings", 0) }
+			modifier = Modifier.padding(horizontal = 40.dp),
+			backFocusRequester = if(restoreRow == 0) backFocus else null,
+			onBackFocus = { if(it) FocusMemory.set("settings_row_${category.ordinal}", 0) }
 		)
 
-		SectionHeader(stringResource(R.string.stream))
-		SettingsCard {
-			TvCycleRow(
-				title = stringResource(R.string.resolution),
-				value = resolution.title,
-				onNext = {
-					resolution = Preferences.Resolution.values()[(resolution.ordinal + 1) % Preferences.Resolution.values().size]
-					preferences.resolution = resolution
-				},
-				focusRequester = fr(1), onFocus = fb(1)
-			)
-			TvCycleRow(
-				title = stringResource(R.string.frames_per_second),
-				value = fps.title,
-				onNext = {
-					fps = Preferences.FPS.values()[(fps.ordinal + 1) % Preferences.FPS.values().size]
-					preferences.fps = fps
-				},
-				focusRequester = fr(2), onFocus = fb(2)
-			)
-			TvCycleRow(
-				title = stringResource(R.string.video_codec),
-				value = codec.title,
-				onNext = {
-					codec = Preferences.Codec.values()[(codec.ordinal + 1) % Preferences.Codec.values().size]
-					preferences.codec = codec
-				},
-				focusRequester = fr(3), onFocus = fb(3)
-			)
-			TvStepperRow(
-				title = stringResource(R.string.bitrate),
-				value = if(bitrate == null) stringResource(R.string.bitrate_auto, preferences.bitrateAuto)
-					else stringResource(R.string.bitrate_kbps, bitrate!!),
-				summary = stringResource(R.string.bitrate_summary),
-				onStep = { steps ->
-					val base = bitrate ?: preferences.bitrateAuto
-					bitrate = (base + steps * Preferences.BITRATE_STEP_KBPS)
-						.coerceIn(Preferences.BITRATE_MIN_KBPS, Preferences.BITRATE_MAX_KBPS)
-					preferences.bitrate = bitrate
-				},
-				onReset = {
-					bitrate = if(bitrate == null) preferences.bitrateAuto else null
-					preferences.bitrate = bitrate
-				},
-				focusRequester = fr(4), onFocus = fb(4)
-			)
-			TvCycleRow(
-				title = stringResource(R.string.display_mode),
-				value = stringResource(displayMode.titleRes),
-				onNext = {
-					val values = Preferences.DisplayMode.values()
-					displayMode = values[(displayMode.ordinal + 1) % values.size]
-					preferences.displayMode = displayMode
-				},
-				focusRequester = fr(5), onFocus = fb(5)
-			)
-			TvSwitchRow(
-				stringResource(R.string.idr_on_fec_failure),
-				stringResource(R.string.idr_on_fec_failure_summary),
-				idrOnFec,
-				{ idrOnFec = it; preferences.idrOnFecFailure = it },
-				focusRequester = fr(6), onFocus = fb(6)
-			)
-		}
+		Spacer(Modifier.height(20.dp))
 
-		SectionHeader(stringResource(R.string.audio))
-		SettingsCard {
-			TvCycleRow(
-				title = stringResource(R.string.volume),
-				value = stringResource(R.string.volume_percent, volume),
-				onNext = {
-					volume = if(volume >= 100) 0 else volume + 25
-					preferences.audioVolume = volume
-				},
-				focusRequester = fr(7), onFocus = fb(7)
-			)
-			TvCycleRow(
-				title = stringResource(R.string.output_device),
-				value = audioDevices[deviceIndex].first,
-				onNext = {
-					deviceIndex = (deviceIndex + 1) % audioDevices.size
-					preferences.audioDeviceId = audioDevices[deviceIndex].second
-					preferences.audioDeviceName = audioDevices[deviceIndex].first
-				},
-				focusRequester = fr(8), onFocus = fb(8)
-			)
-			TvCycleRow(
-				title = stringResource(R.string.audio_buffer),
-				value = if(bufferMs == 0) stringResource(R.string.auto) else stringResource(R.string.buffer_ms, bufferMs),
-				onNext = {
-					bufferMs = if(bufferMs >= 100) 0 else bufferMs + 10
-					preferences.audioBufferMs = bufferMs
-				},
-				focusRequester = fr(9), onFocus = fb(9)
-			)
-		}
-
-		SectionHeader(stringResource(R.string.controller))
-		SettingsCard {
-			TvSwitchRow(
-				stringResource(R.string.swap_cross_moon),
-				stringResource(R.string.swap_cross_moon_summary),
-				swapCrossMoon,
-				{ swapCrossMoon = it; preferences.swapCrossMoon = it },
-				focusRequester = fr(10), onFocus = fb(10)
-			)
-			TvSwitchRow(
-				stringResource(R.string.dpad_as_controller),
-				stringResource(R.string.dpad_as_controller_summary),
-				dpadAsController,
-				{ dpadAsController = it; preferences.dpadAsController = it },
-				focusRequester = fr(11), onFocus = fb(11)
-			)
-			TvSwitchRow(
-				stringResource(R.string.rumble),
-				stringResource(R.string.rumble_summary),
-				rumble,
-				{ rumble = it; preferences.rumbleEnabled = it },
-				focusRequester = fr(12), onFocus = fb(12)
-			)
-			TvSwitchRow(
-				stringResource(R.string.motion_controls),
-				stringResource(R.string.motion_controls_summary),
-				motion,
-				{ motion = it; preferences.motionEnabled = it },
-				focusRequester = fr(13), onFocus = fb(13)
-			)
-			TvSwitchRow(
-				stringResource(R.string.button_haptics),
-				stringResource(R.string.button_haptics_summary),
-				haptics,
-				{ haptics = it; preferences.buttonHapticEnabled = it },
-				focusRequester = fr(14), onFocus = fb(14)
-			)
-			TvCycleRow(
-				title = stringResource(R.string.hud_shortcut),
-				value = menuShortcut.title,
-				onNext = {
-					val values = Preferences.MenuShortcut.values()
-					menuShortcut = values[(menuShortcut.ordinal + 1) % values.size]
-					preferences.menuShortcut = menuShortcut
-				},
-				focusRequester = fr(15), onFocus = fb(15)
-			)
-		}
-
-		SectionHeader(stringResource(R.string.general))
-		SettingsCard {
-			TvSwitchRow(
-				stringResource(R.string.console_discovery),
-				stringResource(R.string.console_discovery_summary),
-				discovery,
-				{ discovery = it; preferences.discoveryEnabled = it },
-				focusRequester = fr(16), onFocus = fb(16)
-			)
-			TvSwitchRow(
-				stringResource(R.string.auto_connect_startup),
-				stringResource(R.string.auto_connect_startup_summary),
-				autoConnect,
-				{ autoConnect = it; preferences.autoConnectEnabled = it },
-				focusRequester = fr(17), onFocus = fb(17)
-			)
-			TvCycleRow(
-				title = stringResource(R.string.sleep_console_on_exit),
-				value = stringResource(sleepConsoleOnExit.titleRes),
-				onNext = {
-					val values = Preferences.SleepConsoleOnExit.values()
-					sleepConsoleOnExit = values[(sleepConsoleOnExit.ordinal + 1) % values.size]
-					preferences.sleepConsoleOnExit = sleepConsoleOnExit
-				},
-				focusRequester = fr(18), onFocus = fb(18)
-			)
-			TvCycleRow(
-				title = stringResource(R.string.on_close),
-				value = stringResource(disconnectAction.titleRes),
-				onNext = {
-					val values = Preferences.DisconnectAction.values()
-					disconnectAction = values[(disconnectAction.ordinal + 1) % values.size]
-					preferences.disconnectAction = disconnectAction
-				},
-				focusRequester = fr(19), onFocus = fb(19)
-			)
-			TvActionRow(
-				stringResource(R.string.login_pin),
-				if(preferences.loginPin.isEmpty()) stringResource(R.string.login_pin_not_set)
-					else stringResource(R.string.login_pin_summary_default),
-				{ pinDraft = preferences.loginPin; showPinEdit = true },
-				focusRequester = fr(20), onFocus = fb(20)
-			)
-			TvCycleRow(
-				title = stringResource(R.string.auto_connect_console),
-				value = autoConnectOptions.getOrNull(autoConnectIndex)?.let {
-					it.serverNickname?.takeIf { n -> n.isNotBlank() }
-						?: stringResource(if(it.target.isPS5) R.string.playstation5 else R.string.playstation4)
-				} ?: stringResource(R.string.none),
-				onNext = {
-					autoConnectIndex = (autoConnectIndex + 1) % (autoConnectOptions.size.coerceAtLeast(1))
-					preferences.autoConnectMac = autoConnectOptions.getOrNull(autoConnectIndex)?.serverMac?.toString() ?: ""
-				},
-				focusRequester = fr(21), onFocus = fb(21)
-			)
-			TvSwitchRow(
-				stringResource(R.string.verbose_logs),
-				stringResource(R.string.verbose_logs_summary),
-				logVerbose,
-				{ logVerbose = it; preferences.logVerbose = it },
-				focusRequester = fr(22), onFocus = fb(22)
-			)
-			TvActionRow(
-				stringResource(R.string.session_logs),
-				stringResource(R.string.session_logs_summary),
-				onShowLogs,
-				focusRequester = fr(23), onFocus = fb(23)
-			)
-			TvActionRow(
-				stringResource(R.string.registered_consoles),
-				if(registeredHostCount == 0) stringResource(R.string.registered_consoles_none)
-					else stringResource(R.string.registered_consoles_count, registeredHostCount),
-				onManageHosts,
-				focusRequester = fr(24), onFocus = fb(24)
-			)
-		}
-
-		SectionHeader(stringResource(R.string.playstation_network))
-		SettingsCard {
-			if(psnLoggedIn)
-			{
-				TvInfoRow(stringResource(R.string.account), stringResource(R.string.signed_in))
-				TvActionRow(
-					stringResource(R.string.sign_out),
-					stringResource(R.string.sign_out_summary),
-					{
-						com.chiaking.tv.common.psn.PsnTokenStore.get(ctx).logout()
-						psnLoggedIn = false
-					},
-					focusRequester = fr(25), onFocus = fb(25)
-				)
+		Row(
+			modifier = Modifier
+				.fillMaxWidth()
+				.weight(1f)
+				.padding(horizontal = 40.dp)
+		) {
+			Column(
+				modifier = Modifier
+					.width(280.dp)
+					.verticalScroll(rememberScrollState()),
+				verticalArrangement = Arrangement.spacedBy(4.dp)
+			) {
+				SettingsCategory.entries.forEachIndexed { index, cat ->
+					SettingsNavItem(
+						label = stringResource(cat.titleRes),
+						icon = cat.icon,
+						selected = cat == category,
+						focusRequester = if(index == category.ordinal) navFocus else null,
+						onFocus = {
+							if(it)
+							{
+								FocusMemory.set("settings_cat", index)
+								category = cat
+							}
+						},
+						onClick = { category = cat }
+					)
+				}
 			}
-			else
-				TvActionRow(
-					stringResource(R.string.sign_in_psn),
-					stringResource(R.string.sign_in_psn_summary),
-					{ showPsnLogin = true },
-					focusRequester = fr(25), onFocus = fb(25)
-				)
-		}
 
-		SectionHeader(stringResource(R.string.backup))
-		SettingsCard {
-			TvActionRow(
-				stringResource(R.string.export_settings),
-				stringResource(R.string.export_settings_summary),
-				onExportSettings,
-				focusRequester = fr(26), onFocus = fb(26)
-			)
-			TvActionRow(
-				stringResource(R.string.import_settings),
-				stringResource(R.string.import_settings_summary),
-				onImportSettings,
-				focusRequester = fr(27), onFocus = fb(27)
-			)
-		}
+			Spacer(Modifier.width(28.dp))
 
-		SectionHeader(stringResource(R.string.about))
-		SettingsCard {
-			TvInfoRow(stringResource(R.string.app_name), BuildConfig.VERSION_NAME)
-			TvInfoRow(stringResource(R.string.chiaki_ng_core), UPSTREAM_CHIAKI_VERSION)
-		}
+			Column(
+				modifier = Modifier
+					.weight(1f)
+					.onKeyEvent { ev ->
+						if(ev.key == Key.DirectionLeft && ev.type == KeyEventType.KeyDown)
+						{
+							try { navFocus.requestFocus() } catch(e: Exception) { }
+							true
+						}
+						else
+							false
+					}
+					.verticalScroll(rememberScrollState())
+			) {
+				when(category)
+				{
+					SettingsCategory.STREAM ->
+					{
+						SettingsCard {
+							TvCycleRow(
+								title = stringResource(R.string.resolution),
+								value = resolution.title,
+								onNext = {
+									resolution = Preferences.Resolution.values()[(resolution.ordinal + 1) % Preferences.Resolution.values().size]
+									preferences.resolution = resolution
+								},
+								focusRequester = fr(1), onFocus = fb(1)
+							)
+							TvCycleRow(
+								title = stringResource(R.string.frames_per_second),
+								value = fps.title,
+								onNext = {
+									fps = Preferences.FPS.values()[(fps.ordinal + 1) % Preferences.FPS.values().size]
+									preferences.fps = fps
+								},
+								focusRequester = fr(2), onFocus = fb(2)
+							)
+							TvCycleRow(
+								title = stringResource(R.string.video_codec),
+								value = codec.title,
+								onNext = {
+									codec = Preferences.Codec.values()[(codec.ordinal + 1) % Preferences.Codec.values().size]
+									preferences.codec = codec
+								},
+								focusRequester = fr(3), onFocus = fb(3)
+							)
+							TvStepperRow(
+								title = stringResource(R.string.bitrate),
+								value = if(bitrate == null) stringResource(R.string.bitrate_auto, preferences.bitrateAuto)
+									else stringResource(R.string.bitrate_kbps, bitrate!!),
+								summary = stringResource(R.string.bitrate_summary),
+								onStep = { steps ->
+									val base = bitrate ?: preferences.bitrateAuto
+									bitrate = (base + steps * Preferences.BITRATE_STEP_KBPS)
+										.coerceIn(Preferences.BITRATE_MIN_KBPS, Preferences.BITRATE_MAX_KBPS)
+									preferences.bitrate = bitrate
+								},
+								onReset = {
+									bitrate = if(bitrate == null) preferences.bitrateAuto else null
+									preferences.bitrate = bitrate
+								},
+								focusRequester = fr(4), onFocus = fb(4)
+							)
+							TvCycleRow(
+								title = stringResource(R.string.display_mode),
+								value = stringResource(displayMode.titleRes),
+								onNext = {
+									val values = Preferences.DisplayMode.values()
+									displayMode = values[(displayMode.ordinal + 1) % values.size]
+									preferences.displayMode = displayMode
+								},
+								focusRequester = fr(5), onFocus = fb(5)
+							)
+							TvSwitchRow(
+								stringResource(R.string.idr_on_fec_failure),
+								stringResource(R.string.idr_on_fec_failure_summary),
+								idrOnFec,
+								{ idrOnFec = it; preferences.idrOnFecFailure = it },
+								focusRequester = fr(6), onFocus = fb(6)
+							)
+						}
+					}
 
-		Spacer(Modifier.height(32.dp))
+					SettingsCategory.AUDIO ->
+					{
+						SettingsCard {
+							TvCycleRow(
+								title = stringResource(R.string.volume),
+								value = stringResource(R.string.volume_percent, volume),
+								onNext = {
+									volume = if(volume >= 100) 0 else volume + 25
+									preferences.audioVolume = volume
+								},
+								focusRequester = fr(1), onFocus = fb(1)
+							)
+							TvCycleRow(
+								title = stringResource(R.string.output_device),
+								value = audioDevices[deviceIndex].first,
+								onNext = {
+									deviceIndex = (deviceIndex + 1) % audioDevices.size
+									preferences.audioDeviceId = audioDevices[deviceIndex].second
+									preferences.audioDeviceName = audioDevices[deviceIndex].first
+								},
+								focusRequester = fr(2), onFocus = fb(2)
+							)
+							TvCycleRow(
+								title = stringResource(R.string.audio_buffer),
+								value = if(bufferMs == 0) stringResource(R.string.auto) else stringResource(R.string.buffer_ms, bufferMs),
+								onNext = {
+									bufferMs = if(bufferMs >= 100) 0 else bufferMs + 10
+									preferences.audioBufferMs = bufferMs
+								},
+								focusRequester = fr(3), onFocus = fb(3)
+							)
+						}
+					}
+
+					SettingsCategory.CONTROLLER ->
+					{
+						SettingsCard {
+							TvSwitchRow(
+								stringResource(R.string.swap_cross_moon),
+								stringResource(R.string.swap_cross_moon_summary),
+								swapCrossMoon,
+								{ swapCrossMoon = it; preferences.swapCrossMoon = it },
+								focusRequester = fr(1), onFocus = fb(1)
+							)
+							TvSwitchRow(
+								stringResource(R.string.dpad_as_controller),
+								stringResource(R.string.dpad_as_controller_summary),
+								dpadAsController,
+								{ dpadAsController = it; preferences.dpadAsController = it },
+								focusRequester = fr(2), onFocus = fb(2)
+							)
+							TvSwitchRow(
+								stringResource(R.string.rumble),
+								stringResource(R.string.rumble_summary),
+								rumble,
+								{ rumble = it; preferences.rumbleEnabled = it },
+								focusRequester = fr(3), onFocus = fb(3)
+							)
+							TvSwitchRow(
+								stringResource(R.string.motion_controls),
+								stringResource(R.string.motion_controls_summary),
+								motion,
+								{ motion = it; preferences.motionEnabled = it },
+								focusRequester = fr(4), onFocus = fb(4)
+							)
+							TvSwitchRow(
+								stringResource(R.string.button_haptics),
+								stringResource(R.string.button_haptics_summary),
+								haptics,
+								{ haptics = it; preferences.buttonHapticEnabled = it },
+								focusRequester = fr(5), onFocus = fb(5)
+							)
+							TvCycleRow(
+								title = stringResource(R.string.hud_shortcut),
+								value = menuShortcut.title,
+								onNext = {
+									val values = Preferences.MenuShortcut.values()
+									menuShortcut = values[(menuShortcut.ordinal + 1) % values.size]
+									preferences.menuShortcut = menuShortcut
+								},
+								focusRequester = fr(6), onFocus = fb(6)
+							)
+						}
+					}
+
+					SettingsCategory.GENERAL ->
+					{
+						SettingsCard {
+							TvSwitchRow(
+								stringResource(R.string.console_discovery),
+								stringResource(R.string.console_discovery_summary),
+								discovery,
+								{ discovery = it; preferences.discoveryEnabled = it },
+								focusRequester = fr(1), onFocus = fb(1)
+							)
+							TvSwitchRow(
+								stringResource(R.string.auto_connect_startup),
+								stringResource(R.string.auto_connect_startup_summary),
+								autoConnect,
+								{ autoConnect = it; preferences.autoConnectEnabled = it },
+								focusRequester = fr(2), onFocus = fb(2)
+							)
+							TvCycleRow(
+								title = stringResource(R.string.sleep_console_on_exit),
+								value = stringResource(sleepConsoleOnExit.titleRes),
+								onNext = {
+									val values = Preferences.SleepConsoleOnExit.values()
+									sleepConsoleOnExit = values[(sleepConsoleOnExit.ordinal + 1) % values.size]
+									preferences.sleepConsoleOnExit = sleepConsoleOnExit
+								},
+								focusRequester = fr(3), onFocus = fb(3)
+							)
+							TvCycleRow(
+								title = stringResource(R.string.on_close),
+								value = stringResource(disconnectAction.titleRes),
+								onNext = {
+									val values = Preferences.DisconnectAction.values()
+									disconnectAction = values[(disconnectAction.ordinal + 1) % values.size]
+									preferences.disconnectAction = disconnectAction
+								},
+								focusRequester = fr(4), onFocus = fb(4)
+							)
+							TvActionRow(
+								stringResource(R.string.login_pin),
+								if(preferences.loginPin.isEmpty()) stringResource(R.string.login_pin_not_set)
+									else stringResource(R.string.login_pin_summary_default),
+								{ pinDraft = preferences.loginPin; showPinEdit = true },
+								focusRequester = fr(5), onFocus = fb(5)
+							)
+							TvCycleRow(
+								title = stringResource(R.string.auto_connect_console),
+								value = autoConnectOptions.getOrNull(autoConnectIndex)?.let {
+									it.serverNickname?.takeIf { n -> n.isNotBlank() }
+										?: stringResource(if(it.target.isPS5) R.string.playstation5 else R.string.playstation4)
+								} ?: stringResource(R.string.none),
+								onNext = {
+									autoConnectIndex = (autoConnectIndex + 1) % (autoConnectOptions.size.coerceAtLeast(1))
+									preferences.autoConnectMac = autoConnectOptions.getOrNull(autoConnectIndex)?.serverMac?.toString() ?: ""
+								},
+								focusRequester = fr(6), onFocus = fb(6)
+							)
+							TvSwitchRow(
+								stringResource(R.string.verbose_logs),
+								stringResource(R.string.verbose_logs_summary),
+								logVerbose,
+								{ logVerbose = it; preferences.logVerbose = it },
+								focusRequester = fr(7), onFocus = fb(7)
+							)
+							TvActionRow(
+								stringResource(R.string.session_logs),
+								stringResource(R.string.session_logs_summary),
+								onShowLogs,
+								focusRequester = fr(8), onFocus = fb(8)
+							)
+							TvActionRow(
+								stringResource(R.string.registered_consoles),
+								if(registeredHostCount == 0) stringResource(R.string.registered_consoles_none)
+									else stringResource(R.string.registered_consoles_count, registeredHostCount),
+								onManageHosts,
+								focusRequester = fr(9), onFocus = fb(9)
+							)
+						}
+					}
+
+					SettingsCategory.PSN ->
+					{
+						SettingsCard {
+							if(psnLoggedIn)
+							{
+								TvInfoRow(stringResource(R.string.account), stringResource(R.string.signed_in))
+								TvActionRow(
+									stringResource(R.string.sign_out),
+									stringResource(R.string.sign_out_summary),
+									{
+										com.chiaking.tv.common.psn.PsnTokenStore.get(ctx).logout()
+										psnLoggedIn = false
+									},
+									focusRequester = fr(1), onFocus = fb(1)
+								)
+							}
+							else
+								TvActionRow(
+									stringResource(R.string.sign_in_psn),
+									stringResource(R.string.sign_in_psn_summary),
+									{ showPsnLogin = true },
+									focusRequester = fr(1), onFocus = fb(1)
+								)
+						}
+					}
+
+					SettingsCategory.BACKUP ->
+					{
+						SettingsCard {
+							TvActionRow(
+								stringResource(R.string.export_settings),
+								stringResource(R.string.export_settings_summary),
+								onExportSettings,
+								focusRequester = fr(1), onFocus = fb(1)
+							)
+							TvActionRow(
+								stringResource(R.string.import_settings),
+								stringResource(R.string.import_settings_summary),
+								onImportSettings,
+								focusRequester = fr(2), onFocus = fb(2)
+							)
+						}
+					}
+
+					SettingsCategory.ABOUT ->
+					{
+						SettingsCard {
+							TvInfoRow(stringResource(R.string.app_name), BuildConfig.VERSION_NAME)
+							TvInfoRow(stringResource(R.string.chiaki_ng_core), UPSTREAM_CHIAKI_VERSION)
+						}
+					}
+				}
+				Spacer(Modifier.height(32.dp))
+			}
+		}
 	}
 
 	if(showPsnLogin)
@@ -374,7 +480,7 @@ fun SettingsScreen(
 			preferences.loginPin = pinDraft
 			showPinEdit = false
 		}
-		AlertDialog(
+		PsAlertDialog(
 			onDismissRequest = { showPinEdit = false },
 			title = { Text(stringResource(R.string.login_pin)) },
 			text = {
@@ -385,10 +491,67 @@ fun SettingsScreen(
 				}
 			},
 			confirmButton = {
-				TextButton(onClick = { save() }) { Text(stringResource(R.string.save)) }
+				TextButton(onClick = { save() }) { Text(stringResource(R.string.save), color = PsBlueLight) }
 			},
 			dismissButton = {
-				TextButton(onClick = { showPinEdit = false }) { Text(stringResource(R.string.cancel)) }
+				TextButton(onClick = { showPinEdit = false }) { Text(stringResource(R.string.cancel), color = OnSurfaceMuted) }
+			}
+		)
+	}
+}
+
+@Composable
+private fun SettingsNavItem(
+	label: String,
+	icon: ImageVector,
+	selected: Boolean,
+	focusRequester: FocusRequester?,
+	onFocus: (Boolean) -> Unit,
+	onClick: () -> Unit
+)
+{
+	var focused by remember { mutableStateOf(false) }
+	Row(
+		modifier = Modifier
+			.fillMaxWidth()
+			.then(
+				if(focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier
+			)
+			.clip(SelectionShape)
+			.background(
+				when {
+					focused -> Color.White.copy(alpha = 0.14f)
+					selected -> Color.White.copy(alpha = 0.08f)
+					else -> Color.Transparent
+				}
+			)
+			.onFocusChanged {
+				focused = it.isFocused
+				onFocus(it.isFocused)
+			}
+			.clickable { onClick() }
+			.padding(horizontal = 20.dp, vertical = 12.dp),
+		verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+	) {
+		Icon(
+			icon,
+			null,
+			tint = when {
+				focused -> PsCyan
+				selected -> PsCyan
+				else -> OnSurfaceMuted
+			},
+			modifier = Modifier.size(20.dp)
+		)
+		Spacer(Modifier.width(14.dp))
+		Text(
+			label,
+			fontSize = 17.sp,
+			fontWeight = if(selected) FontWeight.SemiBold else FontWeight.Medium,
+			color = when {
+				focused -> OnSurfaceLight
+				selected -> OnSurfaceLight
+				else -> OnSurfaceMuted
 			}
 		)
 	}

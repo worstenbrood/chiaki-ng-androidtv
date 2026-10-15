@@ -31,6 +31,7 @@ import com.chiaking.tv.session.StreamManager
 import com.chiaking.tv.session.StreamSession
 import com.chiaking.tv.session.StreamStateConnected
 import com.chiaking.tv.session.StreamStateDisconnecting
+import com.chiaking.tv.ui.PsAlertDialog
 import com.chiaking.tv.ui.TvProgressDialog
 import com.chiaking.tv.ui.screens.*
 import com.chiaking.tv.ui.theme.ChiakiTvTheme
@@ -52,7 +53,7 @@ class MainActivity: ComponentActivity()
 	companion object
 	{
 		const val EXTRA_AUTO_CONNECT_MAC = LocalConnectController.EXTRA_AUTO_CONNECT_MAC
-		private const val HOME_BACKGROUND_COLOR = 0xFF0B0E17L
+		private const val HOME_BACKGROUND_COLOR = 0xFF060B14L
 	}
 
 	private lateinit var preferences: Preferences
@@ -104,7 +105,7 @@ class MainActivity: ComponentActivity()
 					Box {
 						Navigation()
 						settingsTransfer.pendingImport?.let {
-							androidx.compose.material3.AlertDialog(
+							PsAlertDialog(
 								onDismissRequest = { settingsTransfer.dismissImport() },
 								title = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.import_settings)) },
 								text = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.import_replace_merge_question)) },
@@ -260,7 +261,7 @@ class MainActivity: ComponentActivity()
 							preferences.loginPin = pin
 					})
 				if(awayController.sleepPrompt)
-					androidx.compose.material3.AlertDialog(
+					PsAlertDialog(
 						onDismissRequest = { keepPlaying() },
 						title = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.console_still_awake)) },
 						text = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.away_sleep_question)) },

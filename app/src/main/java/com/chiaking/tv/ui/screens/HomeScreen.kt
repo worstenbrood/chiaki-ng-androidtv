@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,8 +15,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -28,6 +32,9 @@ import com.metallic.chiaki.lib.DiscoveryHost
 import com.chiaking.tv.ui.*
 import com.chiaking.tv.ui.theme.*
 import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 sealed class HomeAction
 data class ConnectHost(val host: DisplayHost): HomeAction()
@@ -42,9 +49,10 @@ object ToggleDiscovery: HomeAction()
 data class ConnectRemoteConsole(val device: com.metallic.chiaki.lib.HolepunchDevice): HomeAction()
 object RefreshPsnDevices: HomeAction()
 
-private val CARD_WIDTH = 260.dp
-private val CARD_HEIGHT = 150.dp
+private val CARD_WIDTH = 220.dp
+private val CARD_HEIGHT = 164.dp
 private const val FOCUS_REQUEST_DELAY_MS = 100L
+private const val CLOCK_POLL_MS = 10_000L
 
 @Composable
 fun HomeScreen(
@@ -73,54 +81,80 @@ fun HomeScreen(
 		}
 	}
 
-	Column(modifier = Modifier.fillMaxSize().padding(32.dp)) {
-		Row(verticalAlignment = Alignment.CenterVertically) {
-			Icon(Icons.Default.Gamepad, null, tint = PsBlueLight, modifier = Modifier.size(36.dp))
+	val clock = remember { mutableStateOf(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())) }
+	LaunchedEffect(Unit)
+	{
+		while(true)
+		{
+			delay(CLOCK_POLL_MS)
+			clock.value = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+		}
+	}
+
+	Column(modifier = Modifier.fillMaxSize()) {
+		Row(
+			verticalAlignment = Alignment.CenterVertically,
+			modifier = Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 40.dp)
+		) {
+			Icon(Icons.Default.Gamepad, null, tint = PsCyan, modifier = Modifier.size(28.dp))
 			Spacer(Modifier.width(12.dp))
-			Text(stringResource(R.string.app_name), fontSize = 32.sp, fontWeight = FontWeight.Bold)
+			Text(
+				stringResource(R.string.app_name),
+				fontSize = 26.sp,
+				fontWeight = FontWeight.Light,
+				letterSpacing = 1.sp
+			)
 			Spacer(Modifier.weight(1f))
-			TvButton(
-				text = stringResource(if(discoveryActive) R.string.discovery_on else R.string.discovery_off),
-				onClick = { onAction(ToggleDiscovery) },
-				colors = ButtonDefaults.buttonColors(
-					containerColor = if(discoveryActive) PsBlue else SurfaceCard,
-					contentColor = Color.White
-				)
+			Text(clock.value, fontSize = 17.sp, color = OnSurfaceMuted, fontWeight = FontWeight.Medium)
+			Spacer(Modifier.width(24.dp))
+			PsIconButton(
+				icon = if(discoveryActive) Icons.Default.SettingsInputAntenna else Icons.Default.SettingsEthernet,
+				contentDescription = stringResource(if(discoveryActive) R.string.discovery_on else R.string.discovery_off),
+				onClick = { onAction(ToggleDiscovery) }
 			)
 			Spacer(Modifier.width(12.dp))
-			TvButton(text = stringResource(R.string.settings), onClick = { onAction(OpenSettings) })
+			PsIconButton(
+				icon = Icons.Default.Settings,
+				contentDescription = stringResource(R.string.settings),
+				onClick = { onAction(OpenSettings) }
+			)
 		}
 
-		Spacer(Modifier.height(12.dp))
-
-		Box(
+		BoxWithConstraints(
 			modifier = Modifier
 				.fillMaxWidth()
-				.weight(1f),
-			contentAlignment = Alignment.Center
+				.weight(1f)
 		) {
+			val density = LocalDensity.current
+			val glowBrush = with(density) {
+				Brush.radialGradient(
+					colors = listOf(PsBlue.copy(alpha = 0.28f), PsBlue.copy(alpha = 0.08f), Color.Transparent),
+					center = Offset(maxWidth.toPx() * 0.78f, maxHeight.toPx() * 0.18f),
+					radius = maxWidth.toPx() * 0.85f
+				)
+			}
+			Box(
+				modifier = Modifier
+					.fillMaxSize()
+					.background(glowBrush)
+			)
 			Column(
-				horizontalAlignment = Alignment.CenterHorizontally,
-				modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+				modifier = Modifier
+					.fillMaxWidth()
+					.verticalScroll(rememberScrollState())
+					.padding(horizontal = 40.dp)
 			) {
-				SectionHeader(stringResource(R.string.local), centered = true)
 				if(hosts.isEmpty())
 				{
-					Icon(
-						Icons.Default.Search,
-						null,
-						tint = PsBlueLight,
-						modifier = Modifier.size(72.dp)
-					)
-					Spacer(Modifier.height(16.dp))
+					Spacer(Modifier.height(24.dp))
 					Text(
 						stringResource(if(discoveryActive) R.string.no_consoles_discovered else R.string.discovery_off_hint),
-						textAlign = TextAlign.Center,
 						color = OnSurfaceMuted,
-						fontSize = 16.sp
+						fontSize = 15.sp
 					)
-					Spacer(Modifier.height(32.dp))
 				}
+
+				SectionHeader(stringResource(R.string.local))
 				Row(
 					horizontalArrangement = Arrangement.spacedBy(20.dp),
 					modifier = Modifier
@@ -151,23 +185,19 @@ fun HomeScreen(
 
 				if(psnLoggedIn)
 				{
-					Spacer(Modifier.height(16.dp))
-					Row(
-						verticalAlignment = Alignment.CenterVertically,
-						modifier = Modifier.fillMaxWidth(),
-						horizontalArrangement = Arrangement.Center
-					) {
+					Spacer(Modifier.height(24.dp))
+					Row(verticalAlignment = Alignment.CenterVertically) {
 						Text(
 							stringResource(R.string.remote).uppercase(),
 							fontSize = 13.sp,
-							fontWeight = FontWeight.Bold,
-							color = PsBlueLight,
-							letterSpacing = 2.sp
+							fontWeight = FontWeight.SemiBold,
+							color = OnSurfaceLight,
+							letterSpacing = 2.5.sp
 						)
 						if(psnLoading)
 						{
 							Spacer(Modifier.width(12.dp))
-							CircularProgressIndicator(color = PsBlueLight, modifier = Modifier.size(18.dp))
+							CircularProgressIndicator(color = PsCyan, modifier = Modifier.size(18.dp))
 						}
 					}
 					Spacer(Modifier.height(8.dp))
@@ -175,13 +205,13 @@ fun HomeScreen(
 						horizontalArrangement = Arrangement.spacedBy(20.dp),
 						modifier = Modifier
 							.horizontalScroll(rememberScrollState())
-							.padding(vertical = 4.dp)
+							.padding(vertical = 4.dp, horizontal = 2.dp)
 					) {
 						psnDevices.forEachIndexed { index, device ->
 							RemoteConsoleCard(
 								device,
 								focusRequester = if(index == remoteTarget) remoteFocus else null,
-								onFocus = { if(it) FocusMemory.set("home_remote", index) },
+								onFocus = { focused -> if(focused) FocusMemory.set("home_remote", index) },
 								onAction = onAction
 							)
 						}
@@ -199,6 +229,7 @@ fun HomeScreen(
 						) { onAction(RefreshPsnDevices) }
 					}
 				}
+				Spacer(Modifier.height(24.dp))
 			}
 		}
 	}
@@ -221,34 +252,29 @@ private fun RemoteConsoleCard(
 			modifier = Modifier
 				.width(CARD_WIDTH)
 				.height(CARD_HEIGHT)
-				.padding(20.dp)
+				.padding(16.dp),
+			horizontalAlignment = Alignment.CenterHorizontally,
+			verticalArrangement = Arrangement.Center
 		) {
+			Icon(
+				Icons.Default.Cloud,
+				null,
+				tint = if(device.isPS5) Ps5Blue else Ps4Blue,
+				modifier = Modifier.size(52.dp)
+			)
+			Spacer(Modifier.height(10.dp))
+			Text(
+				device.name.ifBlank { stringResource(if(device.isPS5) R.string.playstation5 else R.string.playstation4) },
+				fontSize = 16.sp,
+				fontWeight = FontWeight.Medium,
+				maxLines = 1,
+				overflow = TextOverflow.Ellipsis
+			)
+			Spacer(Modifier.height(4.dp))
 			Row(verticalAlignment = Alignment.CenterVertically) {
-				Icon(
-					Icons.Default.Cloud,
-					null,
-					tint = if(device.isPS5) Ps5Blue else Ps4Blue,
-					modifier = Modifier.size(40.dp)
-				)
-				Spacer(Modifier.width(12.dp))
-				Column {
-					Text(
-						device.name.ifBlank { stringResource(if(device.isPS5) R.string.playstation5 else R.string.playstation4) },
-						fontSize = 18.sp,
-						fontWeight = FontWeight.Bold,
-						maxLines = 1,
-						overflow = TextOverflow.Ellipsis
-					)
-					Text(stringResource(R.string.remote_play), fontSize = 13.sp, color = OnSurfaceMuted)
-				}
-			}
-			Spacer(Modifier.height(16.dp))
-			Row(verticalAlignment = Alignment.CenterVertically) {
-				Box(Modifier.size(10.dp).background(PsBlueLight, androidx.compose.foundation.shape.CircleShape))
-				Spacer(Modifier.width(8.dp))
-				Text(stringResource(R.string.ready), fontSize = 14.sp, color = PsBlueLight)
-				Spacer(Modifier.weight(1f))
-				Text(stringResource(if(device.isPS5) R.string.ps5 else R.string.ps4), fontSize = 13.sp, color = OnSurfaceMuted)
+				Box(Modifier.size(8.dp).background(SuccessGreen, CircleShape))
+				Spacer(Modifier.width(6.dp))
+				Text(stringResource(R.string.ready), fontSize = 12.sp, color = SuccessGreen)
 			}
 		}
 	}
@@ -301,51 +327,42 @@ private fun ConsoleCard(
 			modifier = Modifier
 				.width(CARD_WIDTH)
 				.height(CARD_HEIGHT)
-				.padding(20.dp)
+				.padding(16.dp),
+			horizontalAlignment = Alignment.CenterHorizontally,
+			verticalArrangement = Arrangement.Center
 		) {
+			Icon(
+				Icons.Default.SportsEsports,
+				null,
+				tint = if(host.isPS5) Ps5Blue else Ps4Blue,
+				modifier = Modifier.size(52.dp)
+			)
+			Spacer(Modifier.height(10.dp))
+			Text(
+				host.name ?: stringResource(if(host.isPS5) R.string.playstation5 else R.string.playstation4),
+				fontSize = 16.sp,
+				fontWeight = FontWeight.Medium,
+				maxLines = 1,
+				overflow = TextOverflow.Ellipsis
+			)
+			Spacer(Modifier.height(4.dp))
 			Row(verticalAlignment = Alignment.CenterVertically) {
-				Icon(
-					Icons.Default.SportsEsports,
-					null,
-					tint = if(host.isPS5) Ps5Blue else Ps4Blue,
-					modifier = Modifier.size(40.dp)
-				)
-				Spacer(Modifier.width(12.dp))
-				Column {
-					Text(
-						host.name ?: stringResource(if(host.isPS5) R.string.playstation5 else R.string.playstation4),
-						fontSize = 18.sp,
-						fontWeight = FontWeight.Bold
-					)
-					Text(host.host, fontSize = 13.sp, color = OnSurfaceMuted)
-				}
-			}
-			Spacer(Modifier.height(16.dp))
-			Row(verticalAlignment = Alignment.CenterVertically) {
-				Box(Modifier.size(10.dp).background(stateColor, androidx.compose.foundation.shape.CircleShape))
-				Spacer(Modifier.width(8.dp))
-				Text(stateText, fontSize = 14.sp, color = stateColor)
-				Spacer(Modifier.weight(1f))
-				Text(stringResource(if(host.isPS5) R.string.ps5 else R.string.ps4), fontSize = 13.sp, color = OnSurfaceMuted)
+				Box(Modifier.size(8.dp).background(stateColor, CircleShape))
+				Spacer(Modifier.width(6.dp))
+				Text(stateText, fontSize = 12.sp, color = stateColor)
 			}
 			if(runningApp != null)
-			{
-				Spacer(Modifier.height(12.dp))
-				Row(verticalAlignment = Alignment.CenterVertically) {
-					Icon(Icons.Default.PlayArrow, null, tint = SuccessGreen, modifier = Modifier.size(16.dp))
-					Spacer(Modifier.width(6.dp))
-					Text(
-						runningApp,
-						fontSize = 13.sp,
-						color = OnSurfaceMuted,
-						maxLines = 1,
-						overflow = TextOverflow.Ellipsis
-					)
-				}
-			}
+				Text(
+					runningApp,
+					fontSize = 11.sp,
+					color = OnSurfaceMuted,
+					maxLines = 1,
+					overflow = TextOverflow.Ellipsis,
+					modifier = Modifier.padding(top = 4.dp)
+				)
 			if(host is ManualDisplayHost)
 			{
-				Spacer(Modifier.height(12.dp))
+				Spacer(Modifier.height(10.dp))
 				Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
 					TvButton(stringResource(R.string.edit), onClick = { onAction(EditManualHost(host.manualHost)) })
 					TvButton(stringResource(R.string.delete), onClick = { onAction(DeleteManualHost(host.manualHost)) })
@@ -379,9 +396,9 @@ private fun AddCard(
 			horizontalAlignment = Alignment.CenterHorizontally,
 			verticalArrangement = Arrangement.Center
 		) {
-			Icon(icon, null, tint = PsBlueLight, modifier = Modifier.size(44.dp))
+			Icon(icon, null, tint = PsCyan, modifier = Modifier.size(40.dp))
 			Spacer(Modifier.height(8.dp))
-			Text(text, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+			Text(text, fontSize = 15.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
 			if(sub != null)
 				Text(sub, fontSize = 13.sp, color = if(sub.contains("-1")) WarningAmber else OnSurfaceMuted)
 		}

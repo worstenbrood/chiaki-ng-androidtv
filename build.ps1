@@ -1,7 +1,8 @@
 param(
 	[string]$task = "assembleDebug",
 	[switch]$Fresh,
-	[switch]$Stop
+	[switch]$Stop,
+	[switch]$SkipNative
 )
 $name = "chiaki-tv-build"
 if($Stop)
@@ -18,4 +19,16 @@ if($Fresh -or -not $running)
 		-v "${PWD}/.docker-cache/gradle:/root/.gradle" `
 		-w /src chiaki-tv-build-amd64 sleep infinity | Out-Null
 }
-docker exec -w /src $name sh gradlew $task
+# -SkipNative: skip the CMake/NDK tasks (reuses the .so files from the previous build).
+# Only use when native/ and external/ are unchanged; a full build is required after native edits.
+# Assumes the default ABIs (arm64-v8a, armeabi-v7a).
+$taskArgs = @($task -split '\s+' | Where-Object { $_ })
+if($SkipNative)
+{
+	foreach($abi in @("arm64-v8a", "armeabi-v7a"))
+	{
+		$taskArgs += @("-x", "buildCMakeDebug[$abi]", "-x", "configureCMakeDebug[$abi]")
+		$taskArgs += @("-x", "buildCMakeRelWithDebInfo[$abi]", "-x", "configureCMakeRelWithDebInfo[$abi]")
+	}
+}
+docker exec -w /src $name sh gradlew @taskArgs

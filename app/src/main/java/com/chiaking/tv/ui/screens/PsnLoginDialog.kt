@@ -23,6 +23,7 @@ import com.chiaking.tv.common.psn.PsnAuth
 import com.chiaking.tv.common.psn.PsnLoginException
 import com.chiaking.tv.common.psn.PsnLoginPhase
 import com.chiaking.tv.common.psn.PsnTokenStore
+import com.chiaking.tv.ui.PsAlertDialog
 import com.chiaking.tv.ui.theme.*
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
@@ -70,7 +71,7 @@ fun PsnLoginDialog(onDismiss: () -> Unit, onLoggedIn: (String) -> Unit)
 	val signedInAs = success
 	if(signedInAs != null)
 	{
-		AlertDialog(
+		PsAlertDialog(
 			onDismissRequest = { },
 			title = { Text(stringResource(R.string.psn_signed_in_title)) },
 			text = {
@@ -93,7 +94,7 @@ fun PsnLoginDialog(onDismiss: () -> Unit, onLoggedIn: (String) -> Unit)
 			scrollState.animateScrollTo(scrollState.maxValue)
 	}
 
-	AlertDialog(
+	PsAlertDialog(
 		onDismissRequest = { if(!busy) onDismiss() },
 		title = { Text(stringResource(R.string.psn_login_title)) },
 		text = {

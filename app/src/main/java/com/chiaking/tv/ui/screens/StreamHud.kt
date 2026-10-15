@@ -146,8 +146,9 @@ fun StreamHud(
 		Column(
 			modifier = Modifier
 				.fillMaxWidth()
-				.background(Color(0xE60B0E17))
-				.padding(horizontal = 16.dp, vertical = 8.dp),
+				.clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+				.background(SurfaceFrosted)
+				.padding(horizontal = 16.dp, vertical = 10.dp),
 			horizontalAlignment = Alignment.CenterHorizontally
 		) {
 			Box(Modifier.fillMaxWidth()) {
@@ -235,7 +236,7 @@ fun StreamHud(
 					modifier = Modifier
 						.widthIn(min = 140.dp)
 						.clip(RoundedCornerShape(10.dp))
-						.background(if(hudFocusIdx == 6) Color.White.copy(alpha = 0.16f) else Color.Transparent)
+						.background(if(hudFocusIdx == 6) PsFocusWhite else Color.Transparent)
 						.then(if(hudFocusIdx == 6) Modifier.focusRequester(hudFocus) else Modifier)
 						.onFocusEvent { if(it.isFocused) { hudFocusIdx = 6; FocusMemory.set("hud", 6) } }
 						.onKeyEvent { ev ->
@@ -253,7 +254,7 @@ fun StreamHud(
 					Text(
 						stringResource(R.string.hud_close),
 						fontSize = 11.sp,
-						color = PsBlueLight,
+						color = if(hudFocusIdx == 6) PsFocusText.copy(alpha = 0.7f) else PsBlueLight,
 						letterSpacing = 2.sp,
 						fontWeight = FontWeight.SemiBold
 					)
@@ -265,7 +266,7 @@ fun StreamHud(
 						Icon(
 							Icons.Default.Close,
 							contentDescription = "Disconnect",
-							tint = if(hudFocusIdx == 6) Color.White else OnSurfaceMuted,
+							tint = if(hudFocusIdx == 6) PsFocusText else OnSurfaceMuted,
 							modifier = Modifier.size(22.dp)
 						)
 					}
@@ -306,8 +307,8 @@ private fun HudItem(
 		horizontalAlignment = Alignment.CenterHorizontally,
 		modifier = Modifier
 			.widthIn(min = 140.dp)
-			.clip(RoundedCornerShape(10.dp))
-			.background(if(selected) Color.White.copy(alpha = 0.16f) else Color.Transparent)
+			.clip(RoundedCornerShape(12.dp))
+			.background(if(selected) PsFocusWhite else Color.Transparent)
 			.then(if(focusReq != null) Modifier.focusRequester(focusReq) else Modifier)
 			.onFocusEvent { onSelect(it.isFocused) }
 			.onKeyEvent { ev ->
@@ -332,17 +333,17 @@ private fun HudItem(
 		Text(
 			label.uppercase(),
 			fontSize = 11.sp,
-			color = PsBlueLight,
+			color = if(selected) PsFocusText.copy(alpha = 0.7f) else PsBlueLight,
 			letterSpacing = 2.sp,
 			fontWeight = FontWeight.SemiBold
 		)
 		Spacer(Modifier.height(2.dp))
-		Text(value, fontSize = 17.sp, color = Color.White, fontWeight = FontWeight.Bold)
+		Text(value, fontSize = 17.sp, color = if(selected) PsFocusText else Color.White, fontWeight = FontWeight.Bold)
 		if(sub.isNotEmpty())
 			Text(
 				sub,
 				fontSize = 12.sp,
-				color = OnSurfaceMuted,
+				color = if(selected) PsFocusText.copy(alpha = 0.7f) else OnSurfaceMuted,
 				maxLines = 1,
 				overflow = TextOverflow.Ellipsis,
 				modifier = Modifier.widthIn(max = 160.dp)

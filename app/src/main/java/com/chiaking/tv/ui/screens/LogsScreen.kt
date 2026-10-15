@@ -21,6 +21,7 @@ import com.chiaking.tv.common.LogFile
 import com.chiaking.tv.common.LogManager
 import com.chiaking.tv.common.RegisteredHost
 import com.chiaking.tv.ui.FocusMemory
+import com.chiaking.tv.ui.PsAlertDialog
 import com.chiaking.tv.ui.ScreenHeader
 import com.chiaking.tv.ui.SectionHeader
 import com.chiaking.tv.ui.SettingsCard
@@ -136,7 +137,7 @@ fun ManageHostsScreen(
 	if(detailHost != null)
 	{
 		val host = detailHost!!
-		androidx.compose.material3.AlertDialog(
+		PsAlertDialog(
 			onDismissRequest = { detailHost = null },
 			title = { Text(host.serverNickname ?: host.serverMac.toString()) },
 			text = {
@@ -164,7 +165,7 @@ fun ManageHostsScreen(
 	if(deleteHost != null)
 	{
 		val host = deleteHost!!
-		androidx.compose.material3.AlertDialog(
+		PsAlertDialog(
 			onDismissRequest = { deleteHost = null },
 			title = { Text(host.serverNickname ?: host.serverMac.toString()) },
 			text = { Text(stringResource(R.string.delete_console_confirm), color = OnSurfaceMuted) },
@@ -188,7 +189,7 @@ fun ManageHostsScreen(
 			onSetPin(host, pinDraft.ifEmpty { null })
 			pinHost = null
 		}
-		androidx.compose.material3.AlertDialog(
+		PsAlertDialog(
 			onDismissRequest = { pinHost = null },
 			title = { Text(stringResource(R.string.login_pin)) },
 			text = {

@@ -20,6 +20,7 @@ import androidx.compose.ui.res.stringResource
 import com.chiaking.tv.R
 import com.chiaking.tv.common.Preferences
 import com.chiaking.tv.session.*
+import com.chiaking.tv.ui.PsAlertDialog
 import com.chiaking.tv.ui.theme.*
 import kotlinx.coroutines.delay
 
@@ -168,7 +169,7 @@ fun StreamScreen(
 			session.setLoginPin(pin)
 			pinDialog = null
 		}
-		AlertDialog(
+		PsAlertDialog(
 			onDismissRequest = onQuit,
 			title = { Text(stringResource(if(pinReq.pinIncorrect) R.string.pin_incorrect else R.string.enter_pin)) },
 			text = {
@@ -193,7 +194,7 @@ fun StreamScreen(
 
 	if(quitDialog != null)
 	{
-		AlertDialog(
+		PsAlertDialog(
 			onDismissRequest = onQuit,
 			title = { Text(stringResource(R.string.session_ended)) },
 			text = {
@@ -218,7 +219,7 @@ fun StreamScreen(
 
 	if(disconnectDialogVisible)
 	{
-		AlertDialog(
+		PsAlertDialog(
 			onDismissRequest = { session.dismissDisconnectDialog() },
 			title = { Text(stringResource(R.string.disconnect_title)) },
 			text = { Text(stringResource(R.string.disconnect_sleep_question)) },
@@ -240,7 +241,7 @@ fun StreamScreen(
 
 	if(createError != null)
 	{
-		AlertDialog(
+		PsAlertDialog(
 			onDismissRequest = onQuit,
 			title = { Text(stringResource(R.string.failed_to_start_session)) },
 			text = { Text(createError!!.error.errorCode.toString(), color = OnSurfaceMuted) },

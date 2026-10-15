@@ -2,9 +2,9 @@
 
 package com.chiaking.tv.ui.screens
 
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import com.chiaking.tv.ui.PsAlertDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -17,7 +17,7 @@ import com.chiaking.tv.R
 fun ManualHostDialog(initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit)
 {
 	var value by remember { mutableStateOf(initial) }
-	AlertDialog(
+	PsAlertDialog(
 		onDismissRequest = onDismiss,
 		title = { Text(stringResource(if(initial.isEmpty()) R.string.manual_host_add else R.string.manual_host_edit)) },
 		text = {
