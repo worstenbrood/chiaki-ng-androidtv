@@ -23,12 +23,10 @@ home with ambient glow and pill buttons, two-pane settings) and full D-pad/gamep
   (*Settings → Stream → Request Keyframe on Frame Loss*, on by default)
 - **Session keep-alive** — leaving the app during a stream keeps the session connected (muted);
   returning resumes instantly without a reconnect, even after the app was recreated
-- **Sleep console on exit** — *Settings → General → Sleep Console on Exit* (Never/Ask/Always):
-  leaving the app during a stream for over a minute can put the console to rest automatically
-  (Ask prompts you when you come back)
-- **On Close action** — *Settings → General → On Close* (Ask / Sleep Console / Do Nothing):
-  decides what the HUD ✕ chip and the remote's Back button do while streaming —
-  show the Sleep/Disconnect dialog, sleep the console immediately, or just disconnect
+- **When Leaving Stream** — *Settings → General → When Leaving Stream* (Ask / Sleep Console /
+  Do Nothing): one setting for what happens to the console when you disconnect (HUD ✕ chip or
+  remote Back) *and* when you leave the app mid-stream — show the Sleep/Disconnect dialog,
+  sleep the console automatically (backgrounding sleeps it after a minute away), or leave it running
 - **Wake-on-connect** — selecting a rest-mode console wakes it and auto-connects once it comes online;
   wake and remote-connect progress shows as a modal dialog with a Cancel button (Back cancels too)
 - **Auto-connect on startup** — pick a console in Settings; the app wakes and connects to it automatically on launch
@@ -52,13 +50,16 @@ home with ambient glow and pill buttons, two-pane settings) and full D-pad/gamep
 - **In-stream HUD** — press **L3 + R3** (configurable: Select + Start or L1+R1+L2+R2 via
   *Settings → HUD → HUD Shortcut*) while streaming to toggle an interactive bar with live
   FPS, measured bitrate, packet loss %, ping, lost frames, app CPU usage (of one core +
-  cores used; toggle via *Settings → HUD → CPU Usage*) and the current video/audio config.
+  cores used) and the current video/audio config. Which chips appear and in what order is
+  fully editable (*Settings → HUD → HUD Items*): **cross** toggles a chip on/off, **hold cross**
+  (or **Menu**) enters move mode and **up/down** reorders; the **✕** chip is always shown and
+  can only be reordered.
   Navigate the chips with the **D-pad** (gamepad D-pad *and* left stick are both understood):
   the **Audio** chip cycles the output device with **cross** and adjusts volume with **D-pad
-   up/down**, the **Display** chip cycles Fit/Zoom/Stretch; the bar ends with a **✕** chip that
-   closes the stream per the *On Close* setting. While the HUD is open only D-pad + cross are captured —
+   up/down**, the **Display** chip cycles Fit/Zoom/Stretch; the **✕** chip closes the stream per
+   the *When Leaving Stream* setting. While the HUD is open only D-pad + cross are captured —
    every other button/stick still goes to the game. Back closes the HUD
-- **Clean disconnect** — closing the stream (HUD ✕ or remote Back, per the *On Close* setting)
+- **Clean disconnect** — closing the stream (HUD ✕ or remote Back, per the *When Leaving Stream* setting)
    shows a "Disconnecting" spinner and returns to the main screen once the session has fully shut down
 - **Settings** — PS5-style two-pane layout (category list on the left, options on the right):
   Stream, Audio, Controller, HUD, General, PlayStation Network, Backup and About pages incl.
@@ -76,7 +77,7 @@ home with ambient glow and pill buttons, two-pane settings) and full D-pad/gamep
 
 | Home | Settings |
 | --- | --- |
-| ![Home console list with local and PSN remote sections](docs/screenshots/home.jpg) | ![Settings screen](docs/screenshots/settings.jpg) |
+| ![Home console list with local and PSN remote sections](docs/screenshots/home.jpg) | ![Settings with the HUD items editor](docs/screenshots/settings.jpg) |
 
 | Console registration | In-stream HUD |
 | --- | --- |
@@ -117,7 +118,7 @@ home with ambient glow and pill buttons, two-pane settings) and full D-pad/gamep
    (or selecting its program on the "Chiaki TV" Google TV channel) then wakes and connects by itself.
 7. While streaming, press **L3 + R3** on the controller to open the in-stream HUD
    (stats, live audio device/volume, and the **✕** chip that disconnects — and sleeps the console
-   too if *On Close* is set to Sleep Console).
+   too if *When Leaving Stream* is set to Sleep Console).
 
 > **Note (Shield TV):** the system intercepts the controller's **PS button** as HOME, so it
 > cannot be forwarded to the console. The **Create/Share** button (which Android remaps to

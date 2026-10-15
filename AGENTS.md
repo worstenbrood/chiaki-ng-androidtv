@@ -84,7 +84,7 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   `StreamSession` (survives Activity recreation + backgrounding; `MainActivity` reads
   `StreamManager.session/input/displayHost`). Keep-alive across backgrounding depends on the
   `video-decoder.c` keep-alive rework above — do not revert it. `onPause` with a live stream
-  mutes + arms the 60 s away timer (`sleep_console_on_exit` pref Never/Ask/Always → goto-bed
+  mutes + arms the 60 s away timer (`disconnect_action` pref Ask/Sleep/Do Nothing → goto-bed
   via the live session, or via a short-lived reconnect session if it died); `onResume`
   restores volume + `restartAudio()`. Never call `session.pause()`/shutdown while the surface
   may still be attached from another thread — teardown races the surface callbacks.

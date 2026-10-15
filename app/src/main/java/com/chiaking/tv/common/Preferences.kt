@@ -52,19 +52,26 @@ class Preferences(context: Context)
 		STRETCH("stretch", R.string.display_mode_stretch)
 	}
 
-	enum class SleepConsoleOnExit(val value: String, val titleRes: Int)
-	{
-		NEVER("never", R.string.value_never),
-		ASK("ask", R.string.value_ask),
-		ALWAYS("always", R.string.value_always)
-	}
-
 	enum class DisconnectAction(val value: String, val titleRes: Int)
 	{
 		ASK("ask", R.string.value_ask),
 		SLEEP("sleep", R.string.action_sleep_console),
 		NOTHING("nothing", R.string.action_do_nothing)
 	}
+
+	enum class HudItemKind(val value: String, val titleRes: Int)
+	{
+		CONSOLE("console", R.string.hud_item_console),
+		VIDEO("video", R.string.video),
+		DISPLAY("display", R.string.display),
+		STREAM("stream", R.string.stream),
+		NETWORK("network", R.string.network),
+		AUDIO("audio", R.string.audio),
+		CPU("cpu", R.string.cpu),
+		CLOSE("close", R.string.hud_close)
+	}
+
+	data class HudItemEntry(val kind: HudItemKind, val enabled: Boolean)
 
 	companion object
 	{
@@ -101,6 +108,7 @@ class Preferences(context: Context)
 		const val disconnectActionKey = "disconnect_action"
 		const val idrOnFecFailureKey = "idr_on_fec_failure"
 		const val hudShowCpuKey = "hud_show_cpu"
+		const val hudItemsKey = "hud_items"
 
 		val resolutionDefault = Resolution.RES_1080P
 		val fpsDefault = FPS.FPS_60
@@ -192,12 +200,24 @@ class Preferences(context: Context)
 		get() = DisplayMode.values().firstOrNull { it.value == sharedPreferences.getString(displayModeKey, DisplayMode.FIT.value) } ?: DisplayMode.FIT
 		set(value) { sharedPreferences.edit().putString(displayModeKey, value.value).apply() }
 
-	var sleepConsoleOnExit
-		get() = SleepConsoleOnExit.values().firstOrNull { it.value == sharedPreferences.getString(sleepConsoleOnExitKey, SleepConsoleOnExit.ASK.value) } ?: SleepConsoleOnExit.ASK
-		set(value) { sharedPreferences.edit().putString(sleepConsoleOnExitKey, value.value).apply() }
-
-	var disconnectAction
-		get() = DisconnectAction.values().firstOrNull { it.value == sharedPreferences.getString(disconnectActionKey, DisconnectAction.ASK.value) } ?: DisconnectAction.ASK
+	/**
+	 * What to do with the console when leaving the stream (explicit disconnect or backgrounding).
+	 * Migrated from the legacy [sleepConsoleOnExitKey] when the merged pref was never set:
+	 * always→SLEEP, never→NOTHING, ask→ASK.
+	 */
+	var disconnectAction: DisconnectAction
+		get()
+		{
+			val stored = sharedPreferences.getString(disconnectActionKey, null)
+			if(stored != null)
+				return DisconnectAction.values().firstOrNull { it.value == stored } ?: DisconnectAction.ASK
+			return when(sharedPreferences.getString(sleepConsoleOnExitKey, "ask"))
+			{
+				"always" -> DisconnectAction.SLEEP
+				"never" -> DisconnectAction.NOTHING
+				else -> DisconnectAction.ASK
+			}
+		}
 		set(value) { sharedPreferences.edit().putString(disconnectActionKey, value.value).apply() }
 
 	/** Default on (upstream Qt defaults off) — faster recovery from corrupted frames matters more on WiFi. */
@@ -205,9 +225,34 @@ class Preferences(context: Context)
 		get() = sharedPreferences.getBoolean(idrOnFecFailureKey, true)
 		set(value) { sharedPreferences.edit().putBoolean(idrOnFecFailureKey, value).apply() }
 
-	var hudShowCpu
-		get() = sharedPreferences.getBoolean(hudShowCpuKey, true)
-		set(value) { sharedPreferences.edit().putBoolean(hudShowCpuKey, value).apply() }
+	/**
+	 * Ordered HUD chips: each entry is "kind:0|1". Missing kinds are appended at the end;
+	 * CPU's default comes from the legacy [hudShowCpuKey] so old installs keep their setting.
+	 * CLOSE is always enabled (order-only).
+	 */
+	var hudItems: List<HudItemEntry>
+		get()
+		{
+			val cpuDefault = sharedPreferences.getBoolean(hudShowCpuKey, true)
+			val parsed = (sharedPreferences.getString(hudItemsKey, null) ?: "")
+				.split(",")
+				.mapNotNull { entry ->
+					val kind = HudItemKind.entries.firstOrNull { it.value == entry.substringBefore(":").trim() }
+						?: return@mapNotNull null
+					HudItemEntry(kind, entry.substringAfter(":", "1").trim() != "0")
+				}
+				.distinctBy { it.kind }
+			val missing = HudItemKind.entries
+				.filter { kind -> parsed.none { it.kind == kind } }
+				.map { HudItemEntry(it, it != HudItemKind.CPU || cpuDefault) }
+			return (parsed + missing).map { if(it.kind == HudItemKind.CLOSE) it.copy(enabled = true) else it }
+		}
+		set(value)
+		{
+			sharedPreferences.edit()
+				.putString(hudItemsKey, value.joinToString(",") { "${it.kind.value}:${if(it.enabled) 1 else 0}" })
+				.apply()
+		}
 
 	var resolution
 		get() = sharedPreferences.getString(resolutionDefaultKey, resolutionDefault.value)?.let { value ->

@@ -67,7 +67,10 @@ private fun readSelfCpuTicks(): Long?
 		val line = java.io.File("/proc/self/stat").readText()
 		val fields = line.substringAfterLast(')').trim().split(Regex("\\s+"))
 		// after (comm): state=0 ... utime=11, stime=12
-		fields[11].toLong() + fields[12].toLong()
+		if (fields.size < 13)
+			-1L
+		else
+			fields[11].toLong() + fields[12].toLong()
 	}
 	catch(e: Exception)
 	{
@@ -89,9 +92,9 @@ fun StreamHud(
 {
 	val hudScroll = rememberScrollState()
 	val hudFocus = remember { FocusRequester() }
-	val showCpu = preferences.hudShowCpu
-	val closeIdx = if(showCpu) 7 else 6
-	val lastIdx = closeIdx
+	val hudItems = preferences.hudItems.filter { it.enabled }
+	val showCpu = hudItems.any { it.kind == Preferences.HudItemKind.CPU }
+	val lastIdx = (hudItems.size - 1).coerceAtLeast(0)
 	var hudFocusIdx by remember { mutableStateOf(0) }
 	var hudStats by remember { mutableStateOf<HudStats?>(null) }
 	var volume by remember { mutableStateOf(preferences.audioVolume) }
@@ -170,6 +173,64 @@ fun StreamHud(
 			Codec.CODEC_H265 -> "H.265"
 			Codec.CODEC_H265_HDR -> "H.265 HDR"
 		}
+		@Composable
+		fun chip(i: Int, label: String, value: String, sub: String, onClick: (() -> Unit)? = null, onVertical: ((Int) -> Unit)? = null)
+		{
+			HudItem(
+				label = label,
+				value = value,
+				sub = sub,
+				onClick = onClick,
+				onVertical = onVertical,
+				focusReq = if(hudFocusIdx == i) hudFocus else null,
+				selected = hudFocusIdx == i,
+				onSelect = { if(it) { hudFocusIdx = i; FocusMemory.set("hud", i) } }
+			)
+		}
+		@Composable
+		fun closeChip(i: Int)
+		{
+			Column(
+				horizontalAlignment = Alignment.CenterHorizontally,
+				modifier = Modifier
+					.widthIn(min = 140.dp)
+					.clip(SelectionShape)
+					.background(if(hudFocusIdx == i) HudChipFocus else Color.Transparent)
+					.then(if(hudFocusIdx == i) Modifier.focusRequester(hudFocus) else Modifier)
+					.onFocusEvent { if(it.isFocused) { hudFocusIdx = i; FocusMemory.set("hud", i) } }
+					.onKeyEvent { ev ->
+						if(ev.key == Key.ButtonA && ev.type == KeyEventType.KeyUp)
+						{
+							onClose()
+							true
+						}
+						else
+							false
+					}
+					.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onClose() }
+					.padding(horizontal = 10.dp, vertical = 4.dp)
+			) {
+				Text(
+					stringResource(R.string.hud_close),
+					fontSize = 11.sp,
+					color = PsBlueLight,
+					letterSpacing = 2.sp,
+					fontWeight = FontWeight.SemiBold
+				)
+				Spacer(Modifier.height(2.dp))
+				Box(
+					contentAlignment = Alignment.Center,
+					modifier = Modifier.height(40.dp)
+				) {
+					Icon(
+						Icons.Default.Close,
+						contentDescription = "Disconnect",
+						tint = if(hudFocusIdx == i) OnVideo else OnSurfaceMuted,
+						modifier = Modifier.size(22.dp)
+					)
+				}
+			}
+		}
 		Column(
 			modifier = Modifier
 				.fillMaxWidth()
@@ -184,130 +245,74 @@ fun StreamHud(
 				verticalAlignment = Alignment.CenterVertically,
 				modifier = Modifier.horizontalScroll(hudScroll)
 			) {
-				HudItem(
-					label = stringResource(if(session.connectInfo.ps5) R.string.ps5 else R.string.ps4),
-					value = session.connectInfo.host.ifEmpty { stringResource(R.string.remote_host_label) },
-					sub = stringResource(
-						when(state)
-						{
-							is StreamStateConnected -> R.string.connected
-							is StreamStateDisconnecting -> R.string.disconnecting
-							else -> R.string.connecting
-						}
-					),
-					focusReq = if(hudFocusIdx == 0) hudFocus else null,
-					selected = hudFocusIdx == 0,
-					onSelect = { if(it) { hudFocusIdx = 0; FocusMemory.set("hud", 0) } }
-				)
-				HudDivider()
-				HudItem(
-					label = stringResource(R.string.video),
-					value = stringResource(R.string.video_value, vp.width, vp.height, vp.maxFPS),
-					sub = stringResource(R.string.video_sub, codecLabel, vp.bitrate / 1000),
-					focusReq = if(hudFocusIdx == 1) hudFocus else null,
-					selected = hudFocusIdx == 1,
-					onSelect = { if(it) { hudFocusIdx = 1; FocusMemory.set("hud", 1) } }
-				)
-				HudDivider()
-				HudItem(
-					label = stringResource(R.string.display),
-					value = stringResource(displayMode.titleRes),
-					sub = stringResource(R.string.ok_to_cycle),
-					onClick = onCycleDisplayMode,
-					focusReq = if(hudFocusIdx == 2) hudFocus else null,
-					selected = hudFocusIdx == 2,
-					onSelect = { if(it) { hudFocusIdx = 2; FocusMemory.set("hud", 2) } }
-				)
-				HudDivider()
-				HudItem(
-					label = stringResource(R.string.stream),
-					value = hudStats?.let { stringResource(R.string.fps_value, it.fps) } ?: "—",
-					sub = hudStats?.let { stringResource(R.string.mbps_value, it.kbps / 1000.0) } ?: "",
-					focusReq = if(hudFocusIdx == 3) hudFocus else null,
-					selected = hudFocusIdx == 3,
-					onSelect = { if(it) { hudFocusIdx = 3; FocusMemory.set("hud", 3) } }
-				)
-				HudDivider()
-				HudItem(
-					label = stringResource(R.string.network),
-					value = hudStats?.let { stringResource(R.string.loss_value, it.packetLossPct) } ?: "—",
-					sub = hudStats?.let { stringResource(R.string.ping_sub, it.rttMs, it.framesLost) } ?: "",
-					focusReq = if(hudFocusIdx == 4) hudFocus else null,
-					selected = hudFocusIdx == 4,
-					onSelect = { if(it) { hudFocusIdx = 4; FocusMemory.set("hud", 4) } }
-				)
-				HudDivider()
-				HudItem(
-					label = stringResource(R.string.audio),
-					value = stringResource(R.string.volume_percent, volume),
-					sub = deviceName,
-					onClick = {
-						deviceIndex = (deviceIndex + 1) % audioDevices.size
-						val (name, id) = audioDevices[deviceIndex]
-						preferences.audioDeviceName = name
-						preferences.audioDeviceId = id
-						session.setAudioDevice(id)
-					},
-					onVertical = { dir ->
-						volume = (volume + dir * 5).coerceIn(0, 100)
-						preferences.audioVolume = volume
-						session.setVolumePercent(volume)
-					},
-					focusReq = if(hudFocusIdx == 5) hudFocus else null,
-					selected = hudFocusIdx == 5,
-					onSelect = { if(it) { hudFocusIdx = 5; FocusMemory.set("hud", 5) } }
-				)
-				if(showCpu)
-				{
-					HudDivider()
-					HudItem(
-						label = stringResource(R.string.cpu),
-						value = hudStats?.let { stringResource(R.string.cpu_value, it.cpuAppPct) } ?: "—",
-						sub = hudStats?.let { stringResource(R.string.cpu_sub, it.cpuCores) } ?: "",
-						focusReq = if(hudFocusIdx == 6) hudFocus else null,
-						selected = hudFocusIdx == 6,
-						onSelect = { if(it) { hudFocusIdx = 6; FocusMemory.set("hud", 6) } }
-					)
-				}
-				HudDivider()
-				Column(
-					horizontalAlignment = Alignment.CenterHorizontally,
-					modifier = Modifier
-						.widthIn(min = 140.dp)
-						.clip(SelectionShape)
-						.background(if(hudFocusIdx == closeIdx) HudChipFocus else Color.Transparent)
-						.then(if(hudFocusIdx == closeIdx) Modifier.focusRequester(hudFocus) else Modifier)
-						.onFocusEvent { if(it.isFocused) { hudFocusIdx = closeIdx; FocusMemory.set("hud", closeIdx) } }
-						.onKeyEvent { ev ->
-							if(ev.key == Key.ButtonA && ev.type == KeyEventType.KeyUp)
-							{
-								onClose()
-								true
-							}
-							else
-								false
-						}
-						.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onClose() }
-						.padding(horizontal = 10.dp, vertical = 4.dp)
-				) {
-					Text(
-						stringResource(R.string.hud_close),
-						fontSize = 11.sp,
-						color = PsBlueLight,
-						letterSpacing = 2.sp,
-						fontWeight = FontWeight.SemiBold
-					)
-					Spacer(Modifier.height(2.dp))
-					Box(
-						contentAlignment = Alignment.Center,
-						modifier = Modifier.height(40.dp)
-					) {
-						Icon(
-							Icons.Default.Close,
-							contentDescription = "Disconnect",
-							tint = if(hudFocusIdx == 6) OnVideo else OnSurfaceMuted,
-							modifier = Modifier.size(22.dp)
+				hudItems.forEachIndexed { i, item ->
+					if(i > 0)
+						HudDivider()
+					when(item.kind)
+					{
+						Preferences.HudItemKind.CONSOLE -> chip(
+							i,
+							stringResource(if(session.connectInfo.ps5) R.string.ps5 else R.string.ps4),
+							session.connectInfo.host.ifEmpty { stringResource(R.string.remote_host_label) },
+							stringResource(
+								when(state)
+								{
+									is StreamStateConnected -> R.string.connected
+									is StreamStateDisconnecting -> R.string.disconnecting
+									else -> R.string.connecting
+								}
+							)
 						)
+						Preferences.HudItemKind.VIDEO -> chip(
+							i,
+							stringResource(R.string.video),
+							stringResource(R.string.video_value, vp.width, vp.height, vp.maxFPS),
+							stringResource(R.string.video_sub, codecLabel, vp.bitrate / 1000)
+						)
+						Preferences.HudItemKind.DISPLAY -> chip(
+							i,
+							stringResource(R.string.display),
+							stringResource(displayMode.titleRes),
+							stringResource(R.string.ok_to_cycle),
+							onClick = onCycleDisplayMode
+						)
+						Preferences.HudItemKind.STREAM -> chip(
+							i,
+							stringResource(R.string.stream),
+							hudStats?.let { stringResource(R.string.fps_value, it.fps) } ?: "—",
+							hudStats?.let { stringResource(R.string.mbps_value, it.kbps / 1000.0) } ?: ""
+						)
+						Preferences.HudItemKind.NETWORK -> chip(
+							i,
+							stringResource(R.string.network),
+							hudStats?.let { stringResource(R.string.loss_value, it.packetLossPct) } ?: "—",
+							hudStats?.let { stringResource(R.string.ping_sub, it.rttMs, it.framesLost) } ?: ""
+						)
+						Preferences.HudItemKind.AUDIO -> chip(
+							i,
+							stringResource(R.string.audio),
+							stringResource(R.string.volume_percent, volume),
+							deviceName,
+							onClick = {
+								deviceIndex = (deviceIndex + 1) % audioDevices.size
+								val (name, id) = audioDevices[deviceIndex]
+								preferences.audioDeviceName = name
+								preferences.audioDeviceId = id
+								session.setAudioDevice(id)
+							},
+							onVertical = { dir ->
+								volume = (volume + dir * 5).coerceIn(0, 100)
+								preferences.audioVolume = volume
+								session.setVolumePercent(volume)
+							}
+						)
+						Preferences.HudItemKind.CPU -> chip(
+							i,
+							stringResource(R.string.cpu),
+							hudStats?.let { stringResource(R.string.cpu_value, it.cpuAppPct) } ?: "—",
+							hudStats?.let { stringResource(R.string.cpu_sub, it.cpuCores) } ?: ""
+						)
+						Preferences.HudItemKind.CLOSE -> closeChip(i)
 					}
 				}
 			}

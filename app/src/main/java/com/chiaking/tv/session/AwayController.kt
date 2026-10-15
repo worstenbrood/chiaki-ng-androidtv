@@ -33,7 +33,7 @@ class AwayController(private val scope: CoroutineScope, private val preferences:
 		job = scope.launch {
 			delay(AWAY_TIMEOUT_MS)
 			job = null
-			if(preferences.sleepConsoleOnExit == Preferences.SleepConsoleOnExit.ALWAYS)
+			if(preferences.disconnectAction == Preferences.DisconnectAction.SLEEP)
 				onSleepDue()
 			else
 				sleepPrompt = true

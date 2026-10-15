@@ -5,14 +5,20 @@ package com.chiaking.tv.ui
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,6 +43,9 @@ import com.chiaking.tv.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chiaking.tv.ui.theme.*
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun TvFocusCard(
@@ -536,5 +545,198 @@ fun SettingsCard(containerColor: Color = SurfaceCard, content: @Composable Colum
 		modifier = Modifier.padding(horizontal = 16.dp)
 	) {
 		Column(content = content)
+	}
+}
+
+/** One row of a [TvOrderToggleList]: a stable [key], a display [label], its on/off state and whether it can be toggled. */
+data class TvOrderEntry<T>(val key: T, val label: String, val enabled: Boolean, val toggleable: Boolean = true)
+
+private const val ORDER_MOVE_HOLD_MS = 550L
+
+/**
+ * Editable, ordered on/off list for TV/D-pad.
+ *
+ * Each row toggles its value with Cross. Hold Cross (or press Menu) to enter move mode,
+ * then Up/Down reorders the focused row; Cross/Menu/Back exits move mode. Disabled rows
+ * stay in place, dimmed. [onToggle] and [onMove] receive the row index and delta.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun <T> TvOrderToggleList(
+	entries: List<TvOrderEntry<T>>,
+	onToggle: (Int) -> Unit,
+	onMove: (Int, Int) -> Unit,
+	focusRequester: FocusRequester? = null,
+	onFocus: (Boolean) -> Unit = {},
+	summary: String? = null
+)
+{
+	var moveKey by remember { mutableStateOf<Any?>(null) }
+	var pendingFocusKey by remember { mutableStateOf<Any?>(null) }
+	val requesters = remember { mutableStateMapOf<Any, FocusRequester>() }
+	val bringers = remember { mutableStateMapOf<Any, BringIntoViewRequester>() }
+
+	LaunchedEffect(pendingFocusKey, entries)
+	{
+		val key = pendingFocusKey ?: return@LaunchedEffect
+		val idx = entries.indexOfFirst { it.key == key }
+		val req = if(idx == 0 && focusRequester != null) focusRequester else requesters[key]
+		try { req?.requestFocus() } catch(e: Exception) { }
+		bringers[key]?.bringIntoView()
+		pendingFocusKey = null
+	}
+
+	if(summary != null)
+		Text(
+			summary,
+			fontSize = 13.sp,
+			color = OnSurfaceMuted,
+			modifier = Modifier.padding(start = 22.dp, top = 12.dp, bottom = 4.dp)
+		)
+
+	entries.forEachIndexed { index, entry ->
+		key(entry.key)
+		{
+			val req = if(index == 0 && focusRequester != null) focusRequester
+				else requesters.getOrPut(entry.key as Any) { FocusRequester() }
+			TvOrderRow(
+				entry = entry,
+				moveMode = moveKey == entry.key,
+				focusRequester = req,
+				bringer = bringers.getOrPut(entry.key as Any) { BringIntoViewRequester() },
+				onToggle = { onToggle(index) },
+				onEnterMove = { moveKey = entry.key },
+				onExitMove = { if(moveKey == entry.key) moveKey = null },
+				onMove = { delta ->
+					if(index + delta in entries.indices)
+					{
+						pendingFocusKey = entry.key
+						onMove(index, delta)
+					}
+				},
+				onFocus = { focused ->
+					if(focused) onFocus(true)
+					else if(moveKey == entry.key) moveKey = null
+				}
+			)
+		}
+	}
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun <T> TvOrderRow(
+	entry: TvOrderEntry<T>,
+	moveMode: Boolean,
+	focusRequester: FocusRequester?,
+	bringer: BringIntoViewRequester,
+	onToggle: () -> Unit,
+	onEnterMove: () -> Unit,
+	onExitMove: () -> Unit,
+	onMove: (Int) -> Unit,
+	onFocus: (Boolean) -> Unit
+)
+{
+	val focused = remember { mutableStateOf(false) }
+	val scope = rememberCoroutineScope()
+	var holdJob by remember { mutableStateOf<Job?>(null) }
+	var holdFired by remember { mutableStateOf(false) }
+
+	Row(
+		modifier = Modifier
+			.fillMaxWidth()
+			.bringIntoViewRequester(bringer)
+			.onKeyEvent { ev ->
+				val down = ev.type == KeyEventType.KeyDown
+				val up = ev.type == KeyEventType.KeyUp
+				when {
+					moveMode && down && (ev.key == Key.DirectionUp || ev.key == Key.DirectionDown) ->
+						{ onMove(if(ev.key == Key.DirectionUp) -1 else 1); true }
+					moveMode && down && ev.key == Key.Back ->
+						{ onExitMove(); true }
+					moveMode && ((ev.key == Key.ButtonA && up) || (ev.key == Key.Menu && down)) ->
+						{
+							if(holdFired) { holdFired = false; true }
+							else { onExitMove(); true }
+						}
+					!moveMode && down && ev.key == Key.Menu ->
+						{ onEnterMove(); true }
+					!moveMode && down && ev.key == Key.ButtonA && ev.nativeKeyEvent.repeatCount == 0 ->
+						{
+							holdFired = false
+							holdJob?.cancel()
+							holdJob = scope.launch {
+								delay(ORDER_MOVE_HOLD_MS)
+								holdFired = true
+								onEnterMove()
+							}
+							false
+						}
+					!moveMode && up && ev.key == Key.ButtonA ->
+						{
+							holdJob?.cancel()
+							if(holdFired) { holdFired = false; true } else false
+						}
+					else -> false
+				}
+			}
+			.tvRow(focused, if(entry.toggleable) onToggle else onEnterMove, focusRequester, onFocus),
+		verticalAlignment = Alignment.CenterVertically
+	) {
+		Text(
+			entry.label,
+			fontSize = 18.sp,
+			fontWeight = FontWeight.Medium,
+			color = if(entry.enabled) OnSurfaceLight else OnSurfaceMuted,
+			modifier = Modifier.weight(1f)
+		)
+		Spacer(Modifier.width(12.dp))
+		if(moveMode)
+		{
+			Icon(Icons.Default.KeyboardArrowUp, null, tint = PsCyan, modifier = Modifier.size(20.dp))
+			Text(
+				stringResource(R.string.move),
+				fontSize = 14.sp,
+				fontWeight = FontWeight.Bold,
+				color = PsCyan,
+				modifier = Modifier.padding(horizontal = 4.dp)
+			)
+			Icon(Icons.Default.KeyboardArrowDown, null, tint = PsCyan, modifier = Modifier.size(20.dp))
+		}
+		else if(!entry.toggleable)
+		{
+			Icon(
+				Icons.Default.Menu,
+				null,
+				tint = if(focused.value) OnSurfaceLight else OnSurfaceMuted,
+				modifier = Modifier.size(20.dp)
+			)
+		}
+		else
+		{
+			Box(
+				modifier = Modifier
+					.clip(ButtonShape)
+					.background(
+						when {
+							entry.enabled -> PsBlue
+							focused.value -> OutlineMedium
+							else -> ButtonIdle
+						}
+					)
+					.padding(horizontal = 14.dp, vertical = 5.dp)
+			) {
+				Text(
+					stringResource(if(entry.enabled) R.string.on else R.string.off),
+					fontSize = 14.sp,
+					fontWeight = FontWeight.Bold,
+					color = when {
+						entry.enabled -> OnPrimary
+						focused.value -> OnSurfaceLight
+						else -> OnSurfaceMuted
+					}
+				)
+			}
+		}
 	}
 }

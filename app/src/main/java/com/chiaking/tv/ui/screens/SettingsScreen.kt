@@ -80,9 +80,8 @@ fun SettingsScreen(
 	var bufferMs by remember { mutableStateOf(preferences.audioBufferMs) }
 	var autoConnect by remember { mutableStateOf(preferences.autoConnectEnabled) }
 	var menuShortcut by remember { mutableStateOf(preferences.menuShortcut) }
-	var hudShowCpu by remember { mutableStateOf(preferences.hudShowCpu) }
+	var hudItems by remember { mutableStateOf(preferences.hudItems) }
 	var displayMode by remember { mutableStateOf(preferences.displayMode) }
-	var sleepConsoleOnExit by remember { mutableStateOf(preferences.sleepConsoleOnExit) }
 	var disconnectAction by remember { mutableStateOf(preferences.disconnectAction) }
 	var idrOnFec by remember { mutableStateOf(preferences.idrOnFecFailure) }
 	var autoConnectIndex by remember { mutableStateOf(
@@ -336,11 +335,26 @@ fun SettingsScreen(
 								},
 								focusRequester = fr(1), onFocus = fb(1)
 							)
-							TvSwitchRow(
-								stringResource(R.string.cpu_usage),
-								stringResource(R.string.cpu_usage_summary),
-								hudShowCpu,
-								{ hudShowCpu = it; preferences.hudShowCpu = it },
+							TvOrderToggleList(
+								entries = hudItems.map { TvOrderEntry(it.kind, stringResource(it.kind.titleRes), it.enabled, it.kind != Preferences.HudItemKind.CLOSE) },
+								summary = stringResource(R.string.hud_items_summary),
+								onToggle = { i ->
+									if(hudItems[i].kind != Preferences.HudItemKind.CLOSE)
+									{
+										hudItems = hudItems.mapIndexed { j, e -> if(j == i) e.copy(enabled = !e.enabled) else e }
+										preferences.hudItems = hudItems
+									}
+								},
+								onMove = { i, d ->
+									val j = i + d
+									if(j in hudItems.indices)
+									{
+										val list = hudItems.toMutableList()
+										list.add(j, list.removeAt(i))
+										hudItems = list
+										preferences.hudItems = list
+									}
+								},
 								focusRequester = fr(2), onFocus = fb(2)
 							)
 						}
@@ -376,16 +390,6 @@ fun SettingsScreen(
 								focusRequester = fr(3), onFocus = fb(3)
 							)
 							TvCycleRow(
-								title = stringResource(R.string.sleep_console_on_exit),
-								value = stringResource(sleepConsoleOnExit.titleRes),
-								onNext = {
-									val values = Preferences.SleepConsoleOnExit.values()
-									sleepConsoleOnExit = values[(sleepConsoleOnExit.ordinal + 1) % values.size]
-									preferences.sleepConsoleOnExit = sleepConsoleOnExit
-								},
-								focusRequester = fr(4), onFocus = fb(4)
-							)
-							TvCycleRow(
 								title = stringResource(R.string.on_close),
 								value = stringResource(disconnectAction.titleRes),
 								onNext = {
@@ -393,34 +397,34 @@ fun SettingsScreen(
 									disconnectAction = values[(disconnectAction.ordinal + 1) % values.size]
 									preferences.disconnectAction = disconnectAction
 								},
-								focusRequester = fr(5), onFocus = fb(5)
+								focusRequester = fr(4), onFocus = fb(4)
 							)
 							TvActionRow(
 								stringResource(R.string.registered_consoles),
 								if(registeredHostCount == 0) stringResource(R.string.registered_consoles_none)
 									else stringResource(R.string.registered_consoles_count, registeredHostCount),
 								onManageHosts,
-								focusRequester = fr(6), onFocus = fb(6)
+								focusRequester = fr(5), onFocus = fb(5)
 							)
 							TvActionRow(
 								stringResource(R.string.login_pin),
 								if(preferences.loginPin.isEmpty()) stringResource(R.string.login_pin_not_set)
 									else stringResource(R.string.login_pin_summary_default),
 								{ pinDraft = preferences.loginPin; showPinEdit = true },
-								focusRequester = fr(7), onFocus = fb(7)
+								focusRequester = fr(6), onFocus = fb(6)
 							)
 							TvSwitchRow(
 								stringResource(R.string.verbose_logs),
 								stringResource(R.string.verbose_logs_summary),
 								logVerbose,
 								{ logVerbose = it; preferences.logVerbose = it },
-								focusRequester = fr(8), onFocus = fb(8)
+								focusRequester = fr(7), onFocus = fb(7)
 							)
 							TvActionRow(
 								stringResource(R.string.session_logs),
 								stringResource(R.string.session_logs_summary),
 								onShowLogs,
-								focusRequester = fr(9), onFocus = fb(9)
+								focusRequester = fr(8), onFocus = fb(8)
 							)
 						}
 					}

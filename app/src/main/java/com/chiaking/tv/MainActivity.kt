@@ -362,7 +362,7 @@ class MainActivity: ComponentActivity()
 		val session = StreamManager.session
 		if(session != null && !session.disconnecting && session.session != null &&
 			screenStack.lastOrNull() is ScreenStream &&
-			preferences.sleepConsoleOnExit != Preferences.SleepConsoleOnExit.NEVER)
+			preferences.disconnectAction != Preferences.DisconnectAction.NOTHING)
 		{
 			session.setVolumePercent(0)
 			awayController.arm { sleepConsoleAway() }
