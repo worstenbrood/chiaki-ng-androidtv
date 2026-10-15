@@ -186,7 +186,7 @@ fun HomeScreen(
 				if(psnLoggedIn)
 				{
 					Spacer(Modifier.height(24.dp))
-					Row(verticalAlignment = Alignment.CenterVertically) {
+					Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 20.dp)) {
 						Text(
 							stringResource(R.string.remote).uppercase(),
 							fontSize = 13.sp,
@@ -275,6 +275,8 @@ private fun RemoteConsoleCard(
 				Box(Modifier.size(8.dp).background(SuccessGreen, CircleShape))
 				Spacer(Modifier.width(6.dp))
 				Text(stringResource(R.string.ready), fontSize = 12.sp, color = SuccessGreen)
+				Spacer(Modifier.width(8.dp))
+				Text(stringResource(if(device.isPS5) R.string.ps5 else R.string.ps4), fontSize = 12.sp, color = OnSurfaceMuted)
 			}
 		}
 	}
@@ -350,6 +352,8 @@ private fun ConsoleCard(
 				Box(Modifier.size(8.dp).background(stateColor, CircleShape))
 				Spacer(Modifier.width(6.dp))
 				Text(stateText, fontSize = 12.sp, color = stateColor)
+				Spacer(Modifier.width(8.dp))
+				Text(stringResource(if(host.isPS5) R.string.ps5 else R.string.ps4), fontSize = 12.sp, color = OnSurfaceMuted)
 			}
 			if(runningApp != null)
 				Text(

@@ -236,7 +236,7 @@ fun StreamHud(
 					modifier = Modifier
 						.widthIn(min = 140.dp)
 						.clip(RoundedCornerShape(10.dp))
-						.background(if(hudFocusIdx == 6) PsFocusWhite else Color.Transparent)
+						.background(if(hudFocusIdx == 6) Color(0xFF4A5568).copy(alpha = 0.6f) else Color.Transparent)
 						.then(if(hudFocusIdx == 6) Modifier.focusRequester(hudFocus) else Modifier)
 						.onFocusEvent { if(it.isFocused) { hudFocusIdx = 6; FocusMemory.set("hud", 6) } }
 						.onKeyEvent { ev ->
@@ -254,7 +254,7 @@ fun StreamHud(
 					Text(
 						stringResource(R.string.hud_close),
 						fontSize = 11.sp,
-						color = if(hudFocusIdx == 6) PsFocusText.copy(alpha = 0.7f) else PsBlueLight,
+						color = PsBlueLight,
 						letterSpacing = 2.sp,
 						fontWeight = FontWeight.SemiBold
 					)
@@ -266,7 +266,7 @@ fun StreamHud(
 						Icon(
 							Icons.Default.Close,
 							contentDescription = "Disconnect",
-							tint = if(hudFocusIdx == 6) PsFocusText else OnSurfaceMuted,
+							tint = if(hudFocusIdx == 6) Color.White else OnSurfaceMuted,
 							modifier = Modifier.size(22.dp)
 						)
 					}
@@ -308,7 +308,7 @@ private fun HudItem(
 		modifier = Modifier
 			.widthIn(min = 140.dp)
 			.clip(RoundedCornerShape(12.dp))
-			.background(if(selected) PsFocusWhite else Color.Transparent)
+			.background(if(selected) Color(0xFF4A5568).copy(alpha = 0.6f) else Color.Transparent)
 			.then(if(focusReq != null) Modifier.focusRequester(focusReq) else Modifier)
 			.onFocusEvent { onSelect(it.isFocused) }
 			.onKeyEvent { ev ->
@@ -333,17 +333,17 @@ private fun HudItem(
 		Text(
 			label.uppercase(),
 			fontSize = 11.sp,
-			color = if(selected) PsFocusText.copy(alpha = 0.7f) else PsBlueLight,
+			color = PsBlueLight,
 			letterSpacing = 2.sp,
 			fontWeight = FontWeight.SemiBold
 		)
 		Spacer(Modifier.height(2.dp))
-		Text(value, fontSize = 17.sp, color = if(selected) PsFocusText else Color.White, fontWeight = FontWeight.Bold)
+		Text(value, fontSize = 17.sp, color = Color.White, fontWeight = FontWeight.Bold)
 		if(sub.isNotEmpty())
 			Text(
 				sub,
 				fontSize = 12.sp,
-				color = if(selected) PsFocusText.copy(alpha = 0.7f) else OnSurfaceMuted,
+				color = OnSurfaceMuted,
 				maxLines = 1,
 				overflow = TextOverflow.Ellipsis,
 				modifier = Modifier.widthIn(max = 160.dp)
