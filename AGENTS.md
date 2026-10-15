@@ -16,7 +16,9 @@ app/                      Android TV app (namespace com.chiaking.tv)
                           LocalConnectController (deep-link + auto-connect)
     regist/               Console registration (PIN flow)
     discovery/            UDP discovery service wrapper
-    ui/                   Compose TV UI: screens/, theme/ (dark PS-blue, D-pad focus)
+    ui/                   Compose TV UI: screens/, theme/ (PS5-style dark theme, Inter font via
+                          theme/Type.kt, D-pad focus), Components.kt (TvFocusCard, PsButton,
+                          PsIconButton, PsAlertDialog, settings rows)
   src/main/java/com/metallic/chiaki/lib/Chiaki.kt
                           JNI bindings — package MUST stay `com.metallic.chiaki.lib`
                           (chiaki-jni.h hardcodes BASE_PACKAGE "com/metallic/chiaki/lib")
@@ -102,6 +104,14 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
 - New settings need three places: `common/Preferences.kt` (key + property),
   `ui/screens/SettingsScreen.kt` (row), and wiring into `Preferences.videoProfile`
   or the session if they affect streaming.
+- **UI style**: PlayStation-inspired. Tokens in `ui/theme/Theme.kt` (colors, `CardShape`/
+  `SelectionShape`/`ButtonShape`) + `Type.kt` (Inter `PsFontFamily` applied to all Material
+  typography). Home = thin top bar (clock + `PsIconButton`s) over a radial `PsBlue` glow,
+  tile rows only (no hero). Settings = two-pane: left `SettingsCategory` nav **changes category
+  on focus** (D-pad up/down switches panes immediately), Left from a row returns to the nav's
+  selected item via the shared `navFocus` requester; focus memory keys `settings_cat` +
+  `settings_row_<ordinal>`. Selections are grey translucent (`Color.White` alpha ~0.14,
+  HUD chips 0.6 slate) with `SelectionShape` — do not use solid white fills, they burn on TV.
 
 ## Gotchas
 

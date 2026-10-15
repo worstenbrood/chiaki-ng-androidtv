@@ -31,9 +31,6 @@
 	<string name="found_count">Found: %1$d</string>
 	<string name="found_error">Found: -1 (error)</string>
 	<string name="remote_play">Remote Play</string>
-	<string name="play">Play</string>
-	<string name="wake">Wake</string>
-	<string name="app_tagline">Remote Play</string>
 	<string name="ready">Ready</string>
 	<string name="rest_mode">Rest Mode</string>
 	<string name="waking">Waking</string>

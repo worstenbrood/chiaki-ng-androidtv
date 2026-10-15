@@ -7,7 +7,8 @@ via Remote Play over Internet (PSN)**.
 
 The streaming core is chiaki-ng's battle-tested C library (Takion/RPCrypt protocol stack,
 MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
-**Jetpack Compose for TV** app with a modern dark PS-blue theme and full D-pad/gamepad navigation.
+**Jetpack Compose for TV** app with a PlayStation-inspired look (Inter typeface, PS5-style
+home with ambient glow and pill buttons, two-pane settings) and full D-pad/gamepad navigation.
 
 ## Features
 
@@ -16,7 +17,7 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
   selecting an unregistered discovered console opens registration with its IP and
   console type (PS5/PS4) prefilled
 - **Remote Play** — H.264 / H.265 / H.265 HDR, up to 1080p60, auto or manual bitrate (2000–50000 kbps),
-  display modes Fit / Zoom / Stretch (*Settings → Video → Display Mode*, also live on the HUD)
+  display modes Fit / Zoom / Stretch (*Settings → Stream → Display Mode*, also live on the HUD)
 - **Fast artifact recovery** — when a frame can't be repaired from redundant packets, the console
   is immediately asked for a fresh keyframe instead of waiting for the next one
   (*Settings → Stream → Request Keyframe on Frame Loss*, on by default)
@@ -32,7 +33,7 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
   wake and remote-connect progress shows as a modal dialog with a Cancel button (Back cancels too)
 - **Auto-connect on startup** — pick a console in Settings; the app wakes and connects to it automatically on launch
 - **PSN sign-in + Remote Play over Internet** — sign in to PlayStation Network from the TV
-  (*Settings → PSN Account*: scan the QR code or enter the short code on any phone/PC);
+  (*Settings → PlayStation Network*: scan the QR code or enter the short code on any phone/PC);
   your PS5 consoles then appear in the **Remote** section and stream from anywhere over the
   internet (PSN holepunching). First connection to a console auto-registers it — no PIN needed
 - **Google TV home channel** — registered consoles appear as programs on a "Chiaki TV" preview
@@ -58,7 +59,9 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
    every other button/stick still goes to the game. Back closes the HUD
 - **Clean disconnect** — closing the stream (HUD ✕ or remote Back, per the *On Close* setting)
    shows a "Disconnecting" spinner and returns to the main screen once the session has fully shut down
-- **Settings** — resolution, FPS, codec, bitrate, audio, controller options, verbose logging, session log viewer
+- **Settings** — PS5-style two-pane layout (category list on the left, options on the right):
+  Stream, Audio, Controller, General, PlayStation Network, Backup and About pages incl.
+  resolution, FPS, codec, bitrate, audio, controller options, verbose logging and session log viewer
 - **Login PIN auto-entry** — store the console's Remote Play login PIN per console
   (*Registered consoles → console → Login PIN*) or as a global default
   (*Settings → General → Login PIN*); it is submitted automatically when the console asks,
@@ -135,6 +138,9 @@ docker build --platform linux/amd64 -f docker/Dockerfile.build -t chiaki-tv-buil
 # build the APK (~40 s incremental, ~4 min cold — build.ps1 keeps a persistent build container
 # with the Gradle daemon + cache alive between runs)
 .\build.ps1
+
+# Kotlin-only iteration: skip the CMake/NDK tasks (~25 s) when native/ and external/ are unchanged
+.\build.ps1 -SkipNative
 
 # build the release APK (signed with the repo keystore, optimized native libs)
 .\build.ps1 assembleRelease
