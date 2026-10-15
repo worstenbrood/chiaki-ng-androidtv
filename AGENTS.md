@@ -97,6 +97,11 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
 - **CMake entry point** is `native/CMakeLists.txt` (a trimmed copy of upstream's root
   CMakeLists: third-party + lib + our `native/jni`). It must keep `CHIAKI_ENABLE_ANDROID=ON`
   semantics and the `CHIAKI_LIB_*_EXTERNAL_PROJECT` includes.
+- **`native/overrides/`** holds our copies of selected C core files (`gkcrypt.c`, `takion.c`,
+  `chiaki/gkcrypt.h` — perf: cached GMAC EVP ctx, stack keystream, reusable takion recv buffer).
+  `native/CMakeLists.txt` swaps them into the `chiaki-lib` target (SOURCES + a `BEFORE PUBLIC`
+  include dir) so the submodule stays clean. Re-base them onto upstream at every bump — see
+  `docs/UPSTREAM_SYNC.md`.
 - **Kotlin layer is a manual port** of `external/chiaki-ng/android/app/src/main/java`.
   It is NOT kept in sync automatically — see `docs/UPSTREAM_SYNC.md` for the file-by-file
   mapping and the list of intentional divergences (StateFlow instead of LiveData,

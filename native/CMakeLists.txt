@@ -56,4 +56,20 @@ endif()
 
 add_subdirectory(${CHIAKI_ROOT}/lib lib)
 
+# Local perf overrides for C core files (see docs/UPSTREAM_SYNC.md):
+# swap upstream gkcrypt.c/takion.c for our copies in native/overrides and shadow
+# the public chiaki/gkcrypt.h (BEFORE PUBLIC so chiaki-lib AND all consumers,
+# e.g. chiaki-jni, see the same struct definition).
+get_target_property(CHIAKI_LIB_SOURCES chiaki-lib SOURCES)
+list(FILTER CHIAKI_LIB_SOURCES EXCLUDE REGEX "gkcrypt\\.c$")
+list(FILTER CHIAKI_LIB_SOURCES EXCLUDE REGEX "takion\\.c$")
+list(APPEND CHIAKI_LIB_SOURCES
+	"${CMAKE_CURRENT_SOURCE_DIR}/overrides/gkcrypt.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/overrides/takion.c")
+set_target_properties(chiaki-lib PROPERTIES SOURCES "${CHIAKI_LIB_SOURCES}")
+target_include_directories(chiaki-lib BEFORE PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/overrides/include")
+# appended (not BEFORE) so public lib/include still wins; lets the override .c files
+# find lib/src-local headers like utils.h and chiaki/feedback.h
+target_include_directories(chiaki-lib PRIVATE "${CHIAKI_ROOT}/lib/src")
+
 add_subdirectory(jni)

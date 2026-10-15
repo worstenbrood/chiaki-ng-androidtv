@@ -44,6 +44,29 @@ bump applies it with **no app changes**:
 `native/CMakeLists.txt` and the `externalNativeBuild { cmake { arguments ... } }` block
 of `app/build.gradle`.
 
+**Exception 2:** we carry perf-only overrides for a few C core files **without dirtying the
+submodule**. `native/overrides/` holds full copies that replace the upstream ones at build
+time (`native/CMakeLists.txt` removes `src/gkcrypt.c`/`src/takion.c` from the `chiaki-lib`
+SOURCES and appends ours, plus a `BEFORE PUBLIC` include dir so `overrides/include/chiaki/gkcrypt.h`
+shadows the upstream header for `chiaki-lib` and all its consumers):
+
+| Override | Divergence from upstream |
+|---|---|
+| `native/overrides/gkcrypt.c` + `include/chiaki/gkcrypt.h` | `chiaki_gkcrypt_gmac()` caches its `EVP_CIPHER_CTX` in the struct (`gmac_ctx` + `gmac_key_cached`, OpenSSL path only) and only redoes the AES-GCM key schedule on gmac key refresh — upstream did a fresh ctx + key schedule **per packet**. Free'd in `chiaki_gkcrypt_fini()`. Safe because each gkcrypt instance is used from one thread (remote: takion recv thread; local: callers hold `gkcrypt_local_mutex`). `chiaki_gkcrypt_decrypt()` uses a 1600-byte stack keystream instead of malloc-per-packet. |
+| `native/overrides/takion.c` | recv loop reads into a reusable stack buffer — no `malloc`/`realloc` per datagram. `takion_handle_packet()` contract changed from "takes ownership of buf" to "buf is borrowed": the retain sites (`takion_handle_packet_message_data`, `takion_handle_packet_av` video-queue path, `takion_postpone_packet`) `malloc`+`memcpy` their own copy (with `payload`/`packet.data` rebased into the copy); the postponed-packet flush loop frees the copies. |
+
+**On each submodule bump:** diff the upstream originals against our copies and re-apply our
+divergences onto the new versions (compile errors from a stale `gkcrypt.h` are expected and
+signal a needed re-base):
+
+```powershell
+git -C external/chiaki-ng diff HEAD~1 HEAD -- lib/src/gkcrypt.c lib/src/takion.c lib/include/chiaki/gkcrypt.h
+# or compare directly:
+git diff --no-index external/chiaki-ng/lib/src/gkcrypt.c native/overrides/gkcrypt.c
+git diff --no-index external/chiaki-ng/lib/src/takion.c native/overrides/takion.c
+git diff --no-index external/chiaki-ng/lib/include/chiaki/gkcrypt.h native/overrides/include/chiaki/gkcrypt.h
+```
+
 ## JNI layer — manual sync
 
 The JNI layer is **not** compiled from the submodule. `native/jni/` is a copy of
