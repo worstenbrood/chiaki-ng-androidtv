@@ -73,7 +73,7 @@ fun RegistScreen(
 							),
 							onClick = { version = v },
 							colors = if(version == v)
-								ButtonDefaults.buttonColors(containerColor = PsBlue, contentColor = Color.White)
+								ButtonDefaults.buttonColors(containerColor = PsBlue, contentColor = OnPrimary)
 							else
 								ButtonDefaults.buttonColors(containerColor = SurfaceDark, contentColor = OnSurfaceLight)
 						)

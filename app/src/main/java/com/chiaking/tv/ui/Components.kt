@@ -70,7 +70,7 @@ fun TvFocusCard(
 			.border(
 				BorderStroke(
 					if(focused) 2.dp else 1.dp,
-					if(focused) PsFocusWhite else Color.White.copy(alpha = 0.10f)
+					if(focused) PsFocusWhite else CardIdleBorder
 				),
 				CardShape
 			)
@@ -167,7 +167,7 @@ fun TvButton(
 		else
 			colors,
 		shape = ButtonShape,
-		border = if(focused) null else BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
+		border = if(focused) null else BorderStroke(1.dp, OutlineSubtle)
 	) {
 		Text(text, fontSize = 16.sp, fontWeight = FontWeight.Medium)
 	}
@@ -193,7 +193,7 @@ fun PsButton(
 	val container = when {
 		focused -> PsFocusWhite
 		primary -> PsFocusWhite
-		else -> Color.White.copy(alpha = 0.12f)
+		else -> ButtonIdle
 	}
 	val content = when {
 		focused -> PsFocusText
@@ -215,7 +215,7 @@ fun PsButton(
 			},
 		colors = ButtonDefaults.buttonColors(containerColor = container, contentColor = content),
 		shape = ButtonShape,
-		border = if(primary || focused) null else BorderStroke(1.dp, Color.White.copy(alpha = 0.25f))
+		border = if(primary || focused) null else BorderStroke(1.dp, OutlineMedium)
 	) {
 		Text(text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
 	}
@@ -248,7 +248,7 @@ fun PsIconButton(
 				focused = it.isFocused
 				onFocusChange(it.isFocused)
 			}
-			.background(if(focused) PsFocusWhite else Color.White.copy(alpha = 0.08f))
+			.background(if(focused) PsFocusWhite else SelectionIdle)
 			.padding(10.dp),
 		contentAlignment = Alignment.Center
 	) {
@@ -299,7 +299,7 @@ private fun Modifier.tvRow(
 			if(focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier
 		)
 		.clip(SelectionShape)
-		.background(if(focused.value) Color.White.copy(alpha = 0.14f) else Color.Transparent)
+		.background(if(focused.value) SelectionFocused else Color.Transparent)
 		.onFocusChanged {
 			focused.value = it.isFocused
 			onFocus(it.isFocused)
@@ -357,8 +357,8 @@ fun TvSwitchRow(
 				.background(
 					when {
 						checked -> PsBlue
-						focused.value -> Color.White.copy(alpha = 0.25f)
-						else -> Color.White.copy(alpha = 0.12f)
+						focused.value -> OutlineMedium
+						else -> ButtonIdle
 					}
 				)
 				.padding(horizontal = 14.dp, vertical = 5.dp)
@@ -368,7 +368,7 @@ fun TvSwitchRow(
 				fontSize = 14.sp,
 				fontWeight = FontWeight.Bold,
 				color = when {
-					checked -> Color.White
+					checked -> OnPrimary
 					focused.value -> OnSurfaceLight
 					else -> OnSurfaceMuted
 				}

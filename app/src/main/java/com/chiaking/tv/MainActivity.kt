@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.lifecycleScope
 import com.chiaking.tv.common.*
 import com.chiaking.tv.connect.LocalConnectController
@@ -35,6 +34,7 @@ import com.chiaking.tv.ui.PsAlertDialog
 import com.chiaking.tv.ui.TvProgressDialog
 import com.chiaking.tv.ui.screens.*
 import com.chiaking.tv.ui.theme.ChiakiTvTheme
+import com.chiaking.tv.ui.theme.TvBackground
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -53,7 +53,6 @@ class MainActivity: ComponentActivity()
 	companion object
 	{
 		const val EXTRA_AUTO_CONNECT_MAC = LocalConnectController.EXTRA_AUTO_CONNECT_MAC
-		private const val HOME_BACKGROUND_COLOR = 0xFF060B14L
 	}
 
 	private lateinit var preferences: Preferences
@@ -100,7 +99,7 @@ class MainActivity: ComponentActivity()
 			ChiakiTvTheme {
 				Surface(
 					modifier = Modifier.fillMaxSize(),
-					color = Color(HOME_BACKGROUND_COLOR)
+					color = TvBackground
 				) {
 					Box {
 						Navigation()

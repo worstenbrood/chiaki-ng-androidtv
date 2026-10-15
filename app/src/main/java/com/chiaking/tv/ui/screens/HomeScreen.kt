@@ -128,7 +128,7 @@ fun HomeScreen(
 			val density = LocalDensity.current
 			val glowBrush = with(density) {
 				Brush.radialGradient(
-					colors = listOf(PsBlue.copy(alpha = 0.28f), PsBlue.copy(alpha = 0.08f), Color.Transparent),
+					colors = listOf(HomeGlowStrong, HomeGlowWeak, Color.Transparent),
 					center = Offset(maxWidth.toPx() * 0.78f, maxHeight.toPx() * 0.18f),
 					radius = maxWidth.toPx() * 0.85f
 				)

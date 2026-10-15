@@ -10,7 +10,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -98,7 +97,7 @@ fun StreamScreen(
 
 	var displayMode by remember { mutableStateOf(preferences.displayMode) }
 
-	Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+	Box(modifier = Modifier.fillMaxSize().background(VideoBlack)) {
 		BoxWithConstraints(modifier = Modifier.fillMaxSize().clipToBounds()) {
 			val vprofile = session.connectInfo.videoProfile
 			val vAspect = if(vprofile.height > 0) vprofile.width.toFloat() / vprofile.height else 16f / 9f
@@ -260,7 +259,7 @@ private fun HudSpinner(text: String)
 		Column(horizontalAlignment = Alignment.CenterHorizontally) {
 			CircularProgressIndicator(color = PsBlueLight)
 			Spacer(Modifier.height(16.dp))
-			Text(text, color = Color.White, fontSize = 20.sp)
+			Text(text, color = OnVideo, fontSize = 20.sp)
 		}
 	}
 }

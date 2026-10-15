@@ -519,8 +519,8 @@ private fun SettingsNavItem(
 			.clip(SelectionShape)
 			.background(
 				when {
-					focused -> Color.White.copy(alpha = 0.14f)
-					selected -> Color.White.copy(alpha = 0.08f)
+					focused -> SelectionFocused
+					selected -> SelectionIdle
 					else -> Color.Transparent
 				}
 			)
