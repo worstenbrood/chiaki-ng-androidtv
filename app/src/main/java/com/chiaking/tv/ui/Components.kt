@@ -528,10 +528,10 @@ fun SectionHeader(text: String, centered: Boolean = false)
 }
 
 @Composable
-fun SettingsCard(content: @Composable ColumnScope.() -> Unit)
+fun SettingsCard(containerColor: Color = SurfaceCard, content: @Composable ColumnScope.() -> Unit)
 {
 	Card(
-		colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+		colors = CardDefaults.cardColors(containerColor = containerColor),
 		shape = CardShape,
 		modifier = Modifier.padding(horizontal = 16.dp)
 	) {

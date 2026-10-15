@@ -181,7 +181,7 @@ fun SettingsScreen(
 				{
 					SettingsCategory.STREAM ->
 					{
-						SettingsCard {
+						SettingsCard(SurfaceFrosted) {
 							TvCycleRow(
 								title = stringResource(R.string.resolution),
 								value = resolution.title,
@@ -248,7 +248,7 @@ fun SettingsScreen(
 
 					SettingsCategory.AUDIO ->
 					{
-						SettingsCard {
+						SettingsCard(SurfaceFrosted) {
 							TvCycleRow(
 								title = stringResource(R.string.volume),
 								value = stringResource(R.string.volume_percent, volume),
@@ -282,7 +282,7 @@ fun SettingsScreen(
 
 					SettingsCategory.CONTROLLER ->
 					{
-						SettingsCard {
+						SettingsCard(SurfaceFrosted) {
 							TvSwitchRow(
 								stringResource(R.string.swap_cross_moon),
 								stringResource(R.string.swap_cross_moon_summary),
@@ -333,7 +333,7 @@ fun SettingsScreen(
 
 					SettingsCategory.GENERAL ->
 					{
-						SettingsCard {
+						SettingsCard(SurfaceFrosted) {
 							TvSwitchRow(
 								stringResource(R.string.console_discovery),
 								stringResource(R.string.console_discovery_summary),
@@ -412,7 +412,7 @@ fun SettingsScreen(
 
 					SettingsCategory.PSN ->
 					{
-						SettingsCard {
+						SettingsCard(SurfaceFrosted) {
 							if(psnLoggedIn)
 							{
 								TvInfoRow(stringResource(R.string.account), stringResource(R.string.signed_in))
@@ -438,7 +438,7 @@ fun SettingsScreen(
 
 					SettingsCategory.BACKUP ->
 					{
-						SettingsCard {
+						SettingsCard(SurfaceFrosted) {
 							TvActionRow(
 								stringResource(R.string.export_settings),
 								stringResource(R.string.export_settings_summary),
@@ -456,7 +456,7 @@ fun SettingsScreen(
 
 					SettingsCategory.ABOUT ->
 					{
-						SettingsCard {
+						SettingsCard(SurfaceFrosted) {
 							TvInfoRow(stringResource(R.string.app_name), BuildConfig.VERSION_NAME)
 							TvInfoRow(stringResource(R.string.chiaki_ng_core), UPSTREAM_CHIAKI_VERSION)
 						}
