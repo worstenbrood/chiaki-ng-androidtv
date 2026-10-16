@@ -11,11 +11,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
@@ -109,11 +111,16 @@ fun SettingsScreen(
 	val navFocus = remember { FocusRequester() }
 	val rowFocus = remember { FocusRequester() }
 	val backFocus = remember { FocusRequester() }
+	var rightFocused by remember { mutableStateOf(false) }
+	BackHandler(enabled = rightFocused)
+	{
+		try { navFocus.requestFocus() } catch(e: Exception) { }
+	}
 	LaunchedEffect(Unit) {
 		delay(FOCUS_RESTORE_DELAY_MS)
 		try
 		{
-			if(restoreRow == 0) backFocus.requestFocus() else rowFocus.requestFocus()
+			if(restoreRow == 0) navFocus.requestFocus() else rowFocus.requestFocus()
 		}
 		catch(e: Exception)
 		{
@@ -168,6 +175,7 @@ fun SettingsScreen(
 			Column(
 				modifier = Modifier
 					.weight(1f)
+					.onFocusEvent { rightFocused = it.hasFocus }
 					.onKeyEvent { ev ->
 						if(ev.key == Key.DirectionLeft && ev.type == KeyEventType.KeyDown)
 						{
