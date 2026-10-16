@@ -13,6 +13,7 @@ import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.AutomaticGainControl
 import android.media.audiofx.AudioEffect
 import android.media.audiofx.NoiseSuppressor
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
 import com.chiaking.tv.common.AudioDevices
@@ -56,6 +57,15 @@ class MicCapture(
 		if(!hasPermission(context))
 			return false
 		val record = openRecord() ?: return false
+		// many TVs declare a BUILTIN_MIC that does not exist and records exact zeros;
+		// probe for real signal before committing the mic to the console
+		if(!hasSignal(record))
+		{
+			Log.i(TAG, "Microphone records only silence, assuming no capture device is present")
+			record.release()
+			return false
+		}
+		attachEffects(record.audioSessionId)
 		this.record = record
 		running = true
 		thread = Thread { captureLoop(record) }.apply {
@@ -130,7 +140,6 @@ class MicCapture(
 				return null
 			}
 			resolveInputDevice()?.let { record.setPreferredDevice(it) }
-			attachEffects(record.audioSessionId)
 			record.startRecording()
 			if(record.recordingState != AudioRecord.RECORDSTATE_RECORDING)
 			{
@@ -149,6 +158,28 @@ class MicCapture(
 
 	private fun resolveInputDevice(): AudioDeviceInfo? =
 		AudioDevices.resolveInputDevice(context, preferences.micDeviceName)
+
+	/** True when at least a couple of frames contain non-zero samples within ~2 s. */
+	private fun hasSignal(record: AudioRecord): Boolean
+	{
+		val buf = ShortArray(FRAME_SHORTS)
+		val deadline = SystemClock.elapsedRealtime() + 2000
+		var nonZeroFrames = 0
+		while(SystemClock.elapsedRealtime() < deadline)
+		{
+			val r = record.read(buf, 0, buf.size)
+			if(r <= 0)
+				continue
+			for(i in 0 until r)
+				if(buf[i] != 0.toShort())
+				{
+					if(++nonZeroFrames >= 2)
+						return true
+					break
+				}
+		}
+		return false
+	}
 
 	private fun attachEffects(sessionId: Int)
 	{
