@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chiaking.tv.R
 import com.chiaking.tv.common.AudioDevices
+import com.chiaking.tv.common.CpuUsageMonitor
 import com.chiaking.tv.common.Preferences
 import com.chiaking.tv.session.StreamSession
 import com.chiaking.tv.session.StreamState
@@ -58,25 +59,6 @@ private const val BITS_PER_BYTE = 8.0
 private const val BITS_PER_KBIT = 1000.0
 private const val PACKET_LOSS_PCT_SCALE = 10000.0
 private const val MICROS_PER_MS = 1000
-private const val KERNEL_HZ = 100.0
-
-private fun readSelfCpuTicks(): Long?
-{
-	return try
-	{
-		val line = java.io.File("/proc/self/stat").readText()
-		val fields = line.substringAfterLast(')').trim().split(Regex("\\s+"))
-		// after (comm): state=0 ... utime=11, stime=12
-		if (fields.size < 13)
-			-1L
-		else
-			fields[11].toLong() + fields[12].toLong()
-	}
-	catch(e: Exception)
-	{
-		null
-	}
-}
 
 @Composable
 fun StreamHud(
@@ -101,6 +83,7 @@ fun StreamHud(
 	val micMuted by session.micMuted.collectAsState()
 	val micActive by session.micActive.collectAsState()
 	var micGain by remember { mutableStateOf(preferences.micGain) }
+	val cpuMonitor = remember { CpuUsageMonitor() }
 	val ctx = LocalContext.current
 	val audioDevices = remember { AudioDevices.outputDevices(ctx) }
 	var deviceIndex by remember { mutableStateOf(
@@ -117,22 +100,20 @@ fun StreamHud(
 			hudStats = null
 			return@LaunchedEffect
 		}
+		cpuMonitor.reset()
 		var lastStats: LongArray? = null
 		var lastTime = 0L
-		var lastCpuTicks: Long? = null
 		while(hudVisible)
 		{
 			val now = System.nanoTime()
 			val stats = session.getStats()
-			val cpuTicks = if(showCpu) readSelfCpuTicks() else null
+			// monitor reports % of total capacity; the chip shows % of one core + cores used
+			val cpuAppPct = if(showCpu) cpuMonitor.getCpuUsage() * cpuMonitor.coreCount else 0.0
 			if(stats != null && lastStats != null && lastTime != 0L)
 			{
 				val dt = (now - lastTime) / NS_PER_S
 				if(dt > 0.0)
 				{
-					val cpuAppPct = if(cpuTicks != null && lastCpuTicks != null)
-						(cpuTicks - lastCpuTicks) * 100.0 / (dt * KERNEL_HZ)
-						else 0.0
 					hudStats = HudStats(
 						(stats[0] - lastStats[0]) / dt,
 						(stats[1] - lastStats[1]) * BITS_PER_BYTE / dt / BITS_PER_KBIT,
@@ -146,7 +127,6 @@ fun StreamHud(
 			}
 			lastStats = stats
 			lastTime = now
-			lastCpuTicks = cpuTicks
 			delay(HUD_STATS_POLL_MS)
 		}
 	}
