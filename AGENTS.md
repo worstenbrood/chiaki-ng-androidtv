@@ -37,6 +37,7 @@ so the image **must** be `--platform linux/amd64` — qemu emulation, builds are
 # one-time after clone:
 git submodule update --init external/chiaki-ng
 git -C external/chiaki-ng submodule update --init third-party/nanopb third-party/jerasure third-party/gf-complete third-party/curl
+git submodule update --init native/third-party/opus
 
 # build image (once):
 docker build --platform linux/amd64 -f docker/Dockerfile.build -t chiaki-tv-build-amd64 docker/
@@ -69,7 +70,12 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   video **stats counters** (frames/bytes/lost for the HUD), `CHIAKI_EVENT_MOTION_RESET`
   forwarding, the `sessionRequestIDR` / `sessionRestartAudio` JNI functions, and the
   `enableIDROnFECFailure` connect-info field + `CHIAKI_EVENT_VIDEO_FEC_FAILURE` forwarding
-  (`idr_on_fec_failure` pref, default on).
+  (`idr_on_fec_failure` pref, default on), and the mic sender (`sessionStartMic` /
+  `sessionFeedMicFrame` / `sessionToggleMicrophone` on a per-session `ChiakiOpusEncoder`,
+  48 kHz stereo 480-sample frames; needs `CHIAKI_LIB_ENABLE_OPUS=ON`, which builds the
+  `native/third-party/opus` submodule satisfied via the `native/cmake/FindOpus.cmake` shim).
+  Kotlin mic side: `session/MicCapture.kt` (AudioRecord VOICE_COMMUNICATION + platform
+  AEC/NS/AGC), owned by `StreamSession` — starts on ConnectedEvent, stops on shutdown/pause.
   **Keep-alive rework** in `video-decoder.c` (required by StreamManager — do not revert):
   `set_surface(null)` no longer kills the codec (upstream did, and double-locked the
   non-recursive `codec_mutex` → ANR); it sets `surface_valid=false` +

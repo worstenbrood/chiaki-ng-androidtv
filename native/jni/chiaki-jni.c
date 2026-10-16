@@ -10,6 +10,7 @@
 #include <chiaki/discoveryservice.h>
 #include <chiaki/regist.h>
 #include <chiaki/remote/holepunch.h>
+#include <chiaki/opusencoder.h>
 
 #include <string.h>
 #include <stdlib.h>
@@ -222,6 +223,11 @@ typedef struct android_chiaki_session_t
 	AndroidChiakiVideoDecoder video_decoder;
 	AndroidChiakiAudioDecoder audio_decoder;
 	void *audio_output;
+#if CHIAKI_LIB_ENABLE_OPUS
+	ChiakiOpusEncoder opus_encoder;
+	bool mic_encoder_initialized;
+	bool mic_connected;
+#endif
 } AndroidChiakiSession;
 
 static void android_chiaki_event_cb(ChiakiEvent *event, void *user)
@@ -481,6 +487,10 @@ JNIEXPORT void JNICALL JNI_FCN(sessionFree)(JNIEnv *env, jobject obj, jlong ptr)
 		return;
 	CHIAKI_LOGI(session->log, "Shutting down JNI Session");
 	chiaki_session_fini(&session->session);
+#if CHIAKI_LIB_ENABLE_OPUS
+	if(session->mic_encoder_initialized)
+		chiaki_opus_encoder_fini(&session->opus_encoder);
+#endif
 	android_chiaki_video_decoder_fini(&session->video_decoder);
 	android_chiaki_audio_decoder_fini(&session->audio_decoder);
 	android_chiaki_audio_output_free(session->audio_output);
@@ -553,6 +563,64 @@ JNIEXPORT jint JNICALL JNI_FCN(sessionRequestIDR)(JNIEnv *env, jobject obj, jlon
 {
 	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
 	return chiaki_session_request_idr(&session->session);
+}
+
+JNIEXPORT jint JNICALL JNI_FCN(sessionStartMic)(JNIEnv *env, jobject obj, jlong ptr, jboolean muted)
+{
+	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
+#if CHIAKI_LIB_ENABLE_OPUS
+	if(!session->mic_encoder_initialized)
+	{
+		ChiakiAudioHeader audio_header;
+		chiaki_audio_header_set(&audio_header, 2, 16, 48000, 480);
+		chiaki_opus_encoder_init(&session->opus_encoder, session->log);
+		chiaki_opus_encoder_header(&audio_header, &session->opus_encoder, &session->session);
+		if(!session->opus_encoder.audio_sender)
+		{
+			CHIAKI_LOGE(session->log, "Failed to init mic audio sender");
+			return CHIAKI_ERR_UNKNOWN;
+		}
+		session->mic_encoder_initialized = true;
+	}
+	if(!session->mic_connected)
+	{
+		ChiakiErrorCode err = chiaki_session_connect_microphone(&session->session);
+		if(err != CHIAKI_ERR_SUCCESS)
+		{
+			CHIAKI_LOGE(session->log, "Failed to connect microphone: %s", chiaki_error_string(err));
+			return err;
+		}
+		session->mic_connected = true;
+	}
+	ChiakiErrorCode err = chiaki_session_toggle_microphone(&session->session, muted);
+	if(err != CHIAKI_ERR_SUCCESS)
+		CHIAKI_LOGE(session->log, "Failed to set initial mic mute state: %s", chiaki_error_string(err));
+	return err;
+#else
+	(void)muted;
+	return CHIAKI_ERR_UNKNOWN;
+#endif
+}
+
+JNIEXPORT void JNICALL JNI_FCN(sessionFeedMicFrame)(JNIEnv *env, jobject obj, jlong ptr, jshortArray pcm)
+{
+	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
+#if CHIAKI_LIB_ENABLE_OPUS
+	if(!session->mic_encoder_initialized || !session->opus_encoder.opus_encoder)
+		return;
+	jsize len = E->GetArrayLength(env, pcm);
+	if(len != session->opus_encoder.audio_header.frame_size * session->opus_encoder.audio_header.channels)
+		return;
+	jshort *buf = E->GetShortArrayElements(env, pcm, NULL);
+	chiaki_opus_encoder_frame((int16_t *)buf, &session->opus_encoder);
+	E->ReleaseShortArrayElements(env, pcm, buf, JNI_ABORT);
+#endif
+}
+
+JNIEXPORT jint JNICALL JNI_FCN(sessionToggleMicrophone)(JNIEnv *env, jobject obj, jlong ptr, jboolean muted)
+{
+	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
+	return chiaki_session_toggle_microphone(&session->session, muted);
 }
 
 JNIEXPORT void JNICALL JNI_FCN(sessionGetStats)(JNIEnv *env, jobject obj, jlong ptr, jlongArray out)

@@ -226,6 +226,7 @@ class MainActivity: ComponentActivity()
 	{
 		super.onPause()
 		val session = StreamManager.session
+		session?.stopMicCapture()
 		if(session != null && !session.disconnecting && session.session != null &&
 			screenStack.lastOrNull() is ScreenStream &&
 			preferences.disconnectAction != Preferences.DisconnectAction.NOTHING)

@@ -98,6 +98,9 @@ fun StreamHud(
 	var hudFocusIdx by remember { mutableStateOf(0) }
 	var hudStats by remember { mutableStateOf<HudStats?>(null) }
 	var volume by remember { mutableStateOf(preferences.audioVolume) }
+	val micMuted by session.micMuted.collectAsState()
+	val micActive by session.micActive.collectAsState()
+	var micGain by remember { mutableStateOf(preferences.micGain) }
 	val ctx = LocalContext.current
 	val audioDevices = remember { AudioDevices.outputDevices(ctx) }
 	var deviceIndex by remember { mutableStateOf(
@@ -304,6 +307,25 @@ fun StreamHud(
 								volume = (volume + dir * 5).coerceIn(0, 100)
 								preferences.audioVolume = volume
 								session.setVolumePercent(volume)
+							}
+						)
+						Preferences.HudItemKind.MIC -> chip(
+							i,
+							stringResource(R.string.microphone),
+							when {
+								!preferences.micEnabled -> stringResource(R.string.mic_off)
+								!micActive && state is StreamStateConnected -> stringResource(R.string.mic_permission_needed)
+								micMuted -> stringResource(R.string.mic_muted)
+								else -> stringResource(R.string.mic_live)
+							},
+							stringResource(R.string.mic_gain_percent, micGain),
+							onClick = { if(preferences.micEnabled) session.toggleMicMute() },
+							onVertical = { dir ->
+								if(preferences.micEnabled)
+								{
+									micGain = (micGain + dir * 5).coerceIn(25, 300)
+									preferences.micGain = micGain
+								}
 							}
 						)
 						Preferences.HudItemKind.CPU -> chip(

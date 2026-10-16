@@ -1,3 +1,6 @@
 [submodule "external/chiaki-ng"]
 	path = external/chiaki-ng
 	url = https://github.com/chiaki-ng/chiaki-ng
+[submodule "native/third-party/opus"]
+	path = native/third-party/opus
+	url = https://gitlab.xiph.org/xiph/opus.git

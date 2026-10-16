@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 
 project(chiaki-tv)
 
@@ -12,7 +12,7 @@ set(CHIAKI_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../external/chiaki-ng")
 # lib/CMakeLists.txt checks this to skip desktop-only deps (libevent)
 set(CHIAKI_ENABLE_ANDROID ON)
 
-option(CHIAKI_LIB_ENABLE_OPUS "Use Opus as part of Chiaki Lib" OFF)
+option(CHIAKI_LIB_ENABLE_OPUS "Use Opus as part of Chiaki Lib" ON)
 option(CHIAKI_LIB_OPENSSL_EXTERNAL_PROJECT "Use OpenSSL as CMake external project" OFF)
 option(CHIAKI_LIB_JSONC_EXTERNAL_PROJECT "Build json-c from source via FetchContent" OFF)
 option(CHIAKI_LIB_MINIUPNPC_EXTERNAL_PROJECT "Build miniupnpc from source via FetchContent" OFF)
@@ -34,6 +34,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -flto=thin")
 # cacert.pem asset to exactly this path before any holepunch call runs.
 set(CURL_CA_BUNDLE "/data/data/com.chiaking.tv/files/ca-bundle.pem" CACHE STRING "Default CA bundle" FORCE)
 
+list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 list(APPEND CMAKE_MODULE_PATH "${CHIAKI_ROOT}/cmake")
 
 find_package(PythonInterp 3 REQUIRED) # Make sure nanopb doesn't find Python 2.7
@@ -43,6 +44,16 @@ if(CHIAKI_LIB_OPENSSL_EXTERNAL_PROJECT)
 endif()
 
 add_subdirectory(${CHIAKI_ROOT}/third-party third-party)
+
+# Opus (mic audio): built from our own submodule; FindOpus.cmake shim below
+# satisfies chiaki-lib's find_package(Opus REQUIRED) without touching the submodule.
+if(CHIAKI_LIB_ENABLE_OPUS)
+	set(OPUS_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+	set(OPUS_BUILD_PROGRAMS OFF CACHE BOOL "" FORCE)
+	set(OPUS_INSTALL_PKGCONFIG_MODULE OFF CACHE BOOL "" FORCE)
+	set(OPUS_INSTALL_PKGCONFIG_FILE OFF CACHE BOOL "" FORCE)
+	add_subdirectory(third-party/opus opus EXCLUDE_FROM_ALL)
+endif()
 
 add_definitions(-DCHIAKI_VERSION_MAJOR=${CHIAKI_VERSION_MAJOR} -DCHIAKI_VERSION_MINOR=${CHIAKI_VERSION_MINOR} -DCHIAKI_VERSION_PATCH=${CHIAKI_VERSION_PATCH} -DCHIAKI_VERSION=\"${CHIAKI_VERSION}\")
 

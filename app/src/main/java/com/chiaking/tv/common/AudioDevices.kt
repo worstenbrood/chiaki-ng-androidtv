@@ -21,6 +21,33 @@ object AudioDevices
 		AudioDeviceInfo.TYPE_USB_HEADSET
 	)
 
+	private val INPUT_TYPES = setOf(
+		AudioDeviceInfo.TYPE_BUILTIN_MIC,
+		AudioDeviceInfo.TYPE_WIRED_HEADSET,
+		AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+		AudioDeviceInfo.TYPE_USB_HEADSET,
+		AudioDeviceInfo.TYPE_USB_DEVICE
+	)
+
+	fun inputDevices(context: Context): List<Pair<String, Int>>
+	{
+		val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+		return listOf("Default" to 0) + am.getDevices(AudioManager.GET_DEVICES_INPUTS)
+			.filter { it.isSource && INPUT_TYPES.contains(it.type) }
+			.map { (it.productName?.toString() ?: "Input ${it.type}") to it.id }
+			.distinctBy { it.second }
+	}
+
+	/** Resolves a saved input device name to its current device; null means "use the system default". */
+	fun resolveInputDevice(context: Context, name: String): AudioDeviceInfo?
+	{
+		if(name.isEmpty() || name == "Default")
+			return null
+		val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+		return am.getDevices(AudioManager.GET_DEVICES_INPUTS)
+			.firstOrNull { it.isSource && it.productName?.toString() == name }
+	}
+
 	fun outputDevices(context: Context): List<Pair<String, Int>>
 	{
 		val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager

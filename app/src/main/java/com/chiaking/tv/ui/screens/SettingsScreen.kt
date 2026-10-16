@@ -12,6 +12,8 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
@@ -35,6 +37,7 @@ import com.chiaking.tv.common.AppDatabase
 import com.chiaking.tv.common.AudioDevices
 import com.chiaking.tv.common.Preferences
 import com.chiaking.tv.common.RegisteredHost
+import com.chiaking.tv.session.MicCapture
 import com.chiaking.tv.ui.*
 import com.chiaking.tv.ui.theme.*
 import kotlinx.coroutines.delay
@@ -48,6 +51,7 @@ private enum class SettingsCategory(val titleRes: Int, val icon: ImageVector)
 {
 	STREAM(R.string.stream, Icons.Default.Stream),
 	AUDIO(R.string.audio, Icons.Default.VolumeUp),
+	MIC(R.string.microphone, Icons.Default.Mic),
 	CONTROLLER(R.string.controller, Icons.Default.SportsEsports),
 	HUD(R.string.category_hud, Icons.Default.Dashboard),
 	GENERAL(R.string.general, Icons.Default.Settings),
@@ -103,6 +107,21 @@ fun SettingsScreen(
 			.takeIf { it >= 0 }
 			?: audioDevices.indexOfFirst { it.second == preferences.audioDeviceId })
 			.coerceAtLeast(0)) }
+
+	var micEnabled by remember { mutableStateOf(preferences.micEnabled) }
+	var micStartUnmuted by remember { mutableStateOf(preferences.micStartUnmuted) }
+	var micGain by remember { mutableStateOf(preferences.micGain) }
+	var micAec by remember { mutableStateOf(preferences.micAec) }
+	var micNs by remember { mutableStateOf(preferences.micNs) }
+	var micAgc by remember { mutableStateOf(preferences.micAgc) }
+	val micDevices = remember { AudioDevices.inputDevices(ctx) }
+	var micDeviceIndex by remember { mutableStateOf(
+		micDevices.indexOfFirst { it.first == preferences.micDeviceName }.coerceAtLeast(0)) }
+	val micPermissionLauncher = rememberLauncherForActivityResult(
+		ActivityResultContracts.RequestPermission()) { granted ->
+		micEnabled = granted
+		preferences.micEnabled = granted
+	}
 
 	var category by remember { mutableStateOf(
 		SettingsCategory.entries.getOrElse(FocusMemory.get("settings_cat")) { SettingsCategory.STREAM }) }
@@ -292,6 +311,81 @@ fun SettingsScreen(
 									preferences.audioBufferMs = bufferMs
 								},
 								focusRequester = fr(3), onFocus = fb(3)
+							)
+						}
+					}
+
+					SettingsCategory.MIC ->
+					{
+						SettingsCard(SurfaceFrosted) {
+							TvSwitchRow(
+								stringResource(R.string.mic_enabled),
+								stringResource(R.string.mic_enabled_summary),
+								micEnabled,
+								{ on ->
+									if(on)
+									{
+										if(MicCapture.hasPermission(ctx))
+										{
+											micEnabled = true
+											preferences.micEnabled = true
+										}
+										else
+											micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+									}
+									else
+									{
+										micEnabled = false
+										preferences.micEnabled = false
+									}
+								},
+								focusRequester = fr(1), onFocus = fb(1)
+							)
+							TvSwitchRow(
+								stringResource(R.string.mic_start_unmuted),
+								stringResource(R.string.mic_start_unmuted_summary),
+								micStartUnmuted,
+								{ micStartUnmuted = it; preferences.micStartUnmuted = it },
+								focusRequester = fr(2), onFocus = fb(2)
+							)
+							TvCycleRow(
+								title = stringResource(R.string.mic_device),
+								value = micDevices[micDeviceIndex].first,
+								onNext = {
+									micDeviceIndex = (micDeviceIndex + 1) % micDevices.size
+									preferences.micDeviceName = micDevices[micDeviceIndex].first
+								},
+								focusRequester = fr(3), onFocus = fb(3)
+							)
+							TvCycleRow(
+								title = stringResource(R.string.mic_gain),
+								value = stringResource(R.string.mic_gain_percent, micGain),
+								onNext = {
+									micGain = if(micGain >= 200) 50 else micGain + 25
+									preferences.micGain = micGain
+								},
+								focusRequester = fr(4), onFocus = fb(4)
+							)
+							TvSwitchRow(
+								stringResource(R.string.mic_aec),
+								stringResource(R.string.mic_aec_summary),
+								micAec,
+								{ micAec = it; preferences.micAec = it },
+								focusRequester = fr(5), onFocus = fb(5)
+							)
+							TvSwitchRow(
+								stringResource(R.string.mic_ns),
+								stringResource(R.string.mic_ns_summary),
+								micNs,
+								{ micNs = it; preferences.micNs = it },
+								focusRequester = fr(6), onFocus = fb(6)
+							)
+							TvSwitchRow(
+								stringResource(R.string.mic_agc),
+								stringResource(R.string.mic_agc_summary),
+								micAgc,
+								{ micAgc = it; preferences.micAgc = it },
+								focusRequester = fr(7), onFocus = fb(7)
 							)
 						}
 					}

@@ -46,7 +46,13 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 	val hudVisible: MutableStateFlow<Boolean> get() = _hudVisible
 	private val _disconnectDialogVisible = MutableStateFlow(false)
 	val disconnectDialogVisible: MutableStateFlow<Boolean> get() = _disconnectDialogVisible
+	private val _micMuted = MutableStateFlow(true)
+	val micMuted: MutableStateFlow<Boolean> get() = _micMuted
+	private val _micActive = MutableStateFlow(false)
+	val micActive: MutableStateFlow<Boolean> get() = _micActive
 	@Volatile var disconnecting = false
+
+	private var micCapture: MicCapture? = null
 
 	private companion object
 	{
@@ -71,6 +77,41 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 		input.hudToggleCallback = {
 			_hudVisible.value = !_hudVisible.value
 		}
+		_micMuted.value = !input.preferences.micStartUnmuted
+	}
+
+	/** True when the mic feature is on and we hold the RECORD_AUDIO permission. */
+	fun micWanted(): Boolean =
+		input.preferences.micEnabled && MicCapture.hasPermission(input.context)
+
+	/** Connects the console mic and starts capture; called on (re)connect and on foreground resume. */
+	fun startMicIfNeeded()
+	{
+		val session = session ?: return
+		if(micCapture != null || !micWanted())
+			return
+		session.startMic(_micMuted.value)
+		val capture = MicCapture(input.context, input.preferences) { session.feedMicFrame(it) }
+		if(capture.start())
+		{
+			micCapture = capture
+			_micActive.value = true
+		}
+	}
+
+	/** Stops capture (backgrounding/teardown) but keeps the mute state so resume restores it. */
+	fun stopMicCapture()
+	{
+		micCapture?.stop()
+		micCapture = null
+		_micActive.value = false
+	}
+
+	fun toggleMicMute()
+	{
+		val muted = !_micMuted.value
+		_micMuted.value = muted
+		session?.toggleMicrophone(muted)
 	}
 
 	fun getStats(): LongArray? = session?.getStats()
@@ -84,6 +125,7 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 		if(stopped)
 			return
 		stopped = true
+		stopMicCapture()
 		session?.stop()
 		session?.dispose()
 		session = null
@@ -179,6 +221,7 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 				connected = true
 				retryCount = 0
 				_state.value = StreamStateConnected
+				startMicIfNeeded()
 			}
 			is QuitEvent ->
 			{

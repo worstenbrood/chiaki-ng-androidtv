@@ -67,6 +67,7 @@ class Preferences(context: Context)
 		STREAM("stream", R.string.stream),
 		NETWORK("network", R.string.network),
 		AUDIO("audio", R.string.audio),
+		MIC("mic", R.string.microphone),
 		CPU("cpu", R.string.cpu),
 		CLOSE("close", R.string.hud_close)
 	}
@@ -109,6 +110,13 @@ class Preferences(context: Context)
 		const val idrOnFecFailureKey = "idr_on_fec_failure"
 		const val hudShowCpuKey = "hud_show_cpu"
 		const val hudItemsKey = "hud_items"
+		const val micEnabledKey = "mic_enabled"
+		const val micStartUnmutedKey = "mic_start_unmuted"
+		const val micDeviceNameKey = "mic_device_name"
+		const val micGainKey = "mic_gain"
+		const val micAecKey = "mic_aec"
+		const val micNsKey = "mic_ns"
+		const val micAgcKey = "mic_agc"
 
 		val resolutionDefault = Resolution.RES_1080P
 		val fpsDefault = FPS.FPS_60
@@ -170,6 +178,34 @@ class Preferences(context: Context)
 	var audioBufferMs
 		get() = sharedPreferences.getInt(audioBufferMsKey, 0)
 		set(value) { sharedPreferences.edit().putInt(audioBufferMsKey, value.coerceIn(0, 100)).apply() }
+
+	var micEnabled
+		get() = sharedPreferences.getBoolean(micEnabledKey, false)
+		set(value) { sharedPreferences.edit().putBoolean(micEnabledKey, value).apply() }
+
+	var micStartUnmuted
+		get() = sharedPreferences.getBoolean(micStartUnmutedKey, false)
+		set(value) { sharedPreferences.edit().putBoolean(micStartUnmutedKey, value).apply() }
+
+	var micDeviceName
+		get() = sharedPreferences.getString(micDeviceNameKey, "") ?: ""
+		set(value) { sharedPreferences.edit().putString(micDeviceNameKey, value).apply() }
+
+	var micGain
+		get() = sharedPreferences.getInt(micGainKey, 100)
+		set(value) { sharedPreferences.edit().putInt(micGainKey, value.coerceIn(25, 300)).apply() }
+
+	var micAec
+		get() = sharedPreferences.getBoolean(micAecKey, true)
+		set(value) { sharedPreferences.edit().putBoolean(micAecKey, value).apply() }
+
+	var micNs
+		get() = sharedPreferences.getBoolean(micNsKey, true)
+		set(value) { sharedPreferences.edit().putBoolean(micNsKey, value).apply() }
+
+	var micAgc
+		get() = sharedPreferences.getBoolean(micAgcKey, true)
+		set(value) { sharedPreferences.edit().putBoolean(micAgcKey, value).apply() }
 
 	var autoConnectEnabled
 		get() = sharedPreferences.getBoolean(autoConnectEnabledKey, false)
