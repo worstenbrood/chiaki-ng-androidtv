@@ -25,6 +25,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -157,7 +158,7 @@ fun StreamHud(
 			Codec.CODEC_H265_HDR -> "H.265 HDR"
 		}
 		@Composable
-		fun chip(i: Int, label: String, value: String, sub: String, onClick: (() -> Unit)? = null, onVertical: ((Int) -> Unit)? = null)
+		fun chip(i: Int, label: String, value: String, sub: String, onClick: (() -> Unit)? = null, onVertical: ((Int) -> Unit)? = null, icon: ImageVector? = null)
 		{
 			HudItem(
 				label = label,
@@ -165,54 +166,11 @@ fun StreamHud(
 				sub = sub,
 				onClick = onClick,
 				onVertical = onVertical,
+				icon = icon,
 				focusReq = if(hudFocusIdx == i) hudFocus else null,
 				selected = hudFocusIdx == i,
 				onSelect = { if(it) { hudFocusIdx = i; FocusMemory.set("hud", i) } }
 			)
-		}
-		@Composable
-		fun closeChip(i: Int)
-		{
-			Column(
-				horizontalAlignment = Alignment.CenterHorizontally,
-				modifier = Modifier
-					.widthIn(min = 140.dp)
-					.clip(SelectionShape)
-					.background(if(hudFocusIdx == i) HudChipFocus else Color.Transparent)
-					.then(if(hudFocusIdx == i) Modifier.focusRequester(hudFocus) else Modifier)
-					.onFocusEvent { if(it.isFocused) { hudFocusIdx = i; FocusMemory.set("hud", i) } }
-					.onKeyEvent { ev ->
-						if(ev.key == Key.ButtonA && ev.type == KeyEventType.KeyUp)
-						{
-							onClose()
-							true
-						}
-						else
-							false
-					}
-					.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onClose() }
-					.padding(horizontal = 10.dp, vertical = 4.dp)
-			) {
-				Text(
-					stringResource(R.string.hud_close),
-					fontSize = 11.sp,
-					color = PsBlueLight,
-					letterSpacing = 2.sp,
-					fontWeight = FontWeight.SemiBold
-				)
-				Spacer(Modifier.height(2.dp))
-				Box(
-					contentAlignment = Alignment.Center,
-					modifier = Modifier.height(40.dp)
-				) {
-					Icon(
-						Icons.Default.Close,
-						contentDescription = "Disconnect",
-						tint = if(hudFocusIdx == i) OnVideo else OnSurfaceMuted,
-						modifier = Modifier.size(22.dp)
-					)
-				}
-			}
 		}
 		Column(
 			modifier = Modifier
@@ -314,7 +272,14 @@ fun StreamHud(
 							hudStats?.let { stringResource(R.string.cpu_value, it.cpuAppPct) } ?: "—",
 							hudStats?.let { stringResource(R.string.cpu_sub, it.cpuCores) } ?: ""
 						)
-						Preferences.HudItemKind.CLOSE -> closeChip(i)
+						Preferences.HudItemKind.CLOSE -> chip(
+							i,
+							stringResource(R.string.hud_close),
+							"",
+							"",
+							onClick = onClose,
+							icon = Icons.Default.Close
+						)
 					}
 				}
 			}
@@ -344,6 +309,7 @@ private fun HudItem(
 	sub: String,
 	onClick: (() -> Unit)? = null,
 	onVertical: ((Int) -> Unit)? = null,
+	icon: ImageVector? = null,
 	focusReq: FocusRequester? = null,
 	selected: Boolean = false,
 	onSelect: (Boolean) -> Unit = {}
@@ -384,16 +350,31 @@ private fun HudItem(
 			fontWeight = FontWeight.SemiBold
 		)
 		Spacer(Modifier.height(2.dp))
-		Text(value, fontSize = 17.sp, color = OnVideo, fontWeight = FontWeight.Bold)
-		if(sub.isNotEmpty())
-			Text(
-				sub,
-				fontSize = 12.sp,
-				color = OnSurfaceMuted,
-				maxLines = 1,
-				overflow = TextOverflow.Ellipsis,
-				modifier = Modifier.widthIn(max = 160.dp)
-			)
+		if(icon != null)
+			Box(
+				contentAlignment = Alignment.Center,
+				modifier = Modifier.height(40.dp)
+			) {
+				Icon(
+					icon,
+					contentDescription = label,
+					tint = if(selected) OnVideo else OnSurfaceMuted,
+					modifier = Modifier.size(22.dp)
+				)
+			}
+		else
+		{
+			Text(value, fontSize = 17.sp, color = OnVideo, fontWeight = FontWeight.Bold)
+			if(sub.isNotEmpty())
+				Text(
+					sub,
+					fontSize = 12.sp,
+					color = OnSurfaceMuted,
+					maxLines = 1,
+					overflow = TextOverflow.Ellipsis,
+					modifier = Modifier.widthIn(max = 160.dp)
+				)
+		}
 	}
 }
 

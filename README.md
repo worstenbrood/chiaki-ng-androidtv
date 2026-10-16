@@ -47,6 +47,11 @@ home with ambient glow and pill buttons, two-pane settings) and full D-pad/gamep
 - **Audio controls** — stream volume (applies live), output-device selection
   (HDMI, Bluetooth, USB, ...) with automatic fallback to the system default, and
   audio buffer size (Auto or 10–100 ms in 10 ms steps, like the Qt app)
+- **Microphone** — stream your mic to the console for party chat / in-game voice
+  (*Settings → Microphone*): enable (with permission prompt), start-unmuted, input-device
+  picker (built-in, USB or Bluetooth headset mics), gain, and platform echo cancellation /
+  noise suppression / auto-gain. The console receives the mic audio itself — not the headset
+  as a device; game audio keeps playing on your normal output as usual
 - **In-stream HUD** — press **L3 + R3** (configurable: Select + Start or L1+R1+L2+R2 via
   *Settings → HUD → HUD Shortcut*) while streaming to toggle an interactive bar with live
   FPS, measured bitrate, packet loss %, ping, lost frames, app CPU usage (of one core +
@@ -56,13 +61,14 @@ home with ambient glow and pill buttons, two-pane settings) and full D-pad/gamep
   can only be reordered.
   Navigate the chips with the **D-pad** (gamepad D-pad *and* left stick are both understood):
   the **Audio** chip cycles the output device with **cross** and adjusts volume with **D-pad
+   up/down**, the **Mic** chip toggles mic mute with **cross** and adjusts mic gain with **D-pad
    up/down**, the **Display** chip cycles Fit/Zoom/Stretch; the **✕** chip closes the stream per
    the *When Leaving Stream* setting. While the HUD is open only D-pad + cross are captured —
    every other button/stick still goes to the game. Back closes the HUD
 - **Clean disconnect** — closing the stream (HUD ✕ or remote Back, per the *When Leaving Stream* setting)
    shows a "Disconnecting" spinner and returns to the main screen once the session has fully shut down
 - **Settings** — PS5-style two-pane layout (category list on the left, options on the right):
-  Stream, Audio, Controller, HUD, General, PlayStation Network, Backup and About pages incl.
+  Stream, Audio, Microphone, Controller, HUD, General, PlayStation Network, Backup and About pages incl.
   resolution, FPS, codec, bitrate, audio, controller options, HUD options, verbose logging and
   session log viewer
 - **Login PIN auto-entry** — store the console's Remote Play login PIN per console
@@ -135,6 +141,9 @@ the image runs under qemu emulation (slow but correct). Full details in [AGENTS.
 git submodule update --init external/chiaki-ng
 git -C external/chiaki-ng submodule update --init third-party/nanopb third-party/jerasure third-party/gf-complete third-party/curl
 
+# one-time: fetch the opus submodule (mic audio encoder)
+git submodule update --init native/third-party/opus
+
 # one-time: build the Linux build image
 docker build --platform linux/amd64 -f docker/Dockerfile.build -t chiaki-tv-build-amd64 docker/
 
@@ -159,7 +168,8 @@ Other ABIs: append `-Pabis=arm64-v8a,armeabi-v7a`.
 app/                    Android TV app (Kotlin + Compose, namespace com.chiaking.tv)
 external/chiaki-ng      git submodule — upstream chiaki-ng (C core, built via CMake)
 native/                 CMake entry point + our copy of the JNI layer
-                        (adds audio volume/device/buffer, stream stats and surface keep-alive
+                        (adds audio volume/device/buffer, mic opus sender via
+                        native/third-party/opus, stream stats and surface keep-alive
                         on top of upstream)
 docker/                 Docker build image definition
 docs/UPSTREAM_SYNC.md   How to integrate new upstream chiaki-ng commits
