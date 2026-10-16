@@ -77,6 +77,8 @@
 	<string name="mic_ns_summary">Vermindert achtergrondruis (platform NS)</string>
 	<string name="mic_agc">Automatische gain</string>
 	<string name="mic_agc_summary">Regelt het microfoonniveau automatisch (platform AGC)</string>
+	<string name="mic_complexity">Encodercomplexiteit</string>
+	<string name="mic_bandwidth">Audio-bandbreedte</string>
 	<string name="mic_gain_percent">%1$d%%</string>
 	<string name="mic_muted">Gedempt</string>
 	<string name="mic_live">Live</string>
@@ -177,7 +179,7 @@
 	<string name="ping_sub">ping %1$d ms • %2$d verloren</string>
 	<string name="cpu">CPU</string>
 	<string name="cpu_value">%1$.0f%%</string>
-	<string name="cpu_sub">≈ %1$.1f kernen</string>
+	<string name="cpu_sub">≈ %1$.1f / %2$d kernen</string>
 	<string name="enter_pin">Pincode invoeren</string>
 	<string name="pin_incorrect">Pincode onjuist</string>
 	<string name="pin_instructions">Voer de pincode in die op je tv/console-inlogscherm staat.</string>

@@ -114,6 +114,8 @@ fun SettingsScreen(
 	var micAec by remember { mutableStateOf(preferences.micAec) }
 	var micNs by remember { mutableStateOf(preferences.micNs) }
 	var micAgc by remember { mutableStateOf(preferences.micAgc) }
+	var micComplexity by remember { mutableStateOf(preferences.micComplexity) }
+	var micBandwidth by remember { mutableStateOf(preferences.micBandwidth) }
 	val micDevices = remember { AudioDevices.inputDevices(ctx) }
 	var micDeviceIndex by remember { mutableStateOf(
 		micDevices.indexOfFirst { it.first == preferences.micDeviceName }.coerceAtLeast(0)) }
@@ -386,6 +388,26 @@ fun SettingsScreen(
 								micAgc,
 								{ micAgc = it; preferences.micAgc = it },
 								focusRequester = fr(7), onFocus = fb(7)
+							)
+							TvCycleRow(
+								title = stringResource(R.string.mic_complexity),
+								value = micComplexity.title,
+								onNext = {
+									val values = Preferences.MicComplexity.values()
+									micComplexity = values[(micComplexity.ordinal + 1) % values.size]
+									preferences.micComplexity = micComplexity
+								},
+								focusRequester = fr(8), onFocus = fb(8)
+							)
+							TvCycleRow(
+								title = stringResource(R.string.mic_bandwidth),
+								value = micBandwidth.title,
+								onNext = {
+									val values = Preferences.MicBandwidth.values()
+									micBandwidth = values[(micBandwidth.ordinal + 1) % values.size]
+									preferences.micBandwidth = micBandwidth
+								},
+								focusRequester = fr(9), onFocus = fb(9)
 							)
 						}
 					}

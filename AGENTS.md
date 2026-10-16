@@ -70,12 +70,19 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   video **stats counters** (frames/bytes/lost for the HUD), `CHIAKI_EVENT_MOTION_RESET`
   forwarding, the `sessionRequestIDR` / `sessionRestartAudio` JNI functions, and the
   `enableIDROnFECFailure` connect-info field + `CHIAKI_EVENT_VIDEO_FEC_FAILURE` forwarding
-  (`idr_on_fec_failure` pref, default on), and the mic sender (`sessionStartMic` /
-  `sessionFeedMicFrame` / `sessionToggleMicrophone` on a per-session `ChiakiOpusEncoder`,
-  48 kHz stereo 480-sample frames; needs `CHIAKI_LIB_ENABLE_OPUS=ON`, which builds the
-  `native/third-party/opus` submodule satisfied via the `native/cmake/FindOpus.cmake` shim).
-  Kotlin mic side: `session/MicCapture.kt` (AudioRecord VOICE_COMMUNICATION + platform
-  AEC/NS/AGC), owned by `StreamSession` — starts on ConnectedEvent, stops on shutdown/pause.
+   (`idr_on_fec_failure` pref, default on), and the mic sender (`sessionStartMic` /
+   `sessionFeedMicFrame` / `sessionToggleMicrophone` on a per-session `ChiakiOpusEncoder`,
+   48 kHz stereo 480-sample frames; needs `CHIAKI_LIB_ENABLE_OPUS=ON`, which builds the
+   `native/third-party/opus` submodule satisfied via the `native/cmake/FindOpus.cmake` shim).
+   `sessionStartMic` also takes `complexity` + `bandwidth` (from the mic settings) and applies
+   them with `opus_encoder_ctl` on the raw `OpusEncoder*` (the `chiaki-jni` target links `opus`
+   + the shim include dir directly); bitrate/bit-depth stay fixed at 32 kbps / 16-bit because
+   `audiosender.c` hardcodes 40-byte frames. Upstream `ctrl.c` sends the mic-mute toggle
+   **inverted** (`0` = unmute on the PS5), so the JNI flips the flag before
+   `chiaki_session_toggle_microphone`.
+   Kotlin mic side: `session/MicCapture.kt` (AudioRecord VOICE_COMMUNICATION + platform
+   AEC/NS/AGC + a ~2 s silence probe that aborts on a phantom mic recording only zeros),
+   owned by `StreamSession` — starts on ConnectedEvent, stops on shutdown/pause.
   **Keep-alive rework** in `video-decoder.c` (required by StreamManager — do not revert):
   `set_surface(null)` no longer kills the codec (upstream did, and double-locked the
   non-recursive `codec_mutex` → ANR); it sets `surface_valid=false` +
@@ -112,9 +119,11 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   It is NOT kept in sync automatically — see `docs/UPSTREAM_SYNC.md` for the file-by-file
   mapping and the list of intentional divergences (StateFlow instead of LiveData,
   D-pad-as-controller input, no touch controls, package rename).
-- New settings need three places: `common/Preferences.kt` (key + property),
-  `ui/screens/SettingsScreen.kt` (row), and wiring into `Preferences.videoProfile`
-  or the session if they affect streaming.
+- New settings need four places: `common/Preferences.kt` (key + property),
+  `ui/screens/SettingsScreen.kt` (row), the string in **both** `res/values/strings.xml`
+  and `res/values-nl/strings.xml` (Dutch is a full translation — a missing key silently
+  falls back to English), and wiring into `Preferences.videoProfile` or the session if
+  they affect streaming.
 - **UI style**: PlayStation-inspired. Tokens in `ui/theme/Theme.kt` (colors, `CardShape`/
   `SelectionShape`/`ButtonShape`) + `Type.kt` (Inter `PsFontFamily` applied to all Material
   typography). Home = thin top bar (clock + `PsIconButton`s) over a radial `PsBlue` glow,
@@ -135,6 +144,10 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   `external/chiaki-ng/android/app/build.gradle` when bumping upstream.
 - `app/.cxx/` and `app/build/` caches persist across runs on the mounted volume; delete them
   if CMake configure behaves oddly after a submodule bump.
+- `build.ps1 -SkipNative` hardcodes the default ABIs (`arm64-v8a,armeabi-v7a`) in its `-x`
+  exclusions, so it **fails** when combined with `-Pabis=arm64-v8a` (task-not-found for the
+  v7a CMake task). For an arm64-only build just run `.\build.ps1 "assembleDebug -Pabis=arm64-v8a"`
+  (native tasks stay up-to-date when `native/` is unchanged).
 - Native codegen needs `protoc` + `python3` + `protobuf` pip package + `perl` + `make` — all in the Docker image only.
 - `chiaki_session_stop` must **never** be called twice (SIGABRT in `chiaki_mutex_lock` on the
   destroyed mutex). `StreamSession.shutdown` is guarded by a `stopped` flag (reset in `resume()`),
@@ -160,7 +173,10 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   The scroll edge arrows key off `hudFocusIdx` bounds (not `hudScroll.value`) because auto-scroll
   to a remembered item does not always reach the scroll edge. The open/close combo is configurable (`menu_shortcut` pref:
   L3+R3 / Select+Start / L1+R1+L2+R2) via `StreamInput.onHudComboKeyEvent`, which clears the
-  combo's controller buttons/triggers/touch so the game never sees them.
+  combo's controller buttons/triggers/touch so the game never sees them. On open,
+  `requestFocus()` is retried in a loop because the `FocusRequester` is only attached to the
+  selected chip after recomposition — a single call races it and leaves no chip focused
+  (D-pad dead until a cross-press grabs focus).
 - Wake-on-connect (`MainActivity.wakeupAndConnect`) sends the wakeup packet, polls discovery for
   READY ≤25 s, then auto-starts the stream; used by the home-screen card, startup auto-connect
   (`auto_connect_enabled`/`auto_connect_mac` prefs) and the TV-channel deep link

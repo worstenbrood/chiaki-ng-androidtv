@@ -49,13 +49,16 @@ home with ambient glow and pill buttons, two-pane settings) and full D-pad/gamep
   audio buffer size (Auto or 10–100 ms in 10 ms steps, like the Qt app)
 - **Microphone** — stream your mic to the console for party chat / in-game voice
   (*Settings → Microphone*): enable (with permission prompt), start-unmuted, input-device
-  picker (built-in, USB or Bluetooth headset mics), gain, and platform echo cancellation /
-  noise suppression / auto-gain. The console receives the mic audio itself — not the headset
-  as a device; game audio keeps playing on your normal output as usual
+  picker (built-in, USB or Bluetooth headset mics), gain, platform echo cancellation /
+  noise suppression / auto-gain, and opus encoder tuning (encoder **complexity** + audio
+  **bandwidth** presets to trade CPU for voice quality). The mic is skipped automatically
+  when the device has no real capture source (some TVs report a phantom mic that only
+  records silence). The console receives the mic audio itself — not the headset as a
+  device; game audio keeps playing on your normal output as usual
 - **In-stream HUD** — press **L3 + R3** (configurable: Select + Start or L1+R1+L2+R2 via
   *Settings → HUD → HUD Shortcut*) while streaming to toggle an interactive bar with live
-  FPS, measured bitrate, packet loss %, ping, lost frames, app CPU usage (of one core +
-  cores used) and the current video/audio config. Which chips appear and in what order is
+  FPS, measured bitrate, packet loss %, ping, lost frames, app CPU usage (% of total
+  capacity + cores used / total cores) and the current video/audio config. Which chips appear and in what order is
   fully editable (*Settings → HUD → HUD Items*): **cross** toggles a chip on/off, **hold cross**
   (or **Menu**) enters move mode and **up/down** reorders; the **✕** chip is always shown and
   can only be reordered.

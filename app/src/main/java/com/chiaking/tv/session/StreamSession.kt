@@ -101,7 +101,7 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 		if(capture.start())
 		{
 			micCapture = capture
-			session.startMic(_micMuted.value)
+			session.startMic(_micMuted.value, input.preferences.micComplexity.value, input.preferences.micBandwidth.opusValue)
 			_micActive.value = true
 		}
 	}

@@ -45,6 +45,23 @@ class Preferences(context: Context)
 		SHOULDERS("shoulders", "L1 + R1 + L2 + R2")
 	}
 
+	// opus encoder CPU/quality presets (bitrate + bit depth are fixed by the PS5 protocol)
+	enum class MicComplexity(val value: Int, val title: String)
+	{
+		LOW(3, "Low"),
+		MEDIUM(5, "Medium"),
+		HIGH(8, "High"),
+		MAX(10, "Max")
+	}
+
+	// opus max-bandwidth constants; RESTRICTED_LOWDELAY caps at wideband (8 kHz)
+	enum class MicBandwidth(val opusValue: Int, val title: String)
+	{
+		NARROWBAND(1101, "4 kHz"),
+		MEDIUMBAND(1102, "6 kHz"),
+		WIDEBAND(1103, "8 kHz")
+	}
+
 	enum class DisplayMode(val value: String, val titleRes: Int)
 	{
 		FIT("fit", R.string.display_mode_fit),
@@ -117,6 +134,8 @@ class Preferences(context: Context)
 		const val micAecKey = "mic_aec"
 		const val micNsKey = "mic_ns"
 		const val micAgcKey = "mic_agc"
+		const val micComplexityKey = "mic_complexity"
+		const val micBandwidthKey = "mic_bandwidth"
 
 		val resolutionDefault = Resolution.RES_1080P
 		val fpsDefault = FPS.FPS_60
@@ -206,6 +225,14 @@ class Preferences(context: Context)
 	var micAgc
 		get() = sharedPreferences.getBoolean(micAgcKey, true)
 		set(value) { sharedPreferences.edit().putBoolean(micAgcKey, value).apply() }
+
+	var micComplexity
+		get() = MicComplexity.values().firstOrNull { it.value == sharedPreferences.getInt(micComplexityKey, MicComplexity.MEDIUM.value) } ?: MicComplexity.MEDIUM
+		set(value) { sharedPreferences.edit().putInt(micComplexityKey, value.value).apply() }
+
+	var micBandwidth
+		get() = MicBandwidth.values().firstOrNull { it.opusValue == sharedPreferences.getInt(micBandwidthKey, MicBandwidth.WIDEBAND.opusValue) } ?: MicBandwidth.WIDEBAND
+		set(value) { sharedPreferences.edit().putInt(micBandwidthKey, value.opusValue).apply() }
 
 	var autoConnectEnabled
 		get() = sharedPreferences.getBoolean(autoConnectEnabledKey, false)

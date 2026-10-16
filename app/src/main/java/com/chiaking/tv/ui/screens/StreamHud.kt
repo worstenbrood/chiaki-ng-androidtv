@@ -50,11 +50,12 @@ import com.chiaking.tv.ui.theme.*
 import com.metallic.chiaki.lib.Codec
 import kotlinx.coroutines.delay
 
-private data class HudStats(val fps: Double, val kbps: Double, val framesLost: Long, val packetLossPct: Double, val rttMs: Long, val cpuAppPct: Double, val cpuCores: Double)
+private data class HudStats(val fps: Double, val kbps: Double, val framesLost: Long, val packetLossPct: Double, val rttMs: Long, val cpuAppPct: Double, val cpuCores: Double, val cpuCoreCount: Int)
 
 private const val HUD_STATS_POLL_MS = 1000L
 private const val HUD_FOCUS_SETTLE_MS = 400L
 private const val HUD_FOCUS_REQUEST_MS = 50L
+private const val HUD_FOCUS_RETRY = 20
 private const val NS_PER_S = 1_000_000_000.0
 private const val BITS_PER_BYTE = 8.0
 private const val BITS_PER_KBIT = 1000.0
@@ -108,8 +109,8 @@ fun StreamHud(
 		{
 			val now = System.nanoTime()
 			val stats = session.getStats()
-			// monitor reports % of total capacity; the chip shows % of one core + cores used
-			val cpuAppPct = if(showCpu) cpuMonitor.getCpuUsage() * cpuMonitor.coreCount else 0.0
+			// monitor reports % of total capacity (0-100); chip shows that % + cores used / total
+			val cpuAppPct = if(showCpu) cpuMonitor.getCpuUsage() else 0.0
 			if(stats != null && lastStats != null && lastTime != 0L)
 			{
 				val dt = (now - lastTime) / NS_PER_S
@@ -122,7 +123,8 @@ fun StreamHud(
 						stats[3] / PACKET_LOSS_PCT_SCALE,
 						stats[4] / MICROS_PER_MS,
 						cpuAppPct,
-						cpuAppPct / 100.0
+						cpuAppPct / 100.0 * cpuMonitor.coreCount,
+						cpuMonitor.coreCount
 					)
 				}
 			}
@@ -138,9 +140,15 @@ fun StreamHud(
 		{
 			delay(HUD_FOCUS_SETTLE_MS)
 			hudFocusIdx = FocusMemory.get("hud").coerceIn(0, lastIdx)
-			delay(HUD_FOCUS_REQUEST_MS)
-			try { hudFocus.requestFocus() } catch(e: Exception)
-			{ android.util.Log.e("StreamHud", "HUD focus request failed", e) }
+			// the focusRequester is only attached to the selected chip after recomposition,
+			// so a single requestFocus can race it and silently fail — leaving no chip focused
+			// until a cross-press grabs focus. Retry until it lands so D-pad works on open.
+			repeat(HUD_FOCUS_RETRY)
+			{
+				try { hudFocus.requestFocus(); return@LaunchedEffect }
+				catch(e: Exception) { delay(HUD_FOCUS_REQUEST_MS) }
+			}
+			android.util.Log.e("StreamHud", "HUD focus request failed after $HUD_FOCUS_RETRY retries")
 		}
 	}
 
@@ -270,7 +278,7 @@ fun StreamHud(
 							i,
 							stringResource(R.string.cpu),
 							hudStats?.let { stringResource(R.string.cpu_value, it.cpuAppPct) } ?: "—",
-							hudStats?.let { stringResource(R.string.cpu_sub, it.cpuCores) } ?: ""
+							hudStats?.let { stringResource(R.string.cpu_sub, it.cpuCores, it.cpuCoreCount) } ?: ""
 						)
 						Preferences.HudItemKind.CLOSE -> chip(
 							i,

@@ -11,6 +11,9 @@
 #include <chiaki/regist.h>
 #include <chiaki/remote/holepunch.h>
 #include <chiaki/opusencoder.h>
+#if CHIAKI_LIB_ENABLE_OPUS
+#include <opus/opus.h>
+#endif
 
 #include <string.h>
 #include <stdlib.h>
@@ -566,7 +569,7 @@ JNIEXPORT jint JNICALL JNI_FCN(sessionRequestIDR)(JNIEnv *env, jobject obj, jlon
 	return chiaki_session_request_idr(&session->session);
 }
 
-JNIEXPORT jint JNICALL JNI_FCN(sessionStartMic)(JNIEnv *env, jobject obj, jlong ptr, jboolean muted)
+JNIEXPORT jint JNICALL JNI_FCN(sessionStartMic)(JNIEnv *env, jobject obj, jlong ptr, jboolean muted, jint complexity, jint bandwidth)
 {
 	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
 #if CHIAKI_LIB_ENABLE_OPUS
@@ -581,6 +584,16 @@ JNIEXPORT jint JNICALL JNI_FCN(sessionStartMic)(JNIEnv *env, jobject obj, jlong 
 			CHIAKI_LOGE(session->log, "Failed to init mic audio sender");
 			return CHIAKI_ERR_UNKNOWN;
 		}
+		// opus defaults to complexity 10 + auto signal; for a voice channel, biasing to
+		// voice and tuning complexity/bandwidth cuts CPU with no protocol change
+		// (still 48 kHz stereo CBR 40-byte frames). Values come from the mic settings.
+		OpusEncoder *mic_enc = session->opus_encoder.opus_encoder;
+		if(mic_enc)
+		{
+			opus_encoder_ctl(mic_enc, OPUS_SET_SIGNAL(OPUS_SIGNAL_VOICE));
+			opus_encoder_ctl(mic_enc, OPUS_SET_COMPLEXITY(complexity));
+			opus_encoder_ctl(mic_enc, OPUS_SET_MAX_BANDWIDTH(bandwidth));
+		}
 		session->mic_encoder_initialized = true;
 	}
 	if(!session->mic_connected)
@@ -593,12 +606,16 @@ JNIEXPORT jint JNICALL JNI_FCN(sessionStartMic)(JNIEnv *env, jobject obj, jlong 
 		}
 		session->mic_connected = true;
 	}
-	ChiakiErrorCode err = chiaki_session_toggle_microphone(&session->session, muted);
+	// ctrl.c sends toggle[2]=0 for muted=true, but the PS5 treats 0 as UNMUTE (its log
+	// string is inverted too), so flip the flag here until upstream is corrected
+	ChiakiErrorCode err = chiaki_session_toggle_microphone(&session->session, !muted);
 	if(err != CHIAKI_ERR_SUCCESS)
 		CHIAKI_LOGE(session->log, "Failed to set initial mic mute state: %s", chiaki_error_string(err));
 	return err;
 #else
 	(void)muted;
+	(void)complexity;
+	(void)bandwidth;
 	return CHIAKI_ERR_UNKNOWN;
 #endif
 }
@@ -621,7 +638,8 @@ JNIEXPORT void JNICALL JNI_FCN(sessionFeedMicFrame)(JNIEnv *env, jobject obj, jl
 JNIEXPORT jint JNICALL JNI_FCN(sessionToggleMicrophone)(JNIEnv *env, jobject obj, jlong ptr, jboolean muted)
 {
 	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
-	return chiaki_session_toggle_microphone(&session->session, muted);
+	// see sessionStartMic: upstream ctrl.c has the mute flag inverted
+	return chiaki_session_toggle_microphone(&session->session, !muted);
 }
 
 JNIEXPORT void JNICALL JNI_FCN(sessionGetStats)(JNIEnv *env, jobject obj, jlong ptr, jlongArray out)

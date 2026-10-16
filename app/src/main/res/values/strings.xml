@@ -78,6 +78,8 @@
 	<string name="mic_ns_summary">Reduce background noise (platform NS)</string>
 	<string name="mic_agc">Auto Gain</string>
 	<string name="mic_agc_summary">Automatically level mic volume (platform AGC)</string>
+	<string name="mic_complexity">Encoder Complexity</string>
+	<string name="mic_bandwidth">Audio Bandwidth</string>
 	<string name="mic_gain_percent">%1$d%%</string>
 	<string name="mic_muted">Muted</string>
 	<string name="mic_live">Live</string>
@@ -178,7 +180,7 @@
 	<string name="ping_sub">ping %1$d ms • %2$d lost</string>
 	<string name="cpu">CPU</string>
 	<string name="cpu_value">%1$.0f%%</string>
-	<string name="cpu_sub">≈ %1$.1f cores</string>
+	<string name="cpu_sub">≈ %1$.1f / %2$d cores</string>
 	<string name="enter_pin">Enter PIN</string>
 	<string name="pin_incorrect">PIN Incorrect</string>
 	<string name="pin_instructions">Enter the PIN shown on your TV/console login screen.</string>

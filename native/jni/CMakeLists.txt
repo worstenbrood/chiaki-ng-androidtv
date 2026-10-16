@@ -15,6 +15,13 @@ add_library(chiaki-jni SHARED
         circular-buf.hpp)
 target_link_libraries(chiaki-jni chiaki-lib)
 
+# mic encoder tuning calls opus_encoder_ctl directly; reuse the same staged
+# <opus/opus.h> layout chiaki-lib uses (see ../cmake/FindOpus.cmake)
+if(CHIAKI_LIB_ENABLE_OPUS)
+	target_link_libraries(chiaki-jni opus)
+	target_include_directories(chiaki-jni PRIVATE "${CMAKE_BINARY_DIR}/opus-include-shim")
+endif()
+
 find_library(ANDROID_LIB_LOG log)
 find_library(ANDROID_LIB_MEDIANDK mediandk)
 find_library(ANDROID_LIB_ANDROID android)
