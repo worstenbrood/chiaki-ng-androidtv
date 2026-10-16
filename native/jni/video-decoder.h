@@ -7,6 +7,7 @@
 
 #include <chiaki/thread.h>
 #include <chiaki/log.h>
+#include <chiaki/session.h>
 
 typedef struct AMediaCodec AMediaCodec;
 typedef struct ANativeWindow ANativeWindow;
@@ -21,6 +22,8 @@ typedef struct android_chiaki_video_decoder_t
 	ChiakiThread output_thread;
 	bool shutdown_output;
 	volatile bool surface_valid;
+	volatile bool needs_recreate;
+	ChiakiSession *session;
 	int32_t target_width;
 	int32_t target_height;
 	ChiakiCodec target_codec;

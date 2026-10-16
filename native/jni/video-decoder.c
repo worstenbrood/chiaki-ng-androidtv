@@ -27,6 +27,8 @@ ChiakiErrorCode android_chiaki_video_decoder_init(AndroidChiakiVideoDecoder *dec
 	decoder->target_codec = codec;
 	decoder->shutdown_output = false;
 	decoder->surface_valid = false;
+	decoder->needs_recreate = false;
+	decoder->session = NULL;
 	return chiaki_mutex_init(&decoder->codec_mutex, false);
 }
 
@@ -152,11 +154,17 @@ void android_chiaki_video_decoder_set_surface(AndroidChiakiVideoDecoder *decoder
 #if __ANDROID_API__ >= 23
 		CHIAKI_LOGI(decoder->log, "Video decoder already initialized, swapping surface");
 		ANativeWindow *new_window = ANativeWindow_fromSurface(env, surface);
-		AMediaCodec_setOutputSurface(decoder->codec, new_window);
+		media_status_t r = AMediaCodec_setOutputSurface(decoder->codec, new_window);
 		if(decoder->window)
 			ANativeWindow_release(decoder->window);
 		decoder->window = new_window;
 		decoder->surface_valid = true;
+		if(r != AMEDIA_OK)
+		{
+			// some devices reject the surface swap once the old surface died; rebuild the codec
+			CHIAKI_LOGE(decoder->log, "AMediaCodec_setOutputSurface() failed: %d, will recreate codec", (int)r);
+			decoder->needs_recreate = true;
+		}
 #else
 		CHIAKI_LOGE(decoder->log, "Video Decoder already initialized");
 #endif
@@ -185,6 +193,27 @@ bool android_chiaki_video_decoder_video_sample(uint8_t *buf, size_t buf_size, in
 	if(frames_lost > 0)
 		__atomic_add_fetch(&decoder->frames_lost, (uint64_t)frames_lost, __ATOMIC_RELAXED);
 	chiaki_mutex_lock(&decoder->codec_mutex);
+
+	if(decoder->needs_recreate)
+	{
+		decoder->needs_recreate = false;
+		CHIAKI_LOGE(decoder->log, "Video Decoder recreating codec after output surface became invalid");
+		if(decoder->codec)
+		{
+			decoder->shutdown_output = true;
+			AMediaCodec_stop(decoder->codec);
+			chiaki_mutex_unlock(&decoder->codec_mutex);
+			chiaki_thread_join(&decoder->output_thread, NULL);
+			chiaki_mutex_lock(&decoder->codec_mutex);
+			AMediaCodec_delete(decoder->codec);
+			decoder->codec = NULL;
+			decoder->shutdown_output = false;
+		}
+		if(!start_codec_locked(decoder))
+			decoder->needs_recreate = true; // retry on the next frame
+		else if(decoder->session)
+			chiaki_session_request_idr(decoder->session);
+	}
 
 	if(!decoder->codec)
 	{
@@ -229,6 +258,8 @@ beach:
 static void *android_chiaki_video_decoder_output_thread_func(void *user)
 {
 	AndroidChiakiVideoDecoder *decoder = user;
+	int render_failures = 0;
+	int dequeue_errors = 0;
 
 	while(1)
 	{
@@ -236,7 +267,22 @@ static void *android_chiaki_video_decoder_output_thread_func(void *user)
 		ssize_t status = AMediaCodec_dequeueOutputBuffer(decoder->codec, &info, -1);
 		if(status >= 0)
 		{
-			AMediaCodec_releaseOutputBuffer(decoder->codec, (size_t)status, info.size != 0 && decoder->surface_valid);
+			dequeue_errors = 0;
+			bool render = info.size != 0 && decoder->surface_valid;
+			media_status_t rr = AMediaCodec_releaseOutputBuffer(decoder->codec, (size_t)status, render);
+			if(render && rr != AMEDIA_OK)
+			{
+				// output surface died under us (e.g. surface destroyed during a background cycle);
+				// after a short burst the codec will never recover on its own
+				if(++render_failures > 30)
+				{
+					CHIAKI_LOGE(decoder->log, "Video Decoder output rendering failed %d times (%d), requesting codec recreation", render_failures, (int)rr);
+					decoder->needs_recreate = true;
+					break;
+				}
+			}
+			else if(render)
+				render_failures = 0;
 			if(info.flags & AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM)
 			{
 				CHIAKI_LOGI(decoder->log, "AMediaCodec reported EOS");
@@ -251,6 +297,12 @@ static void *android_chiaki_video_decoder_output_thread_func(void *user)
 			if(shutdown)
 			{
 				CHIAKI_LOGI(decoder->log, "Video Decoder Output Thread detected shutdown after reported error");
+				break;
+			}
+			if(++dequeue_errors > 500)
+			{
+				CHIAKI_LOGE(decoder->log, "Video Decoder output thread saw %d consecutive dequeue errors, requesting codec recreation", dequeue_errors);
+				decoder->needs_recreate = true;
 				break;
 			}
 		}

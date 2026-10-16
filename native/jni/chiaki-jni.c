@@ -461,6 +461,7 @@ JNIEXPORT void JNICALL JNI_FCN(sessionCreate)(JNIEnv *env, jobject obj, jobject 
 
 	chiaki_session_set_event_cb(&session->session, android_chiaki_event_cb, session);
 	chiaki_session_set_video_sample_cb(&session->session, android_chiaki_video_decoder_video_sample, &session->video_decoder);
+	session->video_decoder.session = &session->session;
 
 	ChiakiAudioSink audio_sink;
 	android_chiaki_audio_decoder_get_sink(&session->audio_decoder, &audio_sink);
