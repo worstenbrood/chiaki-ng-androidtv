@@ -135,14 +135,18 @@ class RemoteConnectController(
 					connectingText = null
 					return@launch
 				}
+				// Claim ownership immediately: a cancel during resolveRemoteLoginPin (suspend) or the
+				// regist wait below must find the session here, otherwise it is orphaned mid-connect
+				// (still holding the audio output and blocking StreamManager for the next connect).
+				registSession = session
 				if(!autoRegist)
 				{
 					resolveRemoteLoginPin(session, device.duid)
 					connectingText = null
+					registSession = null // handed off to the stream screen
 					onStreamReady(session)
 					return@launch
 				}
-				registSession = session
 				val registOk = CompletableDeferred<Boolean>()
 				var registSeen = false
 				session.autoRegistCallback = { host ->
