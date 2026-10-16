@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusEvent
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
@@ -53,9 +54,6 @@ import kotlinx.coroutines.delay
 private data class HudStats(val fps: Double, val kbps: Double, val framesLost: Long, val packetLossPct: Double, val rttMs: Long, val cpuAppPct: Double, val cpuCores: Double, val cpuCoreCount: Int)
 
 private const val HUD_STATS_POLL_MS = 1000L
-private const val HUD_FOCUS_SETTLE_MS = 400L
-private const val HUD_FOCUS_REQUEST_MS = 50L
-private const val HUD_FOCUS_RETRY = 20
 private const val NS_PER_S = 1_000_000_000.0
 private const val BITS_PER_BYTE = 8.0
 private const val BITS_PER_KBIT = 1000.0
@@ -80,6 +78,7 @@ fun StreamHud(
 	val showCpu = hudItems.any { it.kind == Preferences.HudItemKind.CPU }
 	val lastIdx = (hudItems.size - 1).coerceAtLeast(0)
 	var hudFocusIdx by remember { mutableStateOf(0) }
+	var hudInitialFocus by remember { mutableStateOf(false) }
 	var hudStats by remember { mutableStateOf<HudStats?>(null) }
 	var volume by remember { mutableStateOf(preferences.audioVolume) }
 	val micMuted by session.micMuted.collectAsState()
@@ -136,20 +135,12 @@ fun StreamHud(
 
 	LaunchedEffect(hudVisible)
 	{
+		// arm the one-shot focus grab; the selected chip requests focus itself from
+		// onGloballyPositioned (see HudItem), which fires exactly when its FocusRequester
+		// is attached — no delays or retries needed
+		hudInitialFocus = hudVisible
 		if(hudVisible)
-		{
-			delay(HUD_FOCUS_SETTLE_MS)
 			hudFocusIdx = FocusMemory.get("hud").coerceIn(0, lastIdx)
-			// the focusRequester is only attached to the selected chip after recomposition,
-			// so a single requestFocus can race it and silently fail — leaving no chip focused
-			// until a cross-press grabs focus. Retry until it lands so D-pad works on open.
-			repeat(HUD_FOCUS_RETRY)
-			{
-				try { hudFocus.requestFocus(); return@LaunchedEffect }
-				catch(e: Exception) { delay(HUD_FOCUS_REQUEST_MS) }
-			}
-			android.util.Log.e("StreamHud", "HUD focus request failed after $HUD_FOCUS_RETRY retries")
-		}
 	}
 
 	AnimatedVisibility(
@@ -177,6 +168,8 @@ fun StreamHud(
 				icon = icon,
 				focusReq = if(hudFocusIdx == i) hudFocus else null,
 				selected = hudFocusIdx == i,
+				grabFocus = hudInitialFocus && hudFocusIdx == i,
+				onFocusGrabbed = { hudInitialFocus = false },
 				onSelect = { if(it) { hudFocusIdx = i; FocusMemory.set("hud", i) } }
 			)
 		}
@@ -320,6 +313,8 @@ private fun HudItem(
 	icon: ImageVector? = null,
 	focusReq: FocusRequester? = null,
 	selected: Boolean = false,
+	grabFocus: Boolean = false,
+	onFocusGrabbed: () -> Unit = {},
 	onSelect: (Boolean) -> Unit = {}
 )
 {
@@ -330,6 +325,7 @@ private fun HudItem(
 			.clip(HudChipShape)
 			.background(if(selected) HudChipFocus else Color.Transparent)
 			.then(if(focusReq != null) Modifier.focusRequester(focusReq) else Modifier)
+			.then(if(grabFocus && focusReq != null) Modifier.onGloballyPositioned { onFocusGrabbed(); focusReq.requestFocus() } else Modifier)
 			.onFocusEvent { onSelect(it.isFocused) }
 			.onKeyEvent { ev ->
 				if(ev.key == Key.ButtonA && ev.type == KeyEventType.KeyUp)
