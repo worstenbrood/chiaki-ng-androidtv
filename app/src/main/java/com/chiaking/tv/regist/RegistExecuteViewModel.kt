@@ -4,9 +4,9 @@ package com.chiaking.tv.regist
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.chiaking.tv.common.AppDatabase
+import com.chiaking.tv.common.db.AppDatabase
 import com.chiaking.tv.common.MacAddress
-import com.chiaking.tv.common.RegisteredHost
+import com.chiaking.tv.common.db.RegisteredHost
 import com.metallic.chiaki.lib.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

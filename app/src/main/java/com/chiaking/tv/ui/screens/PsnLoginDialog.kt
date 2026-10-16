@@ -23,7 +23,8 @@ import com.chiaking.tv.common.psn.PsnAuth
 import com.chiaking.tv.common.psn.PsnLoginException
 import com.chiaking.tv.common.psn.PsnLoginPhase
 import com.chiaking.tv.common.psn.PsnTokenStore
-import com.chiaking.tv.ui.PsAlertDialog
+import com.chiaking.tv.ui.components.dialogs.PsAlertDialog
+import com.chiaking.tv.ui.components.TvTextField
 import com.chiaking.tv.ui.theme.*
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType

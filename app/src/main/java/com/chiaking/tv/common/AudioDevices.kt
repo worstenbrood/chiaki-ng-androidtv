@@ -57,6 +57,13 @@ object AudioDevices
 			.distinctBy { it.second }
 	}
 
+	/** Index of the saved output device in [devices]: name first, then the legacy id, else 0 (Default). */
+	fun indexOfSavedOutput(devices: List<Pair<String, Int>>, name: String, fallbackId: Int): Int =
+		(devices.indexOfFirst { it.first == name }
+			.takeIf { it >= 0 }
+			?: devices.indexOfFirst { it.second == fallbackId })
+			.coerceAtLeast(0)
+
 	/**
 	 * Audio device ids are not stable across reconnects/reboots, so the saved name is the
 	 * source of truth; resolve it to the device's current id. Falls back to the legacy saved

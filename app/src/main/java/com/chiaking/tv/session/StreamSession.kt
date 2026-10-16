@@ -11,20 +11,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import com.chiaking.tv.common.AudioDevices
-import com.chiaking.tv.common.LogManager
+import com.chiaking.tv.common.logging.LogManager
 import com.metallic.chiaki.lib.*
-
-sealed class StreamState
-object StreamStateIdle: StreamState()
-object StreamStateConnecting: StreamState()
-object StreamStateConnected: StreamState()
-object StreamStateDisconnecting: StreamState()
-data class StreamStateCreateError(val error: CreateError): StreamState()
-data class StreamStateQuit(val reason: QuitReason, val reasonString: String?): StreamState()
-data class StreamStateLoginPinRequest(val pinIncorrect: Boolean, val requestId: Long = 0L): StreamState()
-data class StreamStateRemoteProgress(val finished: Boolean): StreamState()
 
 class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, val logVerbose: Boolean, val input: StreamInput)
 {
@@ -40,17 +32,17 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 	var loginPinHostId: Long? = null
 
 	private val _state = MutableStateFlow<StreamState>(StreamStateIdle)
-	val state: MutableStateFlow<StreamState> get() = _state
+	val state: StateFlow<StreamState> get() = _state.asStateFlow()
 	private val _rumbleState = MutableStateFlow(RumbleEvent(0U, 0U))
-	val rumbleState: MutableStateFlow<RumbleEvent> get() = _rumbleState
+	val rumbleState: StateFlow<RumbleEvent> get() = _rumbleState.asStateFlow()
 	private val _hudVisible = MutableStateFlow(false)
-	val hudVisible: MutableStateFlow<Boolean> get() = _hudVisible
+	val hudVisible: StateFlow<Boolean> get() = _hudVisible.asStateFlow()
 	private val _disconnectDialogVisible = MutableStateFlow(false)
-	val disconnectDialogVisible: MutableStateFlow<Boolean> get() = _disconnectDialogVisible
+	val disconnectDialogVisible: StateFlow<Boolean> get() = _disconnectDialogVisible.asStateFlow()
 	private val _micMuted = MutableStateFlow(true)
-	val micMuted: MutableStateFlow<Boolean> get() = _micMuted
+	val micMuted: StateFlow<Boolean> get() = _micMuted.asStateFlow()
 	private val _micActive = MutableStateFlow(false)
-	val micActive: MutableStateFlow<Boolean> get() = _micActive
+	val micActive: StateFlow<Boolean> get() = _micActive.asStateFlow()
 	@Volatile var disconnecting = false
 
 	private var micCapture: MicCapture? = null
@@ -317,6 +309,18 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 	fun gotoBed()
 	{
 		session?.gotoBed()
+	}
+
+	/** Marks the session as disconnecting and switches to the disconnecting state. */
+	fun markDisconnecting()
+	{
+		_state.value = StreamStateDisconnecting
+	}
+
+	/** Hides the HUD (Back while open). */
+	fun hideHud()
+	{
+		_hudVisible.value = false
 	}
 
 	fun requestDisconnectDialog()

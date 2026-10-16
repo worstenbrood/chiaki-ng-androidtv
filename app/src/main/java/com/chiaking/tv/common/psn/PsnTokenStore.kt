@@ -128,7 +128,3 @@ class PsnTokenStore private constructor(private val prefs: SharedPreferences)
 		accountId
 	}
 }
-
-enum class PsnLoginPhase { GENERATING_UID, EXCHANGING, FETCHING_ACCOUNT, SAVING }
-
-class PsnLoginException(val phase: PsnLoginPhase) : Exception("PSN login failed at $phase")

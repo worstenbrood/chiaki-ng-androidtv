@@ -2,9 +2,6 @@
 
 package com.chiaking.tv.common
 
-import com.squareup.moshi.FromJson
-import com.squareup.moshi.JsonDataException
-import com.squareup.moshi.ToJson
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -52,10 +49,4 @@ class MacAddress(v: Long)
 		(value shr 0x20) and 0xff,
 		(value shr 0x28) and 0xff
 	)
-}
-
-class MacAddressJsonAdapter
-{
-	@ToJson fun toJson(macAddress: MacAddress) = macAddress.toString()
-	@FromJson fun fromJson(string: String) = try { MacAddress(string) } catch(e: IllegalArgumentException) { throw JsonDataException(e.message) }
 }

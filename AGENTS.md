@@ -17,8 +17,10 @@ app/                      Android TV app (namespace com.chiaking.tv)
     regist/               Console registration (PIN flow)
     discovery/            UDP discovery service wrapper
     ui/                   Compose TV UI: screens/, theme/ (PS5-style dark theme, Inter font via
-                          theme/Type.kt, D-pad focus), Components.kt (TvFocusCard, PsButton,
-                          PsIconButton, PsAlertDialog, settings rows)
+                          theme/Type.kt, D-pad focus), components/ (one file per widget:
+                          TvFocusCard, PsButton, PsIconButton, PsAlertDialog, settings rows),
+                          navigation/Screen.kt (screen stack model), FocusRestore.kt
+                          (rememberFocusRestore + FocusRequester.tryRequestFocus)
   src/main/java/com/metallic/chiaki/lib/Chiaki.kt
                           JNI bindings — package MUST stay `com.metallic.chiaki.lib`
                           (chiaki-jni.h hardcodes BASE_PACKAGE "com/metallic/chiaki/lib")
@@ -105,7 +107,7 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   (wakeup packet + READY polling + `wakingHost`/`bannerText` state), `RemoteConnectController`
   (PSN hole-punch flow + `cancel()` tearing down the regist session), `LocalConnectController`
   (deep-link + startup auto-connect). Progress for both is one modal `TvProgressDialog`
-  (spinner + text + Cancel; Back cancels) from `ui/Components.kt`, shown in `ScreenHome` —
+  (spinner + text + Cancel; Back cancels) from `ui/components/TvProgressDialog.kt`, shown in `ScreenHome` —
   home cards are never disabled during wake/connect.
 - **CMake entry point** is `native/CMakeLists.txt` (a trimmed copy of upstream's root
   CMakeLists: third-party + lib + our `native/jni`). It must keep `CHIAKI_ENABLE_ANDROID=ON`

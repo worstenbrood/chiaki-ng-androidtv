@@ -17,7 +17,7 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
 import com.chiaking.tv.common.AudioDevices
-import com.chiaking.tv.common.Preferences
+import com.chiaking.tv.common.settings.Preferences
 
 /**
  * Streams microphone PCM to the console: reads 10 ms stereo 48 kHz frames from an

@@ -4,7 +4,8 @@ package com.chiaking.tv.ui.screens
 
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import com.chiaking.tv.ui.PsAlertDialog
+import com.chiaking.tv.ui.components.dialogs.PsAlertDialog
+import com.chiaking.tv.ui.components.TvTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf

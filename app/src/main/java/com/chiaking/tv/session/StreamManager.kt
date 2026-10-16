@@ -6,8 +6,8 @@ import android.content.Context
 import com.chiaking.tv.common.AudioDevices
 import com.chiaking.tv.common.DisplayHost
 import com.chiaking.tv.common.LastSeenHosts
-import com.chiaking.tv.common.LogManager
-import com.chiaking.tv.common.Preferences
+import com.chiaking.tv.common.logging.LogManager
+import com.chiaking.tv.common.settings.Preferences
 import com.chiaking.tv.discovery.serverMac
 import com.metallic.chiaki.lib.ConnectInfo
 import com.metallic.chiaki.lib.DiscoveryHost
@@ -55,13 +55,20 @@ object StreamManager
 			preferences.videoProfile,
 			enableIDROnFECFailure = preferences.idrOnFecFailure
 		)
+		val session = newSession(context, preferences, logManager, connectInfo)
+		this.displayHost = host
+		session.storedLoginPin = registeredHost.rpPin
+		session.loginPinHostId = registeredHost.id
+		return session
+	}
+
+	/** Creates the input + session, wires them into the manager, starts streaming and applies audio prefs. */
+	private fun newSession(context: Context, preferences: Preferences, logManager: LogManager, connectInfo: ConnectInfo): StreamSession
+	{
 		val input = StreamInput(context.applicationContext, preferences)
 		val session = StreamSession(connectInfo, logManager, preferences.logVerbose, input)
 		this.input = input
-		this.displayHost = host
 		this.session = session
-		session.storedLoginPin = registeredHost.rpPin
-		session.loginPinHostId = registeredHost.id
 		session.resume()
 		session.applyAudioSettings(preferences.audioVolume,
 			AudioDevices.resolveDeviceId(context, preferences.audioDeviceName, preferences.audioDeviceId),
@@ -91,15 +98,8 @@ object StreamManager
 			autoRegist,
 			enableIDROnFECFailure = preferences.idrOnFecFailure
 		)
-		val input = StreamInput(context.applicationContext, preferences)
-		val session = StreamSession(connectInfo, logManager, preferences.logVerbose, input)
-		this.input = input
+		val session = newSession(context, preferences, logManager, connectInfo)
 		this.displayHost = null
-		this.session = session
-		session.resume()
-		session.applyAudioSettings(preferences.audioVolume,
-			AudioDevices.resolveDeviceId(context, preferences.audioDeviceName, preferences.audioDeviceId),
-			preferences.audioBufferMs)
 		return session
 	}
 

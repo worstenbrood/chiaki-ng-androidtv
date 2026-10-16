@@ -2,6 +2,9 @@
 
 package com.chiaking.tv.common
 
+import com.chiaking.tv.common.db.RegisteredHost
+import com.chiaking.tv.common.settings.Preferences
+
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent

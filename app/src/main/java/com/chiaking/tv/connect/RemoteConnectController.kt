@@ -9,11 +9,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.chiaking.tv.R
-import com.chiaking.tv.common.AppDatabase
-import com.chiaking.tv.common.LogManager
+import com.chiaking.tv.common.db.AppDatabase
+import com.chiaking.tv.common.logging.LogManager
 import com.chiaking.tv.common.MacAddress
-import com.chiaking.tv.common.Preferences
-import com.chiaking.tv.common.RegisteredHost
+import com.chiaking.tv.common.settings.Preferences
+import com.chiaking.tv.common.db.RegisteredHost
 import com.chiaking.tv.common.psn.PsnTokenStore
 import com.chiaking.tv.session.StreamManager
 import com.chiaking.tv.session.StreamSession

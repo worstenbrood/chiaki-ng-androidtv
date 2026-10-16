@@ -7,7 +7,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.OnLifecycleEvent
-import com.chiaking.tv.common.Preferences
+import com.chiaking.tv.common.settings.Preferences
 import com.metallic.chiaki.lib.ControllerState
 import com.metallic.chiaki.lib.ControllerTouch
 
@@ -27,12 +27,27 @@ class StreamInput(val context: Context, val preferences: Preferences)
 	@Volatile private var orientRef: FloatArray? = null
 	private var isRotated90 = false
 
-	private val comboKeys: Set<Int> get() = when(preferences.menuShortcut)
+	// read at sensor rate (250 Hz) — never look the service up per call
+	private val windowManager by lazy { context.getSystemService(Context.WINDOW_SERVICE) as WindowManager }
+
+	// cached: read on every key event, the shortcut only changes in settings
+	private var comboShortcut: Preferences.MenuShortcut? = null
+	private var comboKeysCached: Set<Int> = emptySet()
+	private val comboKeys: Set<Int> get()
 	{
-		Preferences.MenuShortcut.L3_R3 -> setOf(KeyEvent.KEYCODE_BUTTON_THUMBL, KeyEvent.KEYCODE_BUTTON_THUMBR)
-		Preferences.MenuShortcut.SELECT_START -> setOf(KeyEvent.KEYCODE_BUTTON_SELECT, KeyEvent.KEYCODE_BUTTON_START)
-		Preferences.MenuShortcut.SHOULDERS -> setOf(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1,
-			KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_R2)
+		val shortcut = preferences.menuShortcut
+		if(comboShortcut != shortcut)
+		{
+			comboShortcut = shortcut
+			comboKeysCached = when(shortcut)
+			{
+				Preferences.MenuShortcut.L3_R3 -> setOf(KeyEvent.KEYCODE_BUTTON_THUMBL, KeyEvent.KEYCODE_BUTTON_THUMBR)
+				Preferences.MenuShortcut.SELECT_START -> setOf(KeyEvent.KEYCODE_BUTTON_SELECT, KeyEvent.KEYCODE_BUTTON_START)
+				Preferences.MenuShortcut.SHOULDERS -> setOf(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1,
+					KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_R2)
+			}
+		}
+		return comboKeysCached
 	}
 
 	fun resetMotionControls()
@@ -53,7 +68,6 @@ class StreamInput(val context: Context, val preferences: Preferences)
 	{
 		val controllerState = sensorControllerState or keyControllerState or motionControllerState
 
-		val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 		@Suppress("DEPRECATION")
 		isRotated90 = windowManager.defaultDisplay.rotation == Surface.ROTATION_90
 		if(isRotated90)

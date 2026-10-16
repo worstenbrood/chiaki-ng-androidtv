@@ -5,7 +5,7 @@ package com.chiaking.tv.session
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.chiaking.tv.common.Preferences
+import com.chiaking.tv.common.settings.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

@@ -18,6 +18,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import com.chiaking.tv.common.*
+import com.chiaking.tv.common.db.*
+import com.chiaking.tv.common.settings.*
+import com.chiaking.tv.common.logging.*
 import com.chiaking.tv.connect.LocalConnectController
 import com.chiaking.tv.connect.RemoteConnectController
 import com.chiaking.tv.connect.WakeConnectController
@@ -26,8 +29,14 @@ import com.chiaking.tv.session.AwayController
 import com.chiaking.tv.session.StreamManager
 import com.chiaking.tv.session.StreamStateConnected
 import com.chiaking.tv.session.StreamStateDisconnecting
-import com.chiaking.tv.ui.*
+import com.chiaking.tv.ui.components.dialogs.ImportSettingsDialog
+import com.chiaking.tv.ui.navigation.*
 import com.chiaking.tv.ui.screens.*
+import com.chiaking.tv.ui.screens.home.*
+import com.chiaking.tv.ui.screens.settings.*
+import com.chiaking.tv.ui.screens.stream.*
+import com.chiaking.tv.ui.screens.logs.*
+import com.chiaking.tv.ui.screens.regist.*
 import com.chiaking.tv.ui.theme.ChiakiTvTheme
 import com.chiaking.tv.ui.theme.TvBackground
 import kotlinx.coroutines.Dispatchers
@@ -191,7 +200,7 @@ class MainActivity: ComponentActivity()
 		if(screen.session.disconnecting)
 			return
 		screen.session.disconnecting = true
-		screen.session.state.value = StreamStateDisconnecting
+		screen.session.markDisconnecting()
 		StreamManager.clear(screen.session)
 		lifecycleScope.launch {
 			withContext(Dispatchers.IO) { screen.session.shutdown(StreamStateDisconnecting) }
@@ -263,15 +272,16 @@ class MainActivity: ComponentActivity()
 
 	override fun dispatchKeyEvent(event: KeyEvent): Boolean
 	{
-		if(screenStack.lastOrNull() is ScreenStream)
+		val streamScreen = screenStack.lastOrNull() as? ScreenStream
+		if(streamScreen != null)
 		{
-			val session = (screenStack.last() as ScreenStream).session
+			val session = streamScreen.session
 			if(event.keyCode == KeyEvent.KEYCODE_BACK)
 			{
 				if(session.hudVisible.value)
 				{
 					if(event.action == KeyEvent.ACTION_UP)
-						session.hudVisible.value = false
+						session.hideHud()
 					return true
 				}
 				if(session.disconnectDialogVisible.value)
@@ -318,12 +328,13 @@ class MainActivity: ComponentActivity()
 
 	override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean
 	{
-		if(screenStack.lastOrNull() is ScreenStream)
+		val streamScreen = screenStack.lastOrNull() as? ScreenStream
+		if(streamScreen != null)
 		{
 			if(hudStickNavigate(event))
 				return true
 			// While the HUD is open, gamepad sticks go straight to the game (Compose would eat them)
-			val session = (screenStack.last() as ScreenStream).session
+			val session = streamScreen.session
 			if(session.hudVisible.value &&
 				event.source and (InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_JOYSTICK) != 0)
 			{
@@ -373,7 +384,6 @@ class MainActivity: ComponentActivity()
 		if(dir == hudStickDir)
 			return true
 		hudStickDir = dir
-		android.util.Log.i("HudNav", "hat dir=$dir x=$x y=$y src=${event.source}")
 		dispatchKeyEvent(KeyEvent(event.eventTime, event.eventTime, KeyEvent.ACTION_DOWN, dir, 0))
 		dispatchKeyEvent(KeyEvent(event.eventTime, event.eventTime, KeyEvent.ACTION_UP, dir, 0))
 		return true
