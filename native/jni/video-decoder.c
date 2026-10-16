@@ -73,6 +73,56 @@ void android_chiaki_video_decoder_fini(AndroidChiakiVideoDecoder *decoder)
 	chiaki_mutex_fini(&decoder->codec_mutex);
 }
 
+// must be called with codec_mutex held; creates + starts the codec on decoder->window
+static bool start_codec_locked(AndroidChiakiVideoDecoder *decoder)
+{
+	const char *mime = chiaki_codec_is_h265(decoder->target_codec) ? "video/hevc" : "video/avc";
+	decoder->codec = AMediaCodec_createDecoderByType(mime);
+	if(!decoder->codec)
+	{
+		CHIAKI_LOGE(decoder->log, "Failed to create AMediaCodec for mime type %s", mime);
+		return false;
+	}
+
+	AMediaFormat *format = AMediaFormat_new();
+	AMediaFormat_setString(format, AMEDIAFORMAT_KEY_MIME, mime);
+	AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_WIDTH, decoder->target_width);
+	AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_HEIGHT, decoder->target_height);
+	if(android_get_device_api_level() >= 30)
+		// AMEDIAFORMAT_KEY_LOW_LATENCY is __INTRODUCED_IN(30), so use the literal key with a runtime check
+		AMediaFormat_setInt32(format, "android.media.key.lowlatency", 1);
+
+	media_status_t r = AMediaCodec_configure(decoder->codec, format, decoder->window, NULL, 0);
+	AMediaFormat_delete(format);
+	if(r != AMEDIA_OK)
+	{
+		CHIAKI_LOGE(decoder->log, "AMediaCodec_configure() failed: %d", (int)r);
+		goto error;
+	}
+
+	r = AMediaCodec_start(decoder->codec);
+	if(r != AMEDIA_OK)
+	{
+		CHIAKI_LOGE(decoder->log, "AMediaCodec_start() failed: %d", (int)r);
+		goto error;
+	}
+
+	ChiakiErrorCode err = chiaki_thread_create(&decoder->output_thread, android_chiaki_video_decoder_output_thread_func, decoder);
+	if(err != CHIAKI_ERR_SUCCESS)
+	{
+		CHIAKI_LOGE(decoder->log, "Failed to create output thread for AMediaCodec");
+		goto error;
+	}
+
+	decoder->surface_valid = decoder->window != NULL;
+	return true;
+
+error:
+	AMediaCodec_delete(decoder->codec);
+	decoder->codec = NULL;
+	return false;
+}
+
 void android_chiaki_video_decoder_set_surface(AndroidChiakiVideoDecoder *decoder, JNIEnv *env, jobject surface)
 {
 	chiaki_mutex_lock(&decoder->codec_mutex);
@@ -115,57 +165,12 @@ void android_chiaki_video_decoder_set_surface(AndroidChiakiVideoDecoder *decoder
 
 	decoder->window = ANativeWindow_fromSurface(env, surface);
 
-	const char *mime = chiaki_codec_is_h265(decoder->target_codec) ? "video/hevc" : "video/avc";
-	CHIAKI_LOGI(decoder->log, "Initializing decoder with mime %s", mime);
-
-	decoder->codec = AMediaCodec_createDecoderByType(mime);
-	if(!decoder->codec)
+	CHIAKI_LOGI(decoder->log, "Initializing decoder");
+	if(!start_codec_locked(decoder))
 	{
-		CHIAKI_LOGE(decoder->log, "Failed to create AMediaCodec for mime type %s", mime);
-		goto error_surface;
+		ANativeWindow_release(decoder->window);
+		decoder->window = NULL;
 	}
-
-	AMediaFormat *format = AMediaFormat_new();
-	AMediaFormat_setString(format, AMEDIAFORMAT_KEY_MIME, mime);
-	AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_WIDTH, decoder->target_width);
-	AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_HEIGHT, decoder->target_height);
-	if(android_get_device_api_level() >= 30)
-		// AMEDIAFORMAT_KEY_LOW_LATENCY is __INTRODUCED_IN(30), so use the literal key with a runtime check
-		AMediaFormat_setInt32(format, "android.media.key.lowlatency", 1);
-
-	media_status_t r = AMediaCodec_configure(decoder->codec, format, decoder->window, NULL, 0);
-	if(r != AMEDIA_OK)
-	{
-		CHIAKI_LOGE(decoder->log, "AMediaCodec_configure() failed: %d", (int)r);
-		AMediaFormat_delete(format);
-		goto error_codec;
-	}
-
-	r = AMediaCodec_start(decoder->codec);
-	AMediaFormat_delete(format);
-	if(r != AMEDIA_OK)
-	{
-		CHIAKI_LOGE(decoder->log, "AMediaCodec_start() failed: %d", (int)r);
-		goto error_codec;
-	}
-
-	ChiakiErrorCode err = chiaki_thread_create(&decoder->output_thread, android_chiaki_video_decoder_output_thread_func, decoder);
-	if(err != CHIAKI_ERR_SUCCESS)
-	{
-		CHIAKI_LOGE(decoder->log, "Failed to create output thread for AMediaCodec");
-		goto error_codec;
-	}
-
-	decoder->surface_valid = true;
-	goto beach;
-
-error_codec:
-	AMediaCodec_delete(decoder->codec);
-	decoder->codec = NULL;
-
-error_surface:
-	ANativeWindow_release(decoder->window);
-	decoder->window = NULL;
 
 beach:
 	chiaki_mutex_unlock(&decoder->codec_mutex);
