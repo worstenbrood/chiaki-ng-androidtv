@@ -127,7 +127,7 @@ fun SettingsScreen(
 			try { navFocus.requestFocus() } catch(e2: Exception) { }
 		}
 	}
-	fun fr(i: Int) = if(i == restoreRow) rowFocus else null
+	fun fr(i: Int) = if(i == restoreRow.coerceAtLeast(1)) rowFocus else null
 	fun fb(i: Int): (Boolean) -> Unit = { if(it) FocusMemory.set("settings_row_${category.ordinal}", i) }
 
 	Column(modifier = Modifier.fillMaxSize().padding(top = 24.dp)) {
@@ -149,6 +149,12 @@ fun SettingsScreen(
 			Column(
 				modifier = Modifier
 					.width(280.dp)
+					.onKeyEvent { ev ->
+						if(ev.key == Key.DirectionRight && ev.type == KeyEventType.KeyDown)
+							true
+						else
+							false
+					}
 					.verticalScroll(rememberScrollState()),
 				verticalArrangement = Arrangement.spacedBy(4.dp)
 			) {
@@ -165,7 +171,10 @@ fun SettingsScreen(
 								category = cat
 							}
 						},
-						onClick = { category = cat }
+						onClick = {
+							category = cat
+							try { rowFocus.requestFocus() } catch(e: Exception) { }
+						}
 					)
 				}
 			}
@@ -178,10 +187,7 @@ fun SettingsScreen(
 					.onFocusEvent { rightFocused = it.hasFocus }
 					.onKeyEvent { ev ->
 						if(ev.key == Key.DirectionLeft && ev.type == KeyEventType.KeyDown)
-						{
-							try { navFocus.requestFocus() } catch(e: Exception) { }
 							true
-						}
 						else
 							false
 					}
