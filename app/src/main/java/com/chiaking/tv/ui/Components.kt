@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
@@ -35,6 +36,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -647,7 +649,7 @@ fun <T> TvOrderToggleList(
 	}
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 @Composable
 private fun <T> TvOrderRow(
 	entry: TvOrderEntry<T>,
@@ -670,22 +672,29 @@ private fun <T> TvOrderRow(
 		modifier = Modifier
 			.fillMaxWidth()
 			.bringIntoViewRequester(bringer)
-			.onKeyEvent { ev ->
+			.onPreviewKeyEvent { ev ->
 				val down = ev.type == KeyEventType.KeyDown
 				val up = ev.type == KeyEventType.KeyUp
+				val select = ev.key == Key.ButtonA || ev.key == Key.DirectionCenter || ev.key == Key.Enter
 				when {
 					moveMode && down && (ev.key == Key.DirectionUp || ev.key == Key.DirectionDown) ->
 						{ onMove(if(ev.key == Key.DirectionUp) -1 else 1); true }
-					moveMode && down && ev.key == Key.Back ->
-						{ onExitMove(); true }
-					moveMode && ((ev.key == Key.ButtonA && up) || (ev.key == Key.Menu && down)) ->
+					moveMode && ev.key == Key.Back ->
+						{ if(up) onExitMove(); true }
+					moveMode && select ->
 						{
-							if(holdFired) { holdFired = false; true }
-							else { onExitMove(); true }
+							if(up)
+							{
+								if(holdFired) { holdFired = false; true }
+								else { onExitMove(); true }
+							}
+							else true
 						}
+					moveMode && down && ev.key == Key.Menu ->
+						{ onExitMove(); true }
 					!moveMode && down && ev.key == Key.Menu ->
 						{ onEnterMove(); true }
-					!moveMode && down && ev.key == Key.ButtonA && ev.nativeKeyEvent.repeatCount == 0 ->
+					!moveMode && down && select && ev.nativeKeyEvent.repeatCount == 0 ->
 						{
 							holdFired = false
 							holdJob?.cancel()
@@ -696,7 +705,7 @@ private fun <T> TvOrderRow(
 							}
 							false
 						}
-					!moveMode && up && ev.key == Key.ButtonA ->
+					!moveMode && up && select ->
 						{
 							holdJob?.cancel()
 							if(holdFired) { holdFired = false; true } else false
