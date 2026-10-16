@@ -12,6 +12,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import com.chiaking.tv.common.AudioDevices
 import com.chiaking.tv.common.LogManager
 import com.metallic.chiaki.lib.*
 
@@ -84,17 +85,23 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 	fun micWanted(): Boolean =
 		input.preferences.micEnabled && MicCapture.hasPermission(input.context)
 
+	/** False when the device exposes no capture device at all (many TVs have no mic). */
+	fun micAvailable(): Boolean =
+		AudioDevices.inputDevices(input.context).size > 1
+
 	/** Connects the console mic and starts capture; called on (re)connect and on foreground resume. */
 	fun startMicIfNeeded()
 	{
 		val session = session ?: return
-		if(micCapture != null || !micWanted())
+		// without a real capture device we would only feed silence while the console
+		// believes a mic is connected, so leave the mic off entirely
+		if(micCapture != null || !micWanted() || !micAvailable())
 			return
-		session.startMic(_micMuted.value)
 		val capture = MicCapture(input.context, input.preferences) { session.feedMicFrame(it) }
 		if(capture.start())
 		{
 			micCapture = capture
+			session.startMic(_micMuted.value)
 			_micActive.value = true
 		}
 	}
