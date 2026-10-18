@@ -73,6 +73,7 @@
 	<string name="mic_start_unmuted_summary">Begin elke stream met de microfoon al live</string>
 	<string name="mic_device">Invoerapparaat</string>
 	<string name="mic_gain">Microfoongain</string>
+<string name="mic_gain_step_hint">Pijl links/rechts past aan, kruis zet terug op 100%</string>
 	<string name="mic_aec">Echo-onderdrukking</string>
 	<string name="mic_aec_summary">Verwijdert game-audio die door de microfoon wordt opgepikt (platform AEC)</string>
 	<string name="mic_ns">Ruisonderdrukking</string>
@@ -140,6 +141,12 @@
 	<string name="import_settings_summary">Hosts herstellen uit een chiaki-settings.json-bestand</string>
 	<string name="about">Over</string>
 	<string name="chiaki_ng_core">chiaki-ng-core</string>
+<string name="about_chiaki_ng">chiaki-ng op GitHub</string>
+<string name="about_chiaki_ng_summary">github.com/chiaki-ng/chiaki-ng</string>
+<string name="about_project">Deze app op GitHub</string>
+<string name="about_project_summary">github.com/worstenbrood/chiaki-ng-androidtv</string>
+<string name="about_license">Licentie</string>
+<string name="about_license_summary">AGPL-3.0-only met OpenSSL-uitzondering</string>
 
 	<!-- PSN login dialog -->
 	<string name="psn_login_title">Aanmelden met PSN</string>

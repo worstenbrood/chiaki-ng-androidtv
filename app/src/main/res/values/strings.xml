@@ -74,6 +74,7 @@
 	<string name="mic_start_unmuted_summary">Begin each stream with the mic already live</string>
 	<string name="mic_device">Input Device</string>
 	<string name="mic_gain">Mic Gain</string>
+<string name="mic_gain_step_hint">Left/Right adjusts, cross resets to 100%</string>
 	<string name="mic_aec">Echo Cancellation</string>
 	<string name="mic_aec_summary">Remove game audio picked up by the mic (platform AEC)</string>
 	<string name="mic_ns">Noise Suppression</string>
@@ -141,6 +142,12 @@
 	<string name="import_settings_summary">Restore hosts from a chiaki-settings.json file</string>
 	<string name="about">About</string>
 	<string name="chiaki_ng_core">chiaki-ng core</string>
+<string name="about_chiaki_ng">chiaki-ng on GitHub</string>
+<string name="about_chiaki_ng_summary">github.com/chiaki-ng/chiaki-ng</string>
+<string name="about_project">This app on GitHub</string>
+<string name="about_project_summary">github.com/worstenbrood/chiaki-ng-androidtv</string>
+<string name="about_license">License</string>
+<string name="about_license_summary">AGPL-3.0-only with OpenSSL exception</string>
 
 	<!-- PSN login dialog -->
 	<string name="psn_login_title">Sign in with PSN</string>

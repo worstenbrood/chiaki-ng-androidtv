@@ -4,6 +4,8 @@ package com.chiaking.tv.ui.screens.settings
 
 import com.chiaking.tv.ui.screens.PsnLoginDialog
 
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -364,11 +366,16 @@ fun SettingsScreen(
 								},
 								focusRequester = fr(3), onFocus = fb(3)
 							)
-							TvCycleRow(
+							TvStepperRow(
 								title = stringResource(R.string.mic_gain),
 								value = stringResource(R.string.mic_gain_percent, micGain),
-								onNext = {
-									micGain = if(micGain >= 200) 50 else micGain + 25
+								summary = stringResource(R.string.mic_gain_step_hint),
+								onStep = { delta ->
+									micGain = (micGain + delta * 5).coerceIn(25, 300)
+									preferences.micGain = micGain
+								},
+								onReset = {
+									micGain = 100
 									preferences.micGain = micGain
 								},
 								focusRequester = fr(4), onFocus = fb(4)
@@ -632,9 +639,27 @@ fun SettingsScreen(
 
 					SettingsCategory.ABOUT ->
 					{
+						val openUrl: (String) -> Unit = { url ->
+							try { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } catch(_: Exception) { }
+						}
 						SettingsCard(SurfaceFrosted) {
 							TvInfoRow(stringResource(R.string.app_name), BuildConfig.VERSION_NAME)
 							TvInfoRow(stringResource(R.string.chiaki_ng_core), UPSTREAM_CHIAKI_VERSION)
+							TvActionRow(
+								stringResource(R.string.about_chiaki_ng),
+								stringResource(R.string.about_chiaki_ng_summary),
+								{ openUrl("https://github.com/chiaki-ng/chiaki-ng") }
+							)
+							TvActionRow(
+								stringResource(R.string.about_project),
+								stringResource(R.string.about_project_summary),
+								{ openUrl("https://github.com/worstenbrood/chiaki-ng-androidtv") }
+							)
+							TvActionRow(
+								stringResource(R.string.about_license),
+								stringResource(R.string.about_license_summary),
+								{ openUrl("https://github.com/chiaki-ng/chiaki-ng/blob/master/LICENSE") }
+							)
 						}
 					}
 				}
