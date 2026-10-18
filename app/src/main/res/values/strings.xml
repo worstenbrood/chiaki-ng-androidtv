@@ -63,6 +63,8 @@
 	<string name="volume_percent">%1$d%%</string>
 	<string name="output_device">Output Device</string>
 	<string name="audio_buffer">Audio Buffer</string>
+<string name="volume_step_hint">Left/Right adjusts, cross resets to 100%</string>
+<string name="buffer_step_hint">Left/Right adjusts, cross resets to Auto</string>
 	<string name="auto">Auto</string>
 	<string name="buffer_ms">%1$d ms</string>
 	<string name="microphone">Microphone</string>
@@ -84,6 +86,7 @@
 <string name="mic_pitch_summary">Shifts the mic pitch live (experimental)</string>
 <string name="mic_pitch_value">Pitch</string>
 <string name="mic_pitch_semitones">%1$d st</string>
+<string name="mic_pitch_step_hint">Left/Right adjusts, cross resets to 0</string>
 	<string name="mic_gain_percent">%1$d%%</string>
 	<string name="mic_muted">Muted</string>
 	<string name="mic_live">Live</string>

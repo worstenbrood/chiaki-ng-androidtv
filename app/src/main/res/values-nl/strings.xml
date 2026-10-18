@@ -62,6 +62,8 @@
 	<string name="volume_percent">%1$d%%</string>
 	<string name="output_device">Uitvoerapparaat</string>
 	<string name="audio_buffer">Audiobuffer</string>
+<string name="volume_step_hint">Pijl links/rechts past aan, kruis zet terug op 100%</string>
+<string name="buffer_step_hint">Pijl links/rechts past aan, kruis zet terug op Auto</string>
 	<string name="auto">Auto</string>
 	<string name="buffer_ms">%1$d ms</string>
 	<string name="microphone">Microfoon</string>
@@ -83,6 +85,7 @@
 <string name="mic_pitch_summary">Verschuift de toonhoogte van de microfoon live (experimenteel)</string>
 <string name="mic_pitch_value">Toonhoogte</string>
 <string name="mic_pitch_semitones">%1$d st</string>
+<string name="mic_pitch_step_hint">Pijl links/rechts past aan, kruis zet terug op 0</string>
 	<string name="mic_gain_percent">%1$d%%</string>
 	<string name="mic_muted">Gedempt</string>
 	<string name="mic_live">Live</string>

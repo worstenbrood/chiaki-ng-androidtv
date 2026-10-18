@@ -281,11 +281,16 @@ fun SettingsScreen(
 					SettingsCategory.AUDIO ->
 					{
 						SettingsCard(SurfaceFrosted) {
-							TvCycleRow(
+							TvStepperRow(
 								title = stringResource(R.string.volume),
 								value = stringResource(R.string.volume_percent, volume),
-								onNext = {
-									volume = if(volume >= 100) 0 else volume + 25
+								summary = stringResource(R.string.volume_step_hint),
+								onStep = { delta ->
+									volume = (volume + delta * 5).coerceIn(0, 100)
+									preferences.audioVolume = volume
+								},
+								onReset = {
+									volume = 100
 									preferences.audioVolume = volume
 								},
 								focusRequester = fr(1), onFocus = fb(1)
@@ -300,11 +305,16 @@ fun SettingsScreen(
 								},
 								focusRequester = fr(2), onFocus = fb(2)
 							)
-							TvCycleRow(
+							TvStepperRow(
 								title = stringResource(R.string.audio_buffer),
 								value = if(bufferMs == 0) stringResource(R.string.auto) else stringResource(R.string.buffer_ms, bufferMs),
-								onNext = {
-									bufferMs = if(bufferMs >= 100) 0 else bufferMs + 10
+								summary = stringResource(R.string.buffer_step_hint),
+								onStep = { delta ->
+									bufferMs = (bufferMs + delta * 10).coerceIn(0, 100)
+									preferences.audioBufferMs = bufferMs
+								},
+								onReset = {
+									bufferMs = 0
 									preferences.audioBufferMs = bufferMs
 								},
 								focusRequester = fr(3), onFocus = fb(3)
@@ -411,12 +421,17 @@ fun SettingsScreen(
 								{ micPitchEnabled = it; preferences.micPitchEnabled = it },
 								focusRequester = fr(10), onFocus = fb(10)
 							)
-							TvCycleRow(
+							TvStepperRow(
 								title = stringResource(R.string.mic_pitch_value),
 								value = stringResource(R.string.mic_pitch_semitones, micPitch),
-								onNext = {
-									micPitch = if(micPitch >= 12) -12 else micPitch + 1
+								summary = stringResource(R.string.mic_pitch_step_hint),
+								onStep = { delta ->
+									micPitch = (micPitch + delta).coerceIn(-12, 12)
 									preferences.micPitch = micPitch
+								},
+								onReset = {
+									micPitch = 0
+									preferences.micPitch = 0
 								},
 								focusRequester = fr(11), onFocus = fb(11)
 							)
