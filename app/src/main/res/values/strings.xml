@@ -80,6 +80,10 @@
 	<string name="mic_agc_summary">Automatically level mic volume (platform AGC)</string>
 	<string name="mic_complexity">Encoder Complexity</string>
 	<string name="mic_bandwidth">Audio Bandwidth</string>
+<string name="mic_pitch">Pitch Shift</string>
+<string name="mic_pitch_summary">Shifts the mic pitch live (experimental)</string>
+<string name="mic_pitch_value">Pitch</string>
+<string name="mic_pitch_semitones">%1$d st</string>
 	<string name="mic_gain_percent">%1$d%%</string>
 	<string name="mic_muted">Muted</string>
 	<string name="mic_live">Live</string>

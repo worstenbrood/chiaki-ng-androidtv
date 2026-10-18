@@ -104,6 +104,7 @@ private class ChiakiNative
 		@JvmStatic external fun sessionStartMic(ptr: Long, muted: Boolean, complexity: Int, bandwidth: Int): Int
 		@JvmStatic external fun sessionFeedMicFrame(ptr: Long, pcm: ShortArray)
 		@JvmStatic external fun sessionToggleMicrophone(ptr: Long, muted: Boolean): Int
+		@JvmStatic external fun sessionSetMicPitch(ptr: Long, enabled: Boolean, factor: Float)
 		@JvmStatic external fun sessionGetStats(ptr: Long, out: LongArray)
 		@JvmStatic external fun sessionSetControllerState(ptr: Long, controllerState: ControllerState)
 		@JvmStatic external fun sessionSetLoginPin(ptr: Long, pin: String)
@@ -509,6 +510,13 @@ class Session(connectInfo: ConnectInfo, logFile: String?, logVerbose: Boolean)
 	fun toggleMicrophone(muted: Boolean): Int
 	{
 		return ChiakiNative.sessionToggleMicrophone(nativePtr, muted)
+	}
+
+	fun setMicPitch(enabled: Boolean, factor: Float)
+	{
+		if(nativePtr == 0L)
+			return
+		ChiakiNative.sessionSetMicPitch(nativePtr, enabled, factor)
 	}
 
 	fun getStats(): LongArray

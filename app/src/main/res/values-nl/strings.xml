@@ -79,6 +79,10 @@
 	<string name="mic_agc_summary">Regelt het microfoonniveau automatisch (platform AGC)</string>
 	<string name="mic_complexity">Encodercomplexiteit</string>
 	<string name="mic_bandwidth">Audio-bandbreedte</string>
+<string name="mic_pitch">Toonhoogte</string>
+<string name="mic_pitch_summary">Verschuift de toonhoogte van de microfoon live (experimenteel)</string>
+<string name="mic_pitch_value">Toonhoogte</string>
+<string name="mic_pitch_semitones">%1$d st</string>
 	<string name="mic_gain_percent">%1$d%%</string>
 	<string name="mic_muted">Gedempt</string>
 	<string name="mic_live">Live</string>

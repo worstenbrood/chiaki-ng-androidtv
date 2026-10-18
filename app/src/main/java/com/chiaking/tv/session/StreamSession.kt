@@ -46,6 +46,7 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 	@Volatile var disconnecting = false
 
 	private var micCapture: MicCapture? = null
+	val micPitch = MicPitch(input.preferences)
 
 	private companion object
 	{
@@ -94,6 +95,7 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 		{
 			micCapture = capture
 			session.startMic(_micMuted.value, input.preferences.micComplexity.value, input.preferences.micBandwidth.opusValue)
+			micPitch.applyTo(session)
 			_micActive.value = true
 		}
 	}
@@ -103,6 +105,7 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 	{
 		micCapture?.stop()
 		micCapture = null
+		micPitch.session = null
 		_micActive.value = false
 	}
 

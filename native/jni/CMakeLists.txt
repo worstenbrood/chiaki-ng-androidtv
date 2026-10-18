@@ -12,7 +12,11 @@ add_library(chiaki-jni SHARED
         audio-decoder.c
         audio-output.h
         audio-output.cpp
-        circular-buf.hpp)
+        circular-buf.hpp
+        mic-pitch.h
+        mic-pitch.c
+        ../third-party/sonic/sonic.c)
+target_include_directories(chiaki-jni PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../third-party/sonic")
 target_link_libraries(chiaki-jni chiaki-lib)
 
 # mic encoder tuning calls opus_encoder_ctl directly; reuse the same staged

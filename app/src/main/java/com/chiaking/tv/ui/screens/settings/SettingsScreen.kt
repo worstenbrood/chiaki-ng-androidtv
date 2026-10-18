@@ -119,6 +119,8 @@ fun SettingsScreen(
 	var micAgc by remember { mutableStateOf(preferences.micAgc) }
 	var micComplexity by remember { mutableStateOf(preferences.micComplexity) }
 	var micBandwidth by remember { mutableStateOf(preferences.micBandwidth) }
+	var micPitchEnabled by remember { mutableStateOf(preferences.micPitchEnabled) }
+	var micPitch by remember { mutableStateOf(preferences.micPitch) }
 	val micDevices = remember { AudioDevices.inputDevices(ctx) }
 	var micDeviceIndex by remember { mutableStateOf(
 		micDevices.indexOfFirst { it.first == preferences.micDeviceName }.coerceAtLeast(0)) }
@@ -401,6 +403,22 @@ fun SettingsScreen(
 									preferences.micBandwidth = micBandwidth
 								},
 								focusRequester = fr(9), onFocus = fb(9)
+							)
+							TvSwitchRow(
+								stringResource(R.string.mic_pitch),
+								stringResource(R.string.mic_pitch_summary),
+								micPitchEnabled,
+								{ micPitchEnabled = it; preferences.micPitchEnabled = it },
+								focusRequester = fr(10), onFocus = fb(10)
+							)
+							TvCycleRow(
+								title = stringResource(R.string.mic_pitch_value),
+								value = stringResource(R.string.mic_pitch_semitones, micPitch),
+								onNext = {
+									micPitch = if(micPitch >= 12) -12 else micPitch + 1
+									preferences.micPitch = micPitch
+								},
+								focusRequester = fr(11), onFocus = fb(11)
 							)
 						}
 					}

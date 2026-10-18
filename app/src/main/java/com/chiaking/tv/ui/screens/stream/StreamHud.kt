@@ -81,6 +81,8 @@ fun StreamHud(
 	var volume by remember { mutableStateOf(preferences.audioVolume) }
 	val micMuted by session.micMuted.collectAsState()
 	val micActive by session.micActive.collectAsState()
+	val pitchEnabled by session.micPitch.enabled.collectAsState()
+	val pitchSemis by session.micPitch.semitones.collectAsState()
 	var micGain by remember { mutableStateOf(preferences.micGain) }
 	val cpuMonitor = remember { CpuUsageMonitor() }
 	val ctx = LocalContext.current
@@ -261,6 +263,14 @@ fun StreamHud(
 									preferences.micGain = micGain
 								}
 							}
+						)
+						Preferences.HudItemKind.PITCH -> chip(
+							i,
+							stringResource(R.string.mic_pitch),
+							stringResource(if(pitchEnabled) R.string.on else R.string.off),
+							stringResource(R.string.mic_pitch_semitones, pitchSemis),
+							onClick = { if(preferences.micEnabled) session.micPitch.toggle() },
+							onVertical = { dir -> if(preferences.micEnabled) session.micPitch.step(dir) }
 						)
 						Preferences.HudItemKind.CPU -> chip(
 							i,

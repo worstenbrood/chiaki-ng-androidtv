@@ -85,6 +85,7 @@ class Preferences(context: Context)
 		NETWORK("network", R.string.network),
 		AUDIO("audio", R.string.audio),
 		MIC("mic", R.string.microphone),
+		PITCH("pitch", R.string.mic_pitch),
 		CPU("cpu", R.string.cpu),
 		CLOSE("close", R.string.hud_close)
 	}
@@ -134,8 +135,10 @@ class Preferences(context: Context)
 		const val micAecKey = "mic_aec"
 		const val micNsKey = "mic_ns"
 		const val micAgcKey = "mic_agc"
-		const val micComplexityKey = "mic_complexity"
-		const val micBandwidthKey = "mic_bandwidth"
+	const val micComplexityKey = "mic_complexity"
+	const val micBandwidthKey = "mic_bandwidth"
+	const val micPitchEnabledKey = "mic_pitch_enabled"
+	const val micPitchKey = "mic_pitch"
 
 		val resolutionDefault = Resolution.RES_1080P
 		val fpsDefault = FPS.FPS_60
@@ -233,6 +236,15 @@ class Preferences(context: Context)
 	var micBandwidth
 		get() = MicBandwidth.values().firstOrNull { it.opusValue == sharedPreferences.getInt(micBandwidthKey, MicBandwidth.WIDEBAND.opusValue) } ?: MicBandwidth.WIDEBAND
 		set(value) { sharedPreferences.edit().putInt(micBandwidthKey, value.opusValue).apply() }
+
+	var micPitchEnabled
+		get() = sharedPreferences.getBoolean(micPitchEnabledKey, false)
+		set(value) { sharedPreferences.edit().putBoolean(micPitchEnabledKey, value).apply() }
+
+	/** Pitch shift in semitones (-12..12); applied to mic audio with the Sonic library. */
+	var micPitch
+		get() = sharedPreferences.getInt(micPitchKey, 0).coerceIn(-12, 12)
+		set(value) { sharedPreferences.edit().putInt(micPitchKey, value.coerceIn(-12, 12)).apply() }
 
 	var autoConnectEnabled
 		get() = sharedPreferences.getBoolean(autoConnectEnabledKey, false)

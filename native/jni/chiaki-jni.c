@@ -25,6 +25,7 @@
 #include "audio-decoder.h"
 #include "audio-output.h"
 #include "log.h"
+#include "mic-pitch.h"
 #include "chiaki-jni.h"
 
 static char *strdup_jni(const char *str)
@@ -230,6 +231,7 @@ typedef struct android_chiaki_session_t
 	ChiakiOpusEncoder opus_encoder;
 	bool mic_encoder_initialized;
 	bool mic_connected;
+	ChiakiMicPitch *mic_pitch;
 #endif
 } AndroidChiakiSession;
 
@@ -494,6 +496,7 @@ JNIEXPORT void JNICALL JNI_FCN(sessionFree)(JNIEnv *env, jobject obj, jlong ptr)
 #if CHIAKI_LIB_ENABLE_OPUS
 	if(session->mic_encoder_initialized)
 		chiaki_opus_encoder_fini(&session->opus_encoder);
+	chiaki_mic_pitch_free(session->mic_pitch);
 #endif
 	android_chiaki_video_decoder_fini(&session->video_decoder);
 	android_chiaki_audio_decoder_fini(&session->audio_decoder);
@@ -596,6 +599,8 @@ JNIEXPORT jint JNICALL JNI_FCN(sessionStartMic)(JNIEnv *env, jobject obj, jlong 
 		}
 		session->mic_encoder_initialized = true;
 	}
+	if(!session->mic_pitch)
+		session->mic_pitch = chiaki_mic_pitch_new();
 	if(!session->mic_connected)
 	{
 		ChiakiErrorCode err = chiaki_session_connect_microphone(&session->session);
@@ -630,6 +635,7 @@ JNIEXPORT void JNICALL JNI_FCN(sessionFeedMicFrame)(JNIEnv *env, jobject obj, jl
 	if(len != session->opus_encoder.audio_header.frame_size * session->opus_encoder.audio_header.channels)
 		return;
 	jshort *buf = E->GetShortArrayElements(env, pcm, NULL);
+	chiaki_mic_pitch_process(session->mic_pitch, (int16_t *)buf, len);
 	chiaki_opus_encoder_frame((int16_t *)buf, &session->opus_encoder);
 	E->ReleaseShortArrayElements(env, pcm, buf, JNI_ABORT);
 #endif
@@ -640,6 +646,18 @@ JNIEXPORT jint JNICALL JNI_FCN(sessionToggleMicrophone)(JNIEnv *env, jobject obj
 	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
 	// see sessionStartMic: upstream ctrl.c has the mute flag inverted
 	return chiaki_session_toggle_microphone(&session->session, !muted);
+}
+
+JNIEXPORT void JNICALL JNI_FCN(sessionSetMicPitch)(JNIEnv *env, jobject obj, jlong ptr, jboolean enabled, jfloat factor)
+{
+	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
+#if CHIAKI_LIB_ENABLE_OPUS
+	chiaki_mic_pitch_set(session->mic_pitch, enabled, (float)factor);
+#else
+	(void)session;
+	(void)enabled;
+	(void)factor;
+#endif
 }
 
 JNIEXPORT void JNICALL JNI_FCN(sessionGetStats)(JNIEnv *env, jobject obj, jlong ptr, jlongArray out)
