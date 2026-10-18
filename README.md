@@ -54,7 +54,9 @@ home with ambient glow and pill buttons, two-pane settings) and full D-pad/gamep
   **bandwidth** presets to trade CPU for voice quality). The mic is skipped automatically
   when the device has no real capture source (some TVs report a phantom mic that only
   records silence). The console receives the mic audio itself — not the headset as a
-  device; game audio keeps playing on your normal output as usual
+  device; game audio keeps playing on your normal output as usual. An **experimental
+  live pitch shifter** (Sonic library) can transpose your voice ±12 semitones
+  (*Settings → Microphone → Pitch Shift*), also toggleable live from the HUD
 - **In-stream HUD** — press **L3 + R3** (configurable: Select + Start or L1+R1+L2+R2 via
   *Settings → HUD → HUD Shortcut*) while streaming to toggle an interactive bar with live
   FPS, measured bitrate, packet loss %, ping, lost frames, app CPU usage (% of total
@@ -65,15 +67,18 @@ home with ambient glow and pill buttons, two-pane settings) and full D-pad/gamep
   Navigate the chips with the **D-pad** (gamepad D-pad *and* left stick are both understood):
   the **Audio** chip cycles the output device with **cross** and adjusts volume with **D-pad
    up/down**, the **Mic** chip toggles mic mute with **cross** and adjusts mic gain with **D-pad
-   up/down**, the **Display** chip cycles Fit/Zoom/Stretch; the **✕** chip closes the stream per
-   the *When Leaving Stream* setting. While the HUD is open only D-pad + cross are captured —
-   every other button/stick still goes to the game. Back closes the HUD
+   up/down**, the **Pitch** chip toggles the mic pitch shifter with **cross** and adjusts the
+   semitone offset with **D-pad up/down**, the **Display** chip cycles Fit/Zoom/Stretch; the **✕**
+   chip closes the stream per the *When Leaving Stream* setting. While the HUD is open only D-pad +
+   cross are captured — every other button/stick still goes to the game. Back closes the HUD
 - **Clean disconnect** — closing the stream (HUD ✕ or remote Back, per the *When Leaving Stream* setting)
    shows a "Disconnecting" spinner and returns to the main screen once the session has fully shut down
 - **Settings** — PS5-style two-pane layout (category list on the left, options on the right):
   Stream, Audio, Microphone, Controller, HUD, General, PlayStation Network, Backup and About pages incl.
   resolution, FPS, codec, bitrate, audio, controller options, HUD options, verbose logging and
-  session log viewer
+  session log viewer. Numeric values (volume, audio buffer, mic gain, pitch) adjust directly with
+  **D-pad left/right** (accelerated on hold) and reset to their default on **cross**; the About page
+  links to upstream chiaki-ng, this project and the license
 - **Login PIN auto-entry** — store the console's Remote Play login PIN per console
   (*Registered consoles → console → Login PIN*) or as a global default
   (*Settings → General → Login PIN*); it is submitted automatically when the console asks,
@@ -172,7 +177,8 @@ app/                    Android TV app (Kotlin + Compose, namespace com.chiaking
 external/chiaki-ng      git submodule — upstream chiaki-ng (C core, built via CMake)
 native/                 CMake entry point + our copy of the JNI layer
                         (adds audio volume/device/buffer, mic opus sender via
-                        native/third-party/opus, stream stats and surface keep-alive
+                        native/third-party/opus, live mic pitch shift via
+                        native/third-party/sonic, stream stats and surface keep-alive
                         on top of upstream)
 docker/                 Docker build image definition
 docs/UPSTREAM_SYNC.md   How to integrate new upstream chiaki-ng commits

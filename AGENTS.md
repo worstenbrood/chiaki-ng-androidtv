@@ -81,10 +81,19 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
    + the shim include dir directly); bitrate/bit-depth stay fixed at 32 kbps / 16-bit because
    `audiosender.c` hardcodes 40-byte frames. Upstream `ctrl.c` sends the mic-mute toggle
    **inverted** (`0` = unmute on the PS5), so the JNI flips the flag before
-   `chiaki_session_toggle_microphone`.
-   Kotlin mic side: `session/MicCapture.kt` (AudioRecord VOICE_COMMUNICATION + platform
-   AEC/NS/AGC + a ~2 s silence probe that aborts on a phantom mic recording only zeros),
-   owned by `StreamSession` — starts on ConnectedEvent, stops on shutdown/pause.
+    `chiaki_session_toggle_microphone`.
+    **Mic pitch shift** (experimental): `native/jni/mic-pitch.c` wraps the vendored
+    `native/third-party/sonic` library (waywardgeek/sonic, Apache-2.0, added to the `chiaki-jni`
+    target) in a `ChiakiMicPitch` class — one Sonic stream (48 kHz stereo) + a ring buffer so the
+    opus encoder keeps getting exact 10 ms frames despite the shifter's variable output;
+    mutex-guarded, a no-op when disabled. `sessionFeedMicFrame` shifts in place before encoding and
+    a new `sessionSetMicPitch(ptr, enabled, factor)` JNI applies it; `sessionStartMic` lazily
+    creates the stream and `sessionFree` frees it. Kotlin: `session/MicPitch.kt` (StateFlow
+    enabled/semitones, equal-temperament factor `2^(st/12)`, persists to Preferences, pushes live to
+    the session); HUD **Pitch** chip toggles on cross + steps ±1 semitone on up/down.
+    Kotlin mic side: `session/MicCapture.kt` (AudioRecord VOICE_COMMUNICATION + platform
+    AEC/NS/AGC + a ~2 s silence probe that aborts on a phantom mic recording only zeros),
+    owned by `StreamSession` — starts on ConnectedEvent, stops on shutdown/pause.
   **Keep-alive rework** in `video-decoder.c` (required by StreamManager — do not revert):
   `set_surface(null)` no longer kills the codec (upstream did, and double-locked the
   non-recursive `codec_mutex` → ANR); it sets `surface_valid=false` +
@@ -134,6 +143,9 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   selected item via the shared `navFocus` requester; focus memory keys `settings_cat` +
   `settings_row_<ordinal>`. Selections are grey translucent (`Color.White` alpha ~0.14,
   HUD chips 0.6 slate) with `SelectionShape` — do not use solid white fills, they burn on TV.
+  Numeric settings use `TvStepperRow` (D-pad Left/Right steps with hold-acceleration, cross
+  resets to the default) rather than `TvCycleRow`; discrete pickers (device lists, enums) stay
+  `TvCycleRow`.
 
 ## Gotchas
 
