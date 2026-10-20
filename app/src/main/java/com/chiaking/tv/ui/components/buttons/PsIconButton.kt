@@ -23,7 +23,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.chiaking.tv.ui.theme.OnSurfaceLight
@@ -44,10 +44,15 @@ fun PsIconButton(
 {
 	var focused by remember { mutableStateOf(false) }
 	val scale by animateFloatAsState(if(focused) 1.12f else 1.0f, label = "iconBtnScale")
-	val glow by animateDpAsState(if(focused) 14.dp else 0.dp, label = "iconBtnGlow")
+	val glow by animateDpAsState(if(focused) 10.dp else 0.dp, label = "iconBtnGlow")
 
 	Box(
 		modifier = modifier
+			// focus observer must come first; after clip/clickable it never observes focus
+			.onFocusEvent {
+				focused = it.hasFocus
+				onFocusChange(it.hasFocus)
+			}
 			.scale(scale)
 			.shadow(glow, CircleShape, clip = false, ambientColor = PsCyan, spotColor = PsCyan)
 			.then(
@@ -55,10 +60,6 @@ fun PsIconButton(
 			)
 			.clip(CircleShape)
 			.clickable { onClick() }
-			.onFocusChanged {
-				focused = it.isFocused
-				onFocusChange(it.isFocused)
-			}
 			.background(if(focused) PsFocusWhite else SelectionIdle)
 			.padding(10.dp),
 		contentAlignment = Alignment.Center

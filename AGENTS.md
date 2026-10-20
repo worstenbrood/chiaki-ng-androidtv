@@ -145,10 +145,18 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   HUD chips 0.6 slate) with `SelectionShape` — do not use solid white fills, they burn on TV.
   Numeric settings use `TvStepperRow` (D-pad Left/Right steps with hold-acceleration, cross
   resets to the default) rather than `TvCycleRow`; discrete pickers (device lists, enums) stay
-  `TvCycleRow`.
+  `TvCycleRow`. Focus feedback: `TvFocusCard` and `PsIconButton` scale up + glow on focus via
+  `animateFloatAsState`/`animateDpAsState` driven by an `onFocusEvent` observer that MUST be the
+  first modifier in the chain (see Gotchas); the card scale is non-uniform (`focusScaleX`/
+  `focusScaleY` params, currently 1.04/1.10) with `zIndex` so it draws above neighbors, and the
+  home rows carry 12dp horizontal scroll padding so a focused edge card is not clipped.
 
 ## Gotchas
 
+- The focus observer in `TvFocusCard`/`PsIconButton` (`onFocusEvent { focused = it.hasFocus }`)
+  MUST be the **first** modifier in the chain. Placed after `.clip()`/`.clickable()` it never
+  observes focus, so `focused` stays false and the scale/glow silently never apply (only Compose's
+  built-in focus highlight shows) — this cost hours to diagnose.
 - `Chiaki.kt` must stay in package `com.metallic.chiaki.lib` — the native `chiaki-jni.h`
   hardcodes `BASE_PACKAGE "com/metallic/chiaki/lib"`; renaming it causes `UnsatisfiedLinkError` at runtime.
 - `ksp.useKSP2=false` in gradle.properties — Room 2.7.1 + Moshi 1.15.2 combo requires KSP1 here.

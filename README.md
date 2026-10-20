@@ -40,6 +40,8 @@ home with ambient glow and pill buttons, two-pane settings) and full D-pad/gamep
   internet session directly
 - **Focus memory** — every menu (home, settings, logs, hosts, in-stream HUD) remembers exactly
   where you were when you left it
+- **PS5-style focus** — the selected console card and the top-bar buttons smoothly scale up with
+  a soft cyan glow, mirroring the console's own UI
 - **Dutch & English UI** — follows the system language
 - **Gamepad support** — full controller mapping incl. sticks, triggers, motion controls and rumble
 - **TV remote support** — D-pad and menu button act as controller input while streaming (toggleable)
