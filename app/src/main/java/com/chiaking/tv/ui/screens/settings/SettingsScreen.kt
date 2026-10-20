@@ -643,13 +643,13 @@ fun SettingsScreen(
 							try { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } catch(_: Exception) { }
 						}
 						SettingsCard(SurfaceFrosted) {
-							TvInfoRow(stringResource(R.string.app_name), BuildConfig.VERSION_NAME)
 							TvInfoRow(stringResource(R.string.chiaki_ng_core), UPSTREAM_CHIAKI_VERSION)
 							TvActionRow(
 								stringResource(R.string.about_chiaki_ng),
 								stringResource(R.string.about_chiaki_ng_summary),
 								{ openUrl("https://github.com/chiaki-ng/chiaki-ng") }
 							)
+							TvInfoRow(stringResource(R.string.app_name), BuildConfig.VERSION_NAME)
 							TvActionRow(
 								stringResource(R.string.about_project),
 								stringResource(R.string.about_project_summary),
