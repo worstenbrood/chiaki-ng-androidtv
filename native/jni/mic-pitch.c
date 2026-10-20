@@ -10,9 +10,11 @@
 
 #define MIC_PITCH_SAMPLE_RATE 48000
 #define MIC_PITCH_CHANNELS 2
-// sonic's pitch shift holds roughly a pitch period of audio internally; the ring
-// absorbs that plus per-call output jitter so the encoder frame size stays constant
-#define MIC_PITCH_RING_SHORTS (480 * MIC_PITCH_CHANNELS * 4)
+// sonic's pitch shift holds a few pitch periods internally and its per-call output
+// varies around the input rate; the ring must stay comfortably above that latency or
+// it underruns and the consumer permanently outruns the producer (silence gaps = the
+// distortion heard after changing pitch). 32 frames (~64 ms) is far above any latency.
+#define MIC_PITCH_RING_SHORTS (480 * MIC_PITCH_CHANNELS * 32)
 
 struct ChiakiMicPitch
 {
@@ -94,17 +96,25 @@ void chiaki_mic_pitch_process(ChiakiMicPitch *pitch, int16_t *pcm, size_t num_sh
 	int frames = (int)(num_shorts / MIC_PITCH_CHANNELS);
 	sonicWriteShortToStream(pitch->stream, pcm, frames);
 
-	// drain sonic's output into the ring (it may lag the input by a pitch period)
+	// fully drain sonic into the ring every call so its internal backlog never grows
+	// unbounded and the ring fill settles at sonic's latency (well above one frame)
 	int16_t out[512 * MIC_PITCH_CHANNELS];
-	while(pitch->fill + 512 * MIC_PITCH_CHANNELS <= MIC_PITCH_RING_SHORTS)
+	while(sonicSamplesAvailable(pitch->stream) > 0)
 	{
-		int n = sonicReadShortFromStream(pitch->stream, out, 512);
+		size_t space = MIC_PITCH_RING_SHORTS - pitch->fill;
+		if(space < (size_t)MIC_PITCH_CHANNELS)
+			break; // ring full (should not happen; bounds latency if sonic over-produces)
+		int max_frames = (int)(space / MIC_PITCH_CHANNELS);
+		if(max_frames > 512)
+			max_frames = 512;
+		int n = sonicReadShortFromStream(pitch->stream, out, max_frames);
 		if(n <= 0)
 			break;
 		memcpy(pitch->ring + pitch->fill, out, (size_t)n * MIC_PITCH_CHANNELS * sizeof(int16_t));
 		pitch->fill += (size_t)n * MIC_PITCH_CHANNELS;
 	}
 
+	// pop exactly one frame; zero-pad only during warmup before sonic has produced a frame
 	size_t take = num_shorts < pitch->fill ? num_shorts : pitch->fill;
 	memcpy(pcm, pitch->ring, take * sizeof(int16_t));
 	if(take < num_shorts)
