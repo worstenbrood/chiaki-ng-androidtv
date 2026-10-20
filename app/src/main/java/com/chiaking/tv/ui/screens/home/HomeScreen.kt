@@ -177,7 +177,7 @@ fun HomeScreen(
 					horizontalArrangement = Arrangement.spacedBy(20.dp),
 					modifier = Modifier
 						.horizontalScroll(rememberScrollState())
-						.padding(vertical = 4.dp)
+						.padding(vertical = 4.dp, horizontal = 12.dp)
 				) {
 					hosts.forEachIndexed { index, host ->
 						ConsoleCard(
@@ -223,7 +223,7 @@ fun HomeScreen(
 						horizontalArrangement = Arrangement.spacedBy(20.dp),
 						modifier = Modifier
 							.horizontalScroll(rememberScrollState())
-							.padding(vertical = 4.dp, horizontal = 2.dp)
+							.padding(vertical = 4.dp, horizontal = 12.dp)
 					) {
 						psnDevices.forEachIndexed { index, device ->
 							RemoteConsoleCard(

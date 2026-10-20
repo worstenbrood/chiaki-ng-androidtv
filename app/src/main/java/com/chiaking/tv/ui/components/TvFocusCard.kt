@@ -22,9 +22,10 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.chiaking.tv.ui.theme.CardIdleBorder
 import com.chiaking.tv.ui.theme.CardShape
 import com.chiaking.tv.ui.theme.PsCyan
@@ -35,18 +36,28 @@ import com.chiaking.tv.ui.theme.SurfaceCard
 fun TvFocusCard(
 	focusRequester: FocusRequester? = null,
 	containerColor: Color = SurfaceCard,
+	focusScaleX: Float = 1.04f,
+	focusScaleY: Float = 1.10f,
 	onClick: (() -> Unit)? = null,
 	onFocusChange: (Boolean) -> Unit = {},
 	content: @Composable BoxScope.() -> Unit
 )
 {
 	var focused by remember { mutableStateOf(false) }
-	val scale by animateFloatAsState(if(focused) 1.08f else 1.0f, label = "focusScale")
-	val glow by animateDpAsState(if(focused) 24.dp else 0.dp, label = "focusGlow")
+	val scaleX by animateFloatAsState(if(focused) focusScaleX else 1.0f, label = "focusScaleX")
+	val scaleY by animateFloatAsState(if(focused) focusScaleY else 1.0f, label = "focusScaleY")
+	val glow by animateDpAsState(if(focused) 12.dp else 0.dp, label = "focusGlow")
 
 	Box(
 		modifier = Modifier
-			.scale(scale)
+			// focus observer must come first in the chain; placed after clip/clickable it
+			// never observes focus and the scale silently stays at 1.0
+			.onFocusEvent {
+				focused = it.hasFocus
+				onFocusChange(it.hasFocus)
+			}
+			.scale(scaleX, scaleY)
+			.zIndex(if(focused) 1f else 0f)
 			.then(
 				if(focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier
 			)
@@ -55,10 +66,6 @@ fun TvFocusCard(
 			.then(
 				if(onClick != null) Modifier.clickable { onClick() } else Modifier.focusable()
 			)
-			.onFocusChanged {
-				focused = it.isFocused
-				onFocusChange(it.isFocused)
-			}
 			.background(containerColor)
 			.border(
 				BorderStroke(
