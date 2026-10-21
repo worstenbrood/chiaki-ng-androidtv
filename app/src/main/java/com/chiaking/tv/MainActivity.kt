@@ -70,6 +70,7 @@ class MainActivity: ComponentActivity()
 		database = getDatabase(this)
 		logManager = LogManager(this)
 		com.chiaking.tv.common.psn.CaBundle.ensure(this)
+		com.chiaking.tv.common.psn.CaBundle.update(this)
 		wakeController = WakeConnectController(lifecycleScope)
 		remoteController = RemoteConnectController(this, lifecycleScope, preferences, database, logManager)
 		remoteController.onStreamReady = { screenStack.add(ScreenStream(it)) }
