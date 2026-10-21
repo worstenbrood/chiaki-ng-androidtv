@@ -24,11 +24,10 @@ class PadManager(context: Context)
 		fun isGamepad(device: InputDevice?): Boolean
 		{
 			// Strict on purpose: SOURCE_GAMEPAD (0x400) is also set by TV remotes and virtual
-			// keyboards, so only SOURCE_JOYSTICK (the real stick/gamepad class) counts.
+			// keyboards; SOURCE_JOYSTICK is the stick/gamepad class that real pads
+			// (DualSense, Xbox, 8BitDo, ...) all report.
 			if(device == null || device.isVirtual)
 				return false
-			if(device.vendorId == 0x054c) // Sony Interactive Entertainment (DualShock/DualSense)
-				return true
 			return device.sources and InputDevice.SOURCE_JOYSTICK != 0
 		}
 	}
