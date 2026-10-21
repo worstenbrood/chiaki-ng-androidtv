@@ -17,7 +17,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.chiaking.tv.R
 import com.chiaking.tv.common.psn.PsnAuth
 import com.chiaking.tv.common.psn.PsnLoginException
@@ -78,7 +77,7 @@ fun PsnLoginDialog(onDismiss: () -> Unit, onLoggedIn: (String) -> Unit)
 			text = {
 				Text(
 					stringResource(R.string.psn_signed_in_message, signedInAs),
-					fontSize = 14.sp,
+					style = MaterialTheme.typography.labelLarge,
 					color = OnSurfaceMuted
 				)
 			},
@@ -105,7 +104,7 @@ fun PsnLoginDialog(onDismiss: () -> Unit, onLoggedIn: (String) -> Unit)
 			) {
 				Text(
 					stringResource(R.string.psn_login_instructions),
-					fontSize = 14.sp,
+					style = MaterialTheme.typography.labelLarge,
 					color = OnSurfaceMuted
 				)
 				Spacer(Modifier.height(16.dp))
@@ -125,7 +124,7 @@ fun PsnLoginDialog(onDismiss: () -> Unit, onLoggedIn: (String) -> Unit)
 				Spacer(Modifier.height(16.dp))
 				TvTextField(stringResource(R.string.psn_paste_hint), paste, enabled = !busy) { paste = it; error = null }
 				if(error != null)
-					Text(error!!, fontSize = 13.sp, color = WarningAmber)
+					Text(error!!, style = MaterialTheme.typography.bodySmall, color = WarningAmber)
 				if(busy)
 				{
 					Spacer(Modifier.height(16.dp))
@@ -134,7 +133,7 @@ fun PsnLoginDialog(onDismiss: () -> Unit, onLoggedIn: (String) -> Unit)
 						horizontalArrangement = Arrangement.spacedBy(12.dp)
 					) {
 						CircularProgressIndicator(color = PsBlueLight, modifier = Modifier.size(24.dp))
-						Text(statusText, fontSize = 14.sp, color = OnSurfaceMuted)
+						Text(statusText, style = MaterialTheme.typography.labelLarge, color = OnSurfaceMuted)
 					}
 				}
 			}

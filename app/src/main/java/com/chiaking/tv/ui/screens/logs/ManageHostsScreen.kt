@@ -17,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.chiaking.tv.R
 import com.chiaking.tv.common.db.RegisteredHost
 import com.chiaking.tv.ui.focus.FocusMemory
@@ -50,7 +49,7 @@ fun ManageHostsScreen(
 
 	Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
 		ScreenHeader(
-			stringResource(R.string.registered_consoles), onBack, fontSize = 28.sp,
+			stringResource(R.string.registered_consoles), onBack, style = MaterialTheme.typography.displaySmall,
 			backFocusRequester = if(restore == 0) backFocus else null,
 			onBackFocus = { if(it) FocusMemory.set("hosts", 0) }
 		)

@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -33,7 +34,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.chiaking.tv.R
 import com.chiaking.tv.common.DiscoveredDisplayHost
 import com.chiaking.tv.common.DisplayHost
@@ -91,9 +91,9 @@ private fun StatusLine(stateColor: Color, stateText: String, isPS5: Boolean)
 	Row(verticalAlignment = Alignment.CenterVertically) {
 		Box(Modifier.size(8.dp).background(stateColor, CircleShape))
 		Spacer(Modifier.width(6.dp))
-		Text(stateText, fontSize = 12.sp, color = stateColor)
+		Text(stateText, style = MaterialTheme.typography.labelMedium, color = stateColor)
 		Spacer(Modifier.width(8.dp))
-		Text(stringResource(if(isPS5) R.string.ps5 else R.string.ps4), fontSize = 12.sp, color = OnSurfaceMuted)
+		Text(stringResource(if(isPS5) R.string.ps5 else R.string.ps4), style = MaterialTheme.typography.labelMedium, color = OnSurfaceMuted)
 	}
 }
 
@@ -149,7 +149,7 @@ internal fun ConsoleCard(
 		Spacer(Modifier.height(10.dp))
 		Text(
 			host.name ?: stringResource(if(host.isPS5) R.string.playstation5 else R.string.playstation4),
-			fontSize = 16.sp,
+			style = MaterialTheme.typography.bodyLarge,
 			fontWeight = FontWeight.Medium,
 			maxLines = 1,
 			overflow = TextOverflow.Ellipsis
@@ -159,7 +159,7 @@ internal fun ConsoleCard(
 		if(runningApp != null)
 			Text(
 				runningApp,
-				fontSize = 11.sp,
+				style = MaterialTheme.typography.labelSmall,
 				color = OnSurfaceMuted,
 				maxLines = 1,
 				overflow = TextOverflow.Ellipsis,
@@ -198,7 +198,7 @@ internal fun RemoteConsoleCard(
 		Spacer(Modifier.height(10.dp))
 		Text(
 			device.name.ifBlank { stringResource(if(device.isPS5) R.string.playstation5 else R.string.playstation4) },
-			fontSize = 16.sp,
+			style = MaterialTheme.typography.bodyLarge,
 			fontWeight = FontWeight.Medium,
 			maxLines = 1,
 			overflow = TextOverflow.Ellipsis
@@ -226,8 +226,8 @@ internal fun AddCard(
 	) {
 		Icon(icon, null, tint = PsCyan, modifier = Modifier.size(40.dp))
 		Spacer(Modifier.height(8.dp))
-		Text(text, fontSize = 15.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
+		Text(text, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
 		if(sub != null)
-			Text(sub, fontSize = 13.sp, color = if(sub.contains("-1")) WarningAmber else OnSurfaceMuted)
+			Text(sub, style = MaterialTheme.typography.bodySmall, color = if(sub.contains("-1")) WarningAmber else OnSurfaceMuted)
 	}
 }

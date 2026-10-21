@@ -28,6 +28,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.chiaking.tv.ui.theme.CardIdleBorder
 import com.chiaking.tv.ui.theme.CardShape
+import com.chiaking.tv.ui.theme.FocusGlowCard
+import com.chiaking.tv.ui.theme.FocusScaleCardX
+import com.chiaking.tv.ui.theme.FocusScaleCardY
 import com.chiaking.tv.ui.theme.PsCyan
 import com.chiaking.tv.ui.theme.PsFocusWhite
 import com.chiaking.tv.ui.theme.SurfaceCard
@@ -36,8 +39,8 @@ import com.chiaking.tv.ui.theme.SurfaceCard
 fun TvFocusCard(
 	focusRequester: FocusRequester? = null,
 	containerColor: Color = SurfaceCard,
-	focusScaleX: Float = 1.04f,
-	focusScaleY: Float = 1.10f,
+	focusScaleX: Float = FocusScaleCardX,
+	focusScaleY: Float = FocusScaleCardY,
 	onClick: (() -> Unit)? = null,
 	onFocusChange: (Boolean) -> Unit = {},
 	content: @Composable BoxScope.() -> Unit
@@ -46,7 +49,7 @@ fun TvFocusCard(
 	var focused by remember { mutableStateOf(false) }
 	val scaleX by animateFloatAsState(if(focused) focusScaleX else 1.0f, label = "focusScaleX")
 	val scaleY by animateFloatAsState(if(focused) focusScaleY else 1.0f, label = "focusScaleY")
-	val glow by animateDpAsState(if(focused) 12.dp else 0.dp, label = "focusGlow")
+	val glow by animateDpAsState(if(focused) FocusGlowCard else 0.dp, label = "focusGlow")
 
 	Box(
 		modifier = Modifier

@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.SettingsEthernet
 import androidx.compose.material.icons.filled.SettingsInputAntenna
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,9 +44,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.chiaking.tv.R
 import com.chiaking.tv.common.DisplayHost
 import com.chiaking.tv.ui.focus.FocusMemory
@@ -56,6 +55,7 @@ import com.chiaking.tv.ui.theme.HomeGlowWeak
 import com.chiaking.tv.ui.theme.OnSurfaceLight
 import com.chiaking.tv.ui.theme.OnSurfaceMuted
 import com.chiaking.tv.ui.theme.PsCyan
+import com.chiaking.tv.ui.theme.PsSectionHeaderStyle
 import com.metallic.chiaki.lib.HolepunchDevice
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -79,7 +79,7 @@ private fun ClockText()
 			now = format.format(Date())
 		}
 	}
-	Text(now, fontSize = 17.sp, color = OnSurfaceMuted, fontWeight = FontWeight.Medium)
+	Text(now, style = MaterialTheme.typography.titleMedium, color = OnSurfaceMuted)
 }
 
 @Composable
@@ -118,9 +118,7 @@ fun HomeScreen(
 			Spacer(Modifier.width(12.dp))
 			Text(
 				stringResource(R.string.app_name),
-				fontSize = 26.sp,
-				fontWeight = FontWeight.Light,
-				letterSpacing = 1.sp
+				style = MaterialTheme.typography.headlineLarge
 			)
 			Spacer(Modifier.weight(1f))
 			ClockText()
@@ -168,7 +166,7 @@ fun HomeScreen(
 					Text(
 						stringResource(if(discoveryActive) R.string.no_consoles_discovered else R.string.discovery_off_hint),
 						color = OnSurfaceMuted,
-						fontSize = 15.sp
+						style = MaterialTheme.typography.bodyMedium
 					)
 				}
 
@@ -207,10 +205,8 @@ fun HomeScreen(
 					Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 20.dp)) {
 						Text(
 							stringResource(R.string.remote).uppercase(),
-							fontSize = 13.sp,
-							fontWeight = FontWeight.SemiBold,
-							color = OnSurfaceLight,
-							letterSpacing = 2.5.sp
+							style = PsSectionHeaderStyle(),
+							color = OnSurfaceLight
 						)
 						if(psnLoading)
 						{

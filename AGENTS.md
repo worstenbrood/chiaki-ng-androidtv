@@ -138,9 +138,12 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   and `res/values-nl/strings.xml` (Dutch is a full translation — a missing key silently
   falls back to English), and wiring into `Preferences.videoProfile` or the session if
   they affect streaming.
-- **UI style**: PlayStation-inspired. Tokens in `ui/theme/Theme.kt` (colors, `CardShape`/
-  `SelectionShape`/`ButtonShape`) + `Type.kt` (Inter `PsFontFamily` applied to all Material
-  typography). Home = thin top bar (clock + `PsIconButton`s) over a radial `PsBlue` glow,
+- **UI style**: PlayStation-inspired. **Everything themeable lives in `ui/theme/`** — colors +
+  shapes (`CardShape`/`SelectionShape`/`ButtonShape`) + focus motion tokens (`FocusScale*`/
+  `FocusGlow*`) in `Theme.kt`; all text uses `MaterialTheme.typography.*` (Inter `PsFontFamily`,
+  sizes/weights/letterSpacing defined per-role in `Type.kt` — never hardcode `fontSize`/`sp` in
+  components; `PsSectionHeaderStyle()`/`PsHudLabelStyle()` cover the two tracked-label roles).
+  A theme manager only needs to swap the `Typography` + color/shape/motion objects. Home = thin top bar (clock + `PsIconButton`s) over a radial `PsBlue` glow,
   tile rows only (no hero). Settings = two-pane: left `SettingsCategory` nav **changes category
   on focus** (D-pad up/down switches panes immediately), Left from a row returns to the nav's
   selected item via the shared `navFocus` requester; focus memory keys `settings_cat` +

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -33,16 +34,15 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.chiaking.tv.ui.theme.HudChipFocus
 import com.chiaking.tv.ui.theme.HudChipShape
 import com.chiaking.tv.ui.theme.OnSurfaceMuted
 import com.chiaking.tv.ui.theme.OnVideo
 import com.chiaking.tv.ui.theme.OutlineSubtle
 import com.chiaking.tv.ui.theme.PsBlueLight
+import com.chiaking.tv.ui.theme.PsHudLabelStyle
 
 @Composable
 internal fun HudItem(
@@ -89,10 +89,8 @@ internal fun HudItem(
 	) {
 		Text(
 			label.uppercase(),
-			fontSize = 11.sp,
-			color = PsBlueLight,
-			letterSpacing = 2.sp,
-			fontWeight = FontWeight.SemiBold
+			style = PsHudLabelStyle(),
+			color = PsBlueLight
 		)
 		Spacer(Modifier.height(2.dp))
 		if(icon != null)
@@ -109,11 +107,11 @@ internal fun HudItem(
 			}
 		else
 		{
-			Text(value, fontSize = 17.sp, color = OnVideo, fontWeight = FontWeight.Bold)
+			Text(value, style = MaterialTheme.typography.titleSmall, color = OnVideo)
 			if(sub.isNotEmpty())
 				Text(
 					sub,
-					fontSize = 12.sp,
+					style = MaterialTheme.typography.labelMedium,
 					color = OnSurfaceMuted,
 					maxLines = 1,
 					overflow = TextOverflow.Ellipsis,

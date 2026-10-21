@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,7 +28,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.chiaking.tv.ui.theme.OnSurfaceLight
 import com.chiaking.tv.ui.theme.OnSurfaceMuted
 import com.chiaking.tv.ui.theme.PsCyan
@@ -82,7 +82,7 @@ internal fun SettingsNavItem(
 		Spacer(Modifier.width(14.dp))
 		Text(
 			label,
-			fontSize = 17.sp,
+			style = MaterialTheme.typography.titleMedium,
 			fontWeight = if(selected) FontWeight.SemiBold else FontWeight.Medium,
 			color = when {
 				focused -> OnSurfaceLight

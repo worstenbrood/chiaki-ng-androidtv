@@ -27,6 +27,8 @@ import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.chiaking.tv.ui.theme.OnSurfaceLight
+import com.chiaking.tv.ui.theme.FocusGlowIconButton
+import com.chiaking.tv.ui.theme.FocusScaleIconButton
 import com.chiaking.tv.ui.theme.PsCyan
 import com.chiaking.tv.ui.theme.PsFocusText
 import com.chiaking.tv.ui.theme.PsFocusWhite
@@ -43,8 +45,8 @@ fun PsIconButton(
 )
 {
 	var focused by remember { mutableStateOf(false) }
-	val scale by animateFloatAsState(if(focused) 1.12f else 1.0f, label = "iconBtnScale")
-	val glow by animateDpAsState(if(focused) 10.dp else 0.dp, label = "iconBtnGlow")
+	val scale by animateFloatAsState(if(focused) FocusScaleIconButton else 1.0f, label = "iconBtnScale")
+	val glow by animateDpAsState(if(focused) FocusGlowIconButton else 0.dp, label = "iconBtnGlow")
 
 	Box(
 		modifier = modifier

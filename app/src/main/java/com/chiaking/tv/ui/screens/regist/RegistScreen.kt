@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -22,11 +23,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.chiaking.tv.R
 import com.chiaking.tv.ui.components.buttons.PsButton
 import com.chiaking.tv.ui.components.ScreenHeader
@@ -73,7 +71,7 @@ fun RegistScreen(
 
 		SettingsCard {
 			Column(modifier = Modifier.padding(vertical = 12.dp)) {
-				Text(stringResource(R.string.console_version), fontSize = 18.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 20.dp, top = 8.dp))
+				Text(stringResource(R.string.console_version), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 20.dp, top = 8.dp))
 				Row(
 					horizontalArrangement = Arrangement.spacedBy(8.dp),
 					modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
@@ -105,11 +103,7 @@ fun RegistScreen(
 				) { psnId = it }
 				TvTextField(
 					stringResource(R.string.regist_pin_hint), pin,
-					textStyle = TextStyle(
-						fontSize = 26.sp,
-						letterSpacing = 8.sp,
-						fontWeight = FontWeight.Bold
-					)
+					textStyle = MaterialTheme.typography.headlineMedium
 				) {
 					if(it.length <= 8 && it.all { c -> c.isDigit() }) pin = it
 				}
@@ -121,7 +115,7 @@ fun RegistScreen(
 		Text(
 			stringResource(if(version == ConsoleVersion.PS5) R.string.regist_help_ps5 else R.string.regist_help_ps4),
 			color = OnSurfaceMuted,
-			fontSize = 14.sp,
+			style = MaterialTheme.typography.labelLarge,
 			textAlign = TextAlign.Center,
 			modifier = Modifier.padding(horizontal = 32.dp)
 		)
@@ -129,7 +123,7 @@ fun RegistScreen(
 		Spacer(Modifier.height(20.dp))
 
 		if(error != null)
-			Text(error!!, color = ErrorRed, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+			Text(error!!, color = ErrorRed, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(bottom = 8.dp))
 
 		val fillInMsg = stringResource(R.string.regist_fill_in)
 		val accountIdInvalidMsg = stringResource(R.string.regist_account_id_invalid)

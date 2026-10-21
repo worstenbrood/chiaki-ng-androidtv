@@ -7,6 +7,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -21,9 +22,10 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.chiaking.tv.ui.theme.ButtonIdle
 import com.chiaking.tv.ui.theme.ButtonShape
+import com.chiaking.tv.ui.theme.FocusGlowPsButton
+import com.chiaking.tv.ui.theme.FocusScaleButton
 import com.chiaking.tv.ui.theme.OnSurfaceLight
 import com.chiaking.tv.ui.theme.OutlineMedium
 import com.chiaking.tv.ui.theme.PsCyan
@@ -45,8 +47,8 @@ fun PsButton(
 )
 {
 	var focused by remember { mutableStateOf(false) }
-	val scale by animateFloatAsState(if(focused) 1.06f else 1.0f, label = "psBtnScale")
-	val glow by animateDpAsState(if(focused) 18.dp else 0.dp, label = "psBtnGlow")
+	val scale by animateFloatAsState(if(focused) FocusScaleButton else 1.0f, label = "psBtnScale")
+	val glow by animateDpAsState(if(focused) FocusGlowPsButton else 0.dp, label = "psBtnGlow")
 	val container = when {
 		focused -> PsFocusWhite
 		primary -> PsFocusWhite
@@ -74,6 +76,6 @@ fun PsButton(
 		shape = ButtonShape,
 		border = if(primary || focused) null else BorderStroke(1.dp, OutlineMedium)
 	) {
-		Text(text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+		Text(text, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
 	}
 }

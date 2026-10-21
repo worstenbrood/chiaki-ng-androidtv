@@ -5,6 +5,7 @@ package com.chiaking.tv.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
@@ -14,9 +15,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.chiaking.tv.ui.theme.OnSurfaceLight
 import com.chiaking.tv.ui.theme.OnSurfaceMuted
 import com.chiaking.tv.ui.theme.SelectionFocused
@@ -49,8 +48,7 @@ internal fun RowTitle(title: String)
 {
 	Text(
 		title,
-		fontSize = 18.sp,
-		fontWeight = FontWeight.Medium,
+		style = MaterialTheme.typography.titleLarge,
 		color = OnSurfaceLight
 	)
 }
@@ -60,7 +58,7 @@ internal fun RowSummary(summary: String)
 {
 	Text(
 		summary,
-		fontSize = 13.sp,
+		style = MaterialTheme.typography.bodySmall,
 		color = OnSurfaceMuted
 	)
 }

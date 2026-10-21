@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -19,9 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.chiaking.tv.R
 import com.chiaking.tv.common.db.AppDatabase
 import com.chiaking.tv.regist.RegistExecuteViewModel
@@ -43,7 +42,7 @@ fun RegistExecuteScreen(viewModel: RegistExecuteViewModel, onDone: () -> Unit)
 		modifier = Modifier.fillMaxSize().padding(32.dp),
 		horizontalAlignment = Alignment.CenterHorizontally
 	) {
-		Text(stringResource(R.string.registering_console), fontSize = 30.sp, fontWeight = FontWeight.Bold)
+		Text(stringResource(R.string.registering_console), style = MaterialTheme.typography.displayLarge)
 		Spacer(Modifier.height(24.dp))
 
 		val (text, color) = when(state)
@@ -55,12 +54,12 @@ fun RegistExecuteScreen(viewModel: RegistExecuteViewModel, onDone: () -> Unit)
 			RegistExecuteViewModel.State.STOPPED -> stringResource(R.string.regist_cancelled) to OnSurfaceMuted
 			RegistExecuteViewModel.State.IDLE -> stringResource(R.string.regist_starting) to OnSurfaceMuted
 		}
-		Text(text, fontSize = 22.sp, color = color, fontWeight = FontWeight.Bold)
+		Text(text, style = MaterialTheme.typography.headlineSmall, color = color)
 		Spacer(Modifier.height(16.dp))
 
 		Text(
 			logText,
-			fontSize = 12.sp,
+			style = MaterialTheme.typography.labelMedium,
 			color = OnSurfaceMuted,
 			modifier = Modifier
 				.fillMaxWidth()

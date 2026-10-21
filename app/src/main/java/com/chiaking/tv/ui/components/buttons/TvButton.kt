@@ -8,6 +8,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -22,8 +23,9 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.chiaking.tv.ui.theme.ButtonShape
+import com.chiaking.tv.ui.theme.FocusGlowButton
+import com.chiaking.tv.ui.theme.FocusScaleButton
 import com.chiaking.tv.ui.theme.OnSurfaceLight
 import com.chiaking.tv.ui.theme.OutlineSubtle
 import com.chiaking.tv.ui.theme.PsCyan
@@ -45,8 +47,8 @@ fun TvButton(
 )
 {
 	var focused by remember { mutableStateOf(false) }
-	val scale by animateFloatAsState(if(focused) 1.06f else 1.0f, label = "btnScale")
-	val glow by animateDpAsState(if(focused) 16.dp else 0.dp, label = "btnGlow")
+	val scale by animateFloatAsState(if(focused) FocusScaleButton else 1.0f, label = "btnScale")
+	val glow by animateDpAsState(if(focused) FocusGlowButton else 0.dp, label = "btnGlow")
 
 	Button(
 		onClick = onClick,
@@ -67,6 +69,6 @@ fun TvButton(
 		shape = ButtonShape,
 		border = if(focused) null else BorderStroke(1.dp, OutlineSubtle)
 	) {
-		Text(text, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+		Text(text, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
 	}
 }

@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,7 +42,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+
 import com.chiaking.tv.R
 import com.chiaking.tv.ui.theme.OnSurfaceLight
 import com.chiaking.tv.ui.theme.OnSurfaceMuted
@@ -91,7 +92,7 @@ fun <T> TvOrderToggleList(
 	if(summary != null)
 		Text(
 			summary,
-			fontSize = 13.sp,
+			style = MaterialTheme.typography.bodySmall,
 			color = OnSurfaceMuted,
 			modifier = Modifier.padding(start = 22.dp, top = 12.dp, bottom = 4.dp)
 		)
@@ -194,8 +195,7 @@ private fun <T> TvOrderRow(
 	) {
 		Text(
 			entry.label,
-			fontSize = 18.sp,
-			fontWeight = FontWeight.Medium,
+			style = MaterialTheme.typography.titleLarge,
 			color = if(entry.enabled) OnSurfaceLight else OnSurfaceMuted,
 			modifier = Modifier.weight(1f)
 		)
@@ -205,7 +205,7 @@ private fun <T> TvOrderRow(
 			Icon(Icons.Default.KeyboardArrowUp, null, tint = PsCyan, modifier = Modifier.size(20.dp))
 			Text(
 				stringResource(R.string.move),
-				fontSize = 14.sp,
+				style = MaterialTheme.typography.labelLarge,
 				fontWeight = FontWeight.Bold,
 				color = PsCyan,
 				modifier = Modifier.padding(horizontal = 4.dp)

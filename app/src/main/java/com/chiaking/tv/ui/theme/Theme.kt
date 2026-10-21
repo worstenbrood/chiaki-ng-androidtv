@@ -41,6 +41,7 @@ val OutlineMedium = Color.White.copy(alpha = 0.25f)
 
 // HUD quick-menu
 val HudChipFocus = Color(0xFF4A5568).copy(alpha = 0.6f)
+val PsBlueSoft = PsBlue.copy(alpha = 0.30f)
 val HomeGlowStrong = PsBlue.copy(alpha = 0.28f)
 val HomeGlowWeak = PsBlue.copy(alpha = 0.08f)
 
@@ -58,6 +59,16 @@ private val ChiakiTvColorScheme = darkColorScheme(
 	error = ErrorRed,
 	onError = OnPrimary
 )
+
+// Focus motion: scale-up + glow per interactive widget class
+val FocusScaleCardX = 1.04f
+val FocusScaleCardY = 1.10f
+val FocusScaleButton = 1.06f
+val FocusScaleIconButton = 1.12f
+val FocusGlowCard = 12.dp
+val FocusGlowPsButton = 18.dp
+val FocusGlowButton = 16.dp
+val FocusGlowIconButton = 10.dp
 
 val CardShape = RoundedCornerShape(16.dp)
 val SelectionShape = RoundedCornerShape(10.dp)

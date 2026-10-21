@@ -16,8 +16,8 @@ android {
         applicationId "com.chiaking.tv"
         minSdk 24
         targetSdk 35
-		versionCode 26
-		versionName "1.19.9-tv"
+		versionCode 27
+		versionName "1.20.0-tv"
 
         ndk {
 	def abis = providers.gradleProperty("abis").getOrElse("arm64-v8a,armeabi-v7a")
