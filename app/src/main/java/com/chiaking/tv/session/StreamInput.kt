@@ -251,7 +251,7 @@ class StreamInput(val context: Context, val preferences: Preferences)
 			return false
 
 		// secondary pads are tracked but must not drive player 1 (until multi-controller lands)
-		if(isGamepadEvent(event) && !padManager.isPrimary(event.deviceId))
+		if(PadManager.isGamepad(event.device) && !padManager.isPrimary(event.deviceId))
 			return true
 
 		when(event.keyCode)
