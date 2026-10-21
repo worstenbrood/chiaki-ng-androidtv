@@ -15,6 +15,7 @@ import com.chiaking.tv.discovery.serverMac
 import com.metallic.chiaki.lib.Holepunch
 import com.metallic.chiaki.lib.HolepunchDevice
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -24,6 +25,9 @@ class MainViewModel(context: Context, val database: AppDatabase, val preferences
 	companion object
 	{
 		private const val SUBSCRIBE_TIMEOUT_MS = 5000L
+		private const val PSN_FETCH_RETRIES = 2
+		private const val PSN_FETCH_RETRY_BASE_MS = 2000L
+		private const val NETWORK_WAIT_TIMEOUT_MS = 15000L
 	}
 
 	private val appContext = context.applicationContext
@@ -95,24 +99,32 @@ class MainViewModel(context: Context, val database: AppDatabase, val preferences
 			psnLoading.value = true
 			try
 			{
+				if(!NetworkMonitor.get(appContext).awaitValidated(NETWORK_WAIT_TIMEOUT_MS))
+					android.util.Log.w("MainViewModel", "no validated network after ${NETWORK_WAIT_TIMEOUT_MS}ms, trying anyway")
 				val store = PsnTokenStore.get(appContext)
 				psnLoggedIn.value = store.isLoggedIn
-				val token = withContext(Dispatchers.IO) { store.ensureFreshToken() }
-				if(token == null)
-				{
-					psnDevices.value = emptyList()
-					psnDeviceCount.value = -1
-					return@launch
-				}
+				// On cold start DNS may not be resolved yet ("Could not resolve hostname"),
+				// so retry with backoff before surfacing the failure.
 				// NOTE: chiaki_holepunch_list_devices only supports PS5 upstream.
-				val devices = withContext(Dispatchers.IO) {
-					val ps5 = Holepunch.listDevices(token, true)
-					if(!ps5.errorCode.isSuccess)
-					{
-						android.util.Log.e("MainViewModel", "PSN listDevices failed: ps5=${ps5.errorCode}")
-						return@withContext null
+				var devices: List<HolepunchDevice>? = null
+				for(attempt in 0..PSN_FETCH_RETRIES)
+				{
+					if(attempt > 0)
+						delay(PSN_FETCH_RETRY_BASE_MS * attempt)
+					devices = withContext(Dispatchers.IO) {
+						val token = store.ensureFreshToken()
+						if(token == null)
+							return@withContext null
+						val ps5 = Holepunch.listDevices(token, true)
+						if(!ps5.errorCode.isSuccess)
+						{
+							android.util.Log.e("MainViewModel", "PSN listDevices failed (attempt ${attempt + 1}): ps5=${ps5.errorCode}")
+							return@withContext null
+						}
+						ps5.devices
 					}
-					ps5.devices
+					if(devices != null)
+						break
 				}
 				if(devices == null)
 				{
