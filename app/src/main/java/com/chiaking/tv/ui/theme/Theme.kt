@@ -7,17 +7,95 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.chiaking.tv.common.settings.Preferences.AppTheme
 
-val PsBlue = Color(0xFF0070D1)
-val PsBlueLight = Color(0xFF4FA3FF)
-val PsCyan = Color(0xFF00C2FF)
-val TvBackground = Color(0xFF060B14)
-val SurfaceDark = Color(0xFF0E1524)
-val SurfaceCard = Color(0xFF161E31)
-val SurfaceFrosted = Color(0xE60E182C)
-val DialogSurface = Color(0xF2101A2E)
+/**
+ * The five selectable UI palettes (Settings > General > Theme). Each theme-dependent color
+ * below is a @Composable getter backed by [LocalPsPalette], so switching the theme in
+ * [AppThemeState] recomposes the whole tree without touching call sites.
+ */
+@Immutable
+class PsPalette(
+	val accent: Color,
+	val accentLight: Color,
+	val secondary: Color,
+	val background: Color,
+	val surface: Color,
+	val surfaceCard: Color,
+	val frosted: Color,
+	val dialog: Color
+)
+
+private val PsBluePalette = PsPalette(
+	accent = Color(0xFF0070D1), accentLight = Color(0xFF4FA3FF), secondary = Color(0xFF00C2FF),
+	background = Color(0xFF060B14), surface = Color(0xFF0E1524), surfaceCard = Color(0xFF161E31),
+	frosted = Color(0xE60E182C), dialog = Color(0xF2101A2E)
+)
+private val MidnightPalette = PsPalette(
+	accent = Color(0xFF6C5CE7), accentLight = Color(0xFF9B8CFF), secondary = Color(0xFFE056FD),
+	background = Color(0xFF0A0814), surface = Color(0xFF151024), surfaceCard = Color(0xFF1E1832),
+	frosted = Color(0xE6161228), dialog = Color(0xF2181230)
+)
+private val EmeraldPalette = PsPalette(
+	accent = Color(0xFF0FA872), accentLight = Color(0xFF4FE3A8), secondary = Color(0xFF00E5C0),
+	background = Color(0xFF04120C), surface = Color(0xFF0C1F16), surfaceCard = Color(0xFF143024),
+	frosted = Color(0xE60C2018), dialog = Color(0xF20E2419)
+)
+private val CrimsonPalette = PsPalette(
+	accent = Color(0xFFD6304A), accentLight = Color(0xFFFF6B7F), secondary = Color(0xFFFF9F43),
+	background = Color(0xFF140609), surface = Color(0xFF240E13), surfaceCard = Color(0xFF32161D),
+	frosted = Color(0xE6201015), dialog = Color(0xF2261017)
+)
+private val AmberPalette = PsPalette(
+	accent = Color(0xFFE8901E), accentLight = Color(0xFFFFB85C), secondary = Color(0xFFFF6B6B),
+	background = Color(0xFF120C04), surface = Color(0xFF20180C), surfaceCard = Color(0xFF2E2414),
+	frosted = Color(0xE61E160C), dialog = Color(0xF2241A0E)
+)
+
+fun AppTheme.palette(): PsPalette = when(this)
+{
+	AppTheme.PS_BLUE -> PsBluePalette
+	AppTheme.MIDNIGHT -> MidnightPalette
+	AppTheme.EMERALD -> EmeraldPalette
+	AppTheme.CRIMSON -> CrimsonPalette
+	AppTheme.AMBER -> AmberPalette
+}
+
+/** Process-wide theme selection; written by Settings, read by [ChiakiTvTheme]. */
+object AppThemeState
+{
+	var theme: AppTheme by mutableStateOf(AppTheme.PS_BLUE)
+}
+
+val LocalPsPalette = staticCompositionLocalOf { PsBluePalette }
+
+val PsBlue: Color
+	@Composable @ReadOnlyComposable get() = LocalPsPalette.current.accent
+val PsBlueLight: Color
+	@Composable @ReadOnlyComposable get() = LocalPsPalette.current.accentLight
+val PsCyan: Color
+	@Composable @ReadOnlyComposable get() = LocalPsPalette.current.secondary
+val TvBackground: Color
+	@Composable @ReadOnlyComposable get() = LocalPsPalette.current.background
+val SurfaceDark: Color
+	@Composable @ReadOnlyComposable get() = LocalPsPalette.current.surface
+val SurfaceCard: Color
+	@Composable @ReadOnlyComposable get() = LocalPsPalette.current.surfaceCard
+val SurfaceFrosted: Color
+	@Composable @ReadOnlyComposable get() = LocalPsPalette.current.frosted
+val DialogSurface: Color
+	@Composable @ReadOnlyComposable get() = LocalPsPalette.current.dialog
+
 val OnSurfaceLight = Color(0xFFF0F2F8)
 val OnSurfaceMuted = Color(0xFF8A93AB)
 val SuccessGreen = Color(0xFF2ECC71)
@@ -41,20 +119,23 @@ val OutlineMedium = Color.White.copy(alpha = 0.25f)
 
 // HUD quick-menu
 val HudChipFocus = Color(0xFF4A5568).copy(alpha = 0.6f)
-val PsBlueSoft = PsBlue.copy(alpha = 0.30f)
-val HomeGlowStrong = PsBlue.copy(alpha = 0.28f)
-val HomeGlowWeak = PsBlue.copy(alpha = 0.08f)
+val PsBlueSoft: Color
+	@Composable @ReadOnlyComposable get() = PsBlue.copy(alpha = 0.30f)
+val HomeGlowStrong: Color
+	@Composable @ReadOnlyComposable get() = PsBlue.copy(alpha = 0.28f)
+val HomeGlowWeak: Color
+	@Composable @ReadOnlyComposable get() = PsBlue.copy(alpha = 0.08f)
 
-private val ChiakiTvColorScheme = darkColorScheme(
-	primary = PsBlue,
+private fun colorSchemeFor(palette: PsPalette) = darkColorScheme(
+	primary = palette.accent,
 	onPrimary = OnPrimary,
-	secondary = PsCyan,
+	secondary = palette.secondary,
 	onSecondary = Color.Black,
-	background = TvBackground,
+	background = palette.background,
 	onBackground = OnSurfaceLight,
-	surface = SurfaceDark,
+	surface = palette.surface,
 	onSurface = OnSurfaceLight,
-	surfaceVariant = SurfaceCard,
+	surfaceVariant = palette.surfaceCard,
 	onSurfaceVariant = OnSurfaceMuted,
 	error = ErrorRed,
 	onError = OnPrimary
@@ -80,9 +161,13 @@ val HudPanelShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
 @Composable
 fun ChiakiTvTheme(content: @Composable () -> Unit)
 {
-	MaterialTheme(
-		colorScheme = ChiakiTvColorScheme,
-		typography = ChiakiTvTypography,
-		content = content
-	)
+	val palette = AppThemeState.theme.palette()
+	val scheme = remember(palette) { colorSchemeFor(palette) }
+	CompositionLocalProvider(LocalPsPalette provides palette) {
+		MaterialTheme(
+			colorScheme = scheme,
+			typography = ChiakiTvTypography,
+			content = content
+		)
+	}
 }

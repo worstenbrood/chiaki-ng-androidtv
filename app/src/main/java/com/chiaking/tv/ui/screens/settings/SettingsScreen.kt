@@ -60,6 +60,7 @@ import com.chiaking.tv.ui.components.settings.TvOrderToggleList
 import com.chiaking.tv.ui.components.settings.TvStepperRow
 import com.chiaking.tv.ui.components.settings.TvSwitchRow
 import com.chiaking.tv.ui.focus.rememberFocusRestore
+import com.chiaking.tv.ui.theme.AppThemeState
 import com.chiaking.tv.ui.theme.OnSurfaceMuted
 import com.chiaking.tv.ui.theme.PsBlueLight
 import com.chiaking.tv.ui.theme.SurfaceFrosted
@@ -98,6 +99,7 @@ fun SettingsScreen(
 	var hudItems by remember { mutableStateOf(preferences.hudItems) }
 	var displayMode by remember { mutableStateOf(preferences.displayMode) }
 	var disconnectAction by remember { mutableStateOf(preferences.disconnectAction) }
+	var uiTheme by remember { mutableStateOf(preferences.uiTheme) }
 	var idrOnFec by remember { mutableStateOf(preferences.idrOnFecFailure) }
 	var autoConnectIndex by remember { mutableStateOf(
 		(registeredHosts.indexOfFirst { it.serverMac.toString() == preferences.autoConnectMac } + 1).coerceAtLeast(0)) }
@@ -563,32 +565,43 @@ fun SettingsScreen(
 								},
 								focusRequester = fr(4), onFocus = fb(4)
 							)
+							TvCycleRow(
+								title = stringResource(R.string.theme),
+								value = stringResource(uiTheme.titleRes),
+								onNext = {
+									val values = Preferences.AppTheme.values()
+									uiTheme = values[(uiTheme.ordinal + 1) % values.size]
+									preferences.uiTheme = uiTheme
+									AppThemeState.theme = uiTheme
+								},
+								focusRequester = fr(5), onFocus = fb(5)
+							)
 							TvActionRow(
 								stringResource(R.string.registered_consoles),
 								if(registeredHostCount == 0) stringResource(R.string.registered_consoles_none)
 									else stringResource(R.string.registered_consoles_count, registeredHostCount),
 								onManageHosts,
-								focusRequester = fr(5), onFocus = fb(5)
+								focusRequester = fr(6), onFocus = fb(6)
 							)
 							TvActionRow(
 								stringResource(R.string.login_pin),
 								if(preferences.loginPin.isEmpty()) stringResource(R.string.login_pin_not_set)
 									else stringResource(R.string.login_pin_summary_default),
 								{ pinDraft = preferences.loginPin; showPinEdit = true },
-								focusRequester = fr(6), onFocus = fb(6)
+								focusRequester = fr(7), onFocus = fb(7)
 							)
 							TvSwitchRow(
 								stringResource(R.string.verbose_logs),
 								stringResource(R.string.verbose_logs_summary),
 								logVerbose,
 								{ logVerbose = it; preferences.logVerbose = it },
-								focusRequester = fr(7), onFocus = fb(7)
+								focusRequester = fr(8), onFocus = fb(8)
 							)
 							TvActionRow(
 								stringResource(R.string.session_logs),
 								stringResource(R.string.session_logs_summary),
 								onShowLogs,
-								focusRequester = fr(8), onFocus = fb(8)
+								focusRequester = fr(9), onFocus = fb(9)
 							)
 						}
 					}

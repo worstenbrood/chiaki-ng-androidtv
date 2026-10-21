@@ -115,6 +115,12 @@
 	<string name="auto_connect_startup">Automatisch verbinden bij opstarten</string>
 	<string name="auto_connect_startup_summary">Wake en verbind automatisch met een console wanneer de app start</string>
 	<string name="on_close">Bij verlaten van stream</string>
+	<string name="theme">Thema</string>
+	<string name="theme_ps_blue">PS-blauw</string>
+	<string name="theme_midnight">Middernacht violet</string>
+	<string name="theme_emerald">Smaragd</string>
+	<string name="theme_crimson">Karmozijn</string>
+	<string name="theme_amber">Zonsondergang amber</string>
 	<string name="login_pin">Inlog-pincode</string>
 	<string name="login_pin_not_set">Niet ingesteld</string>
 	<string name="login_pin_set">Ingesteld</string>

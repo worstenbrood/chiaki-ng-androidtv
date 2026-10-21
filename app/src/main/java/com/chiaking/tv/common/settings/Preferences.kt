@@ -76,6 +76,15 @@ class Preferences(context: Context)
 		NOTHING("nothing", R.string.action_do_nothing)
 	}
 
+	enum class AppTheme(val value: String, val titleRes: Int)
+	{
+		PS_BLUE("ps_blue", R.string.theme_ps_blue),
+		MIDNIGHT("midnight", R.string.theme_midnight),
+		EMERALD("emerald", R.string.theme_emerald),
+		CRIMSON("crimson", R.string.theme_crimson),
+		AMBER("amber", R.string.theme_amber)
+	}
+
 	enum class HudItemKind(val value: String, val titleRes: Int)
 	{
 		CONSOLE("console", R.string.hud_item_console),
@@ -125,6 +134,7 @@ class Preferences(context: Context)
 		const val menuShortcutKey = "menu_shortcut"
 		const val sleepConsoleOnExitKey = "sleep_console_on_exit"
 		const val disconnectActionKey = "disconnect_action"
+		const val uiThemeKey = "ui_theme"
 		const val idrOnFecFailureKey = "idr_on_fec_failure"
 		const val hudShowCpuKey = "hud_show_cpu"
 		const val hudItemsKey = "hud_items"
@@ -294,6 +304,10 @@ class Preferences(context: Context)
 			}
 		}
 		set(value) { sharedPreferences.edit().putString(disconnectActionKey, value.value).apply() }
+
+	var uiTheme: AppTheme
+		get() = AppTheme.values().firstOrNull { it.value == sharedPreferences.getString(uiThemeKey, null) } ?: AppTheme.PS_BLUE
+		set(value) { sharedPreferences.edit().putString(uiThemeKey, value.value).apply() }
 
 	/** Default on (upstream Qt defaults off) — faster recovery from corrupted frames matters more on WiFi. */
 	var idrOnFecFailure

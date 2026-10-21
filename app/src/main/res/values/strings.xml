@@ -116,6 +116,12 @@
 	<string name="auto_connect_startup">Auto-connect on Startup</string>
 	<string name="auto_connect_startup_summary">Wake and connect to a console automatically when the app starts</string>
 	<string name="on_close">When Leaving Stream</string>
+	<string name="theme">Theme</string>
+	<string name="theme_ps_blue">PS Blue</string>
+	<string name="theme_midnight">Midnight Violet</string>
+	<string name="theme_emerald">Emerald</string>
+	<string name="theme_crimson">Crimson</string>
+	<string name="theme_amber">Sunset Amber</string>
 	<string name="login_pin">Login PIN</string>
 	<string name="login_pin_not_set">Not set</string>
 	<string name="login_pin_set">Set</string>

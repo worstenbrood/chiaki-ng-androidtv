@@ -67,6 +67,7 @@ class MainActivity: ComponentActivity()
 		window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
 		preferences = Preferences(this)
+		com.chiaking.tv.ui.theme.AppThemeState.theme = preferences.uiTheme
 		database = getDatabase(this)
 		logManager = LogManager(this)
 		com.chiaking.tv.common.psn.CaBundle.ensure(this)
