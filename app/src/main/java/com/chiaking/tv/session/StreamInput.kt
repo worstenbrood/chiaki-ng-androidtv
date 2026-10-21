@@ -18,8 +18,17 @@ class StreamInput(val context: Context, val preferences: Preferences)
 		private const val GYRO_SAMPLING_PERIOD_US = 4000
 	}
 
+	// 7-slot gamepad tracking; only the primary pad drives the session until the protocol
+	// exposes multi-controller support (then the slot becomes the userId).
+	val padManager = PadManager(context)
+
 	var controllerStateChangedCallback: ((ControllerState) -> Unit)? = null
 	var hudToggleCallback: (() -> Unit)? = null
+
+	fun dispose()
+	{
+		padManager.stop()
+	}
 
 	private var pressedComboKeys = mutableSetOf<Int>()
 	private var hudComboFired = false
@@ -182,16 +191,12 @@ class StreamInput(val context: Context, val preferences: Preferences)
 		controllerStateChangedCallback?.let { it(controllerState) }
 	}
 
-	private fun isGamepadEvent(event: KeyEvent): Boolean
-	{
-		val device = event.device ?: return false
-		if(device.vendorId == 0x054c) // Sony Interactive Entertainment (DualShock/DualSense)
-			return true
-		return device.sources and (InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_JOYSTICK) != 0
-	}
+	private fun isGamepadEvent(event: KeyEvent): Boolean = PadManager.isGamepad(event.device)
 
 	fun onHudComboKeyEvent(event: KeyEvent): Boolean
 	{
+		if(!padManager.isPrimary(event.deviceId))
+			return false
 		val combo = comboKeys
 		if(event.keyCode !in combo)
 			return false
@@ -244,6 +249,10 @@ class StreamInput(val context: Context, val preferences: Preferences)
 		//Log.i("StreamSession", "key event $event")
 		if(event.action != KeyEvent.ACTION_DOWN && event.action != KeyEvent.ACTION_UP)
 			return false
+
+		// secondary pads are tracked but must not drive player 1 (until multi-controller lands)
+		if(isGamepadEvent(event) && !padManager.isPrimary(event.deviceId))
+			return true
 
 		when(event.keyCode)
 		{
@@ -353,6 +362,8 @@ class StreamInput(val context: Context, val preferences: Preferences)
 	fun onGenericMotionEvent(event: MotionEvent): Boolean
 	{
 		if(event.source and InputDevice.SOURCE_CLASS_JOYSTICK != InputDevice.SOURCE_CLASS_JOYSTICK)
+			return false
+		if(!padManager.isPrimary(event.deviceId))
 			return false
 		fun Float.signedAxis() = (this * Short.MAX_VALUE).toInt().toShort()
 		fun Float.unsignedAxis() = (this * UByte.MAX_VALUE.toFloat()).toUInt().toUByte()

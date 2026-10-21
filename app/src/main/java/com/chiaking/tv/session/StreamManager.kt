@@ -109,6 +109,7 @@ object StreamManager
 		{
 			this.session = null
 			displayHost = null
+			input?.dispose()
 			input = null
 		}
 	}
@@ -171,7 +172,8 @@ object StreamManager
 			try {
 				val connectInfo = ConnectInfo(host.isPS5, addr, reg.rpRegistKey, reg.rpKey, preferences.videoProfile,
 					enableIDROnFECFailure = preferences.idrOnFecFailure)
-				val s = StreamSession(connectInfo, logManager, preferences.logVerbose, StreamInput(context.applicationContext, preferences))
+				val input = StreamInput(context.applicationContext, preferences)
+				val s = StreamSession(connectInfo, logManager, preferences.logVerbose, input)
 				try
 				{
 					s.resume()
@@ -187,6 +189,7 @@ object StreamManager
 				}
 				finally {
 					withContext(Dispatchers.IO) { s.shutdown() }
+					input.dispose()
 				}
 			} catch(e: Exception) {
 				android.util.Log.e(TAG, "sleep-console reconnect failed", e)

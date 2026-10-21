@@ -11,7 +11,10 @@ app/                      Android TV app (namespace com.chiaking.tv)
   src/main/java/com/chiaking/tv/
     common/               Room DB, Preferences, settings import/export, MAC type
     session/              StreamManager (process-wide session owner), StreamSession (StateFlow),
-                          StreamInput (gamepad + TV remote input), AwayController, RumbleFeedback
+                          StreamInput (gamepad + TV remote input), PadManager (7-slot gamepad
+                          tracking mirroring the protocol's userId model — only slot 0 drives the
+                          session until upstream multi-controller support lands, chiaki-ng #835),
+                          AwayController, RumbleFeedback
     connect/              WakeConnectController, RemoteConnectController (PSN hole-punch),
                           LocalConnectController (deep-link + auto-connect)
     regist/               Console registration (PIN flow)
