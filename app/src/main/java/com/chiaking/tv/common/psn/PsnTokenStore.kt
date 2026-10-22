@@ -11,8 +11,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
 
 /** A stored PSN account. [rid] is the base64 account id (LE-encoded userinfo `user_id`). */
 data class PsnAccount(
@@ -36,7 +34,7 @@ class PsnTokenStore private constructor(private val prefs: SharedPreferences)
 		private const val KEY_EXPIRY = "expiry_epoch_ms"
 		private const val KEY_ACCOUNT_ID = "account_id"
 		private const val KEY_DUID = "duid"
-		private const val KEY_ACCOUNTS = "extra_accounts_v1"
+		private const val KEY_EXTRA_INDEX = "extra_rids"
 		private const val REFRESH_MARGIN_MS = 5 * 60 * 1000L
 
 		@Volatile
@@ -99,27 +97,37 @@ class PsnTokenStore private constructor(private val prefs: SharedPreferences)
 	fun accountIdBytes(): ByteArray? =
 		accountId?.let { runCatching { android.util.Base64.decode(it, android.util.Base64.NO_WRAP) }.getOrNull() }
 
-	private fun loadExtras(): MutableList<PsnAccount>
+	private fun extraKey(rid: String, field: String) = "extra_${rid}_$field"
+
+	private fun extraRids(): Set<String> = prefs.getStringSet(KEY_EXTRA_INDEX, emptySet()) ?: emptySet()
+
+	private fun loadExtra(rid: String): PsnAccount?
 	{
-		val raw = prefs.getString(KEY_ACCOUNTS, null) ?: return mutableListOf()
-		return runCatching {
-			val arr = JSONArray(raw)
-			(0 until arr.length()).mapNotNull { i ->
-				val o = arr.optJSONObject(i) ?: return@mapNotNull null
-				val rid = o.optString("rid")
-				if(rid.isEmpty()) return@mapNotNull null
-				PsnAccount(rid, o.optString("access"), o.optString("refresh"), o.optLong("expiry"))
-			}.toMutableList()
-		}.getOrDefault(mutableListOf())
+		val access = prefs.getString(extraKey(rid, "access"), null) ?: return null
+		val refresh = prefs.getString(extraKey(rid, "refresh"), null) ?: return null
+		return PsnAccount(rid, access, refresh, prefs.getLong(extraKey(rid, "expiry"), 0L))
 	}
 
-	private fun saveExtras(list: List<PsnAccount>)
+	private fun loadExtras(): List<PsnAccount> = extraRids().mapNotNull { loadExtra(it) }
+
+	private fun putExtra(account: PsnAccount)
 	{
-		val arr = JSONArray()
-		for(a in list)
-			arr.put(JSONObject().put("rid", a.rid).put("access", a.accessToken)
-				.put("refresh", a.refreshToken).put("expiry", a.expiryMs))
-		prefs.edit().putString(KEY_ACCOUNTS, arr.toString()).apply()
+		prefs.edit()
+			.putString(extraKey(account.rid, "access"), account.accessToken)
+			.putString(extraKey(account.rid, "refresh"), account.refreshToken)
+			.putLong(extraKey(account.rid, "expiry"), account.expiryMs)
+			.putStringSet(KEY_EXTRA_INDEX, extraRids() + account.rid)
+			.apply()
+	}
+
+	private fun deleteExtra(rid: String)
+	{
+		prefs.edit()
+			.remove(extraKey(rid, "access"))
+			.remove(extraKey(rid, "refresh"))
+			.remove(extraKey(rid, "expiry"))
+			.putStringSet(KEY_EXTRA_INDEX, extraRids() - rid)
+			.apply()
 	}
 
 	/** All accounts: primary first (if logged in), then co-op extras. */
@@ -139,21 +147,15 @@ class PsnTokenStore private constructor(private val prefs: SharedPreferences)
 	fun removeAccount(rid: String)
 	{
 		if(rid == accountId) { logout(); return }
-		saveExtras(loadExtras().filterNot { it.rid == rid })
+		deleteExtra(rid)
 	}
 
-	private fun upsertExtra(account: PsnAccount)
-	{
-		val list = loadExtras().filterNot { it.rid == account.rid }.toMutableList()
-		list.add(account)
-		saveExtras(list)
-	}
+	private fun upsertExtra(account: PsnAccount) = putExtra(account)
 
 	/** Returns a valid access token for [rid], refreshing when near expiry. */
 	suspend fun ensureFreshTokenFor(rid: String): String? = refreshMutex.withLock {
 		if(rid == accountId) return@withLock ensureFreshToken()
-		val list = loadExtras()
-		val acct = list.firstOrNull { it.rid == rid } ?: return null
+		val acct = loadExtra(rid) ?: return null
 		if(acct.expiryMs - System.currentTimeMillis() > REFRESH_MARGIN_MS)
 			return acct.accessToken
 		try
@@ -161,7 +163,7 @@ class PsnTokenStore private constructor(private val prefs: SharedPreferences)
 			val tokens = PsnAuth.refresh(acct.refreshToken)
 			val updated = acct.copy(accessToken = tokens.accessToken, refreshToken = tokens.refreshToken,
 				expiryMs = System.currentTimeMillis() + tokens.expiresInSeconds * 1000L)
-			saveExtras(list.map { if(it.rid == rid) updated else it })
+			putExtra(updated)
 			updated.accessToken
 		}
 		catch(e: Exception)
