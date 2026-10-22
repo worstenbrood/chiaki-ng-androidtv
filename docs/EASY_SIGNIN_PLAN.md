@@ -68,15 +68,15 @@ npsso auth-code HTTP template near `0xa9880` (`Host: ca.account.sony.com`,
   (`0x450a88`, arg = slot) notifies the UI layer; authorize fn references
   `PSAppSignIn: authorize context primed (signin host={}, HTTP {})` at `0x4b5020`,
   callback-state + different-account guards near `0x4beeac`/`0x4beff8`.
-- **S3 — auth-code HTTP: PARTIAL.** Two paths in Asobi:
-  `get_auth_code_via_npsso` (raw HTTP template `Host: ca.account.sony.com` +
-  `Cookie: npsso=` at `0x4c8778`/`0x4d01fc` — used by `completePSNSignin(panel, "",
-  npsso)` = *add account to app* via manually entered npsso) and the `PSAppSignIn`
-  authorize (signin host + HTTP, code region `0x4b5020`–`0x4b5490`). Still unknown:
-  exact authorize URL/params and what binds the approval to the console's pending
-  request (nonce from the console's sign-in ctrl request, or account-bound). Our OAuth
-  client is the official RP one (`PsnAuth.CLIENT_ID ba495a24-…`) — same token class the
-  official app uses; test Bearer-token authorize first, fall back to npsso capture.
+- **S3 — auth-code HTTP: PARTIAL (static RE exhausted).** Two paths in Asobi:
+  `get_auth_code_via_npsso` (raw HTTP template fragments at `0xa9880`: host
+  `ca.account.sony.com`, `Cookie: npsso=`, ` HTTP/1.1` — path + query built dynamically at
+  runtime, not a static string) and the `PSAppSignIn` authorize (signin host + HTTP, code
+  region `0x4b5020`–`0x4b5490`). The authorize URL/params and the console-binding nonce
+  are constructed at runtime → **not extractable statically**. Needs either dynamic capture
+  (proxy/hook Asobi) or empirical trial once plumbing exists. Our OAuth client is the
+  official RP one (`PsnAuth.CLIENT_ID ba495a24-…`) — same token class the official app
+  uses; test Bearer-token authorize first, fall back to npsso capture.
 
 ## Phase 1 — Multi-account PSN store (`common/psn/`)
 
