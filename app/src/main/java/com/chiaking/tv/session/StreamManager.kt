@@ -138,6 +138,7 @@ object StreamManager
 		{
 			session.setVolumePercent(preferences.audioVolume)
 			session.restartAudio()
+			session.armVideoStallWatchdog()
 		}
 		// capture was stopped in onPause; restart it now that we are foreground again
 		session.startMicIfNeeded()

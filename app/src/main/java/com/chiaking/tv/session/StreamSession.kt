@@ -8,6 +8,7 @@ import android.util.Log
 import android.view.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -127,6 +128,7 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 		if(stopped)
 			return
 		stopped = true
+		videoWatchdog?.cancel()
 		stopMicCapture()
 		session?.stop()
 		session?.dispose()
@@ -162,6 +164,38 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 	fun restartAudio()
 	{
 		session?.restartAudio()
+	}
+
+	private var videoWatchdog: Job? = null
+
+	/**
+	 * After a keep-alive resume the console may stop honoring IDR requests (the takion
+	 * reliable channel desyncs across backgrounding), leaving a freshly re-initialized
+	 * decoder starved for a keyframe -> permanent black screen. If the decoder produces
+	 * no output within 6s, tear down and reconnect the stream.
+	 */
+	fun armVideoStallWatchdog()
+	{
+		val s = session ?: return
+		videoWatchdog?.cancel()
+		val baseline = s.videoOutputFrames()
+		videoWatchdog = mainScope.launch {
+			delay(6000)
+			if(disconnecting || session !== s)
+				return@launch
+			if(s.videoOutputFrames() == baseline)
+			{
+				android.util.Log.w("StreamSession", "No video output 6s after resume -> reconnecting")
+				shutdown(StreamStateConnecting)
+				// fresh job: shutdown() cancels videoWatchdog (this very job), so the
+				// reconnect must not run inside it
+				mainScope.launch {
+					delay(RETRY_DELAY_MS)
+					if(!disconnecting && session == null)
+						resume()
+				}
+			}
+		}
 	}
 
 	fun resume()

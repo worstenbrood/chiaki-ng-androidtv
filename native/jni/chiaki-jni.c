@@ -672,6 +672,12 @@ JNIEXPORT void JNICALL JNI_FCN(sessionGetStats)(JNIEnv *env, jobject obj, jlong 
 	E->SetLongArrayRegion(env, out, 0, 5, vals);
 }
 
+JNIEXPORT jlong JNICALL JNI_FCN(sessionVideoOutputFrames)(JNIEnv *env, jobject obj, jlong ptr)
+{
+	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
+	return (jlong)android_chiaki_video_decoder_get_output_frames(&session->video_decoder);
+}
+
 JNIEXPORT void JNICALL JNI_FCN(sessionSetControllerState)(JNIEnv *env, jobject obj, jlong ptr, jobject controller_state_java)
 {
 	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;

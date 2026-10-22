@@ -117,6 +117,7 @@ static bool start_codec_locked(AndroidChiakiVideoDecoder *decoder)
 	}
 
 	decoder->surface_valid = decoder->window != NULL;
+	__atomic_store_n(&decoder->frames_since_output, 0, __ATOMIC_RELAXED);
 	return true;
 
 error:
@@ -229,6 +230,17 @@ bool android_chiaki_video_decoder_video_sample(uint8_t *buf, size_t buf_size, in
 		goto beach;
 	}
 
+	// a fresh codec (e.g. after a resume re-init) needs a keyframe; if the single IDR
+	// request after init never landed (takion reliable-channel gap), keep asking
+	// until the decoder actually produces output again
+	if(decoder->surface_valid && decoder->session &&
+	   __atomic_add_fetch(&decoder->frames_since_output, 1, __ATOMIC_RELAXED) > 120)
+	{
+		__atomic_store_n(&decoder->frames_since_output, 60, __ATOMIC_RELAXED);
+		CHIAKI_LOGI(decoder->log, "No decoder output for ~2s, re-requesting IDR");
+		chiaki_session_request_idr(decoder->session);
+	}
+
 	while(buf_size > 0)
 	{
 		ssize_t codec_buf_index = AMediaCodec_dequeueInputBuffer(decoder->codec, INPUT_BUFFER_TIMEOUT_MS * 1000);
@@ -276,6 +288,11 @@ static void *android_chiaki_video_decoder_output_thread_func(void *user)
 		if(status >= 0)
 		{
 			dequeue_errors = 0;
+			if(info.size != 0)
+			{
+				__atomic_store_n(&decoder->frames_since_output, 0, __ATOMIC_RELAXED);
+				__atomic_add_fetch(&decoder->frames_output, 1, __ATOMIC_RELAXED);
+			}
 			bool render = info.size != 0 && decoder->surface_valid;
 			media_status_t rr = AMediaCodec_releaseOutputBuffer(decoder->codec, (size_t)status, render);
 			if(render && rr != AMEDIA_OK)
@@ -325,4 +342,9 @@ void android_chiaki_video_decoder_get_stats(AndroidChiakiVideoDecoder *decoder, 
 	*frames = __atomic_load_n(&decoder->frames_queued, __ATOMIC_RELAXED);
 	*bytes = __atomic_load_n(&decoder->bytes_queued, __ATOMIC_RELAXED);
 	*frames_lost = __atomic_load_n(&decoder->frames_lost, __ATOMIC_RELAXED);
+}
+
+uint64_t android_chiaki_video_decoder_get_output_frames(AndroidChiakiVideoDecoder *decoder)
+{
+	return __atomic_load_n(&decoder->frames_output, __ATOMIC_RELAXED);
 }

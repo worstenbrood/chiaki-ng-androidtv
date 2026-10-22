@@ -106,6 +106,7 @@ private class ChiakiNative
 		@JvmStatic external fun sessionToggleMicrophone(ptr: Long, muted: Boolean): Int
 		@JvmStatic external fun sessionSetMicPitch(ptr: Long, enabled: Boolean, factor: Float)
 		@JvmStatic external fun sessionGetStats(ptr: Long, out: LongArray)
+		@JvmStatic external fun sessionVideoOutputFrames(ptr: Long): Long
 		@JvmStatic external fun sessionSetControllerState(ptr: Long, controllerState: ControllerState)
 		@JvmStatic external fun sessionSetLoginPin(ptr: Long, pin: String)
 		@JvmStatic external fun discoveryServiceCreate(result: CreateResult, options: DiscoveryServiceOptions, javaService: DiscoveryService)
@@ -525,6 +526,8 @@ class Session(connectInfo: ConnectInfo, logFile: String?, logVerbose: Boolean)
 		ChiakiNative.sessionGetStats(nativePtr, out)
 		return out
 	}
+
+	fun videoOutputFrames(): Long = ChiakiNative.sessionVideoOutputFrames(nativePtr)
 
 	fun setControllerState(controllerState: ControllerState)
 	{
