@@ -136,7 +136,15 @@ void android_chiaki_video_decoder_set_surface(AndroidChiakiVideoDecoder *decoder
 #if __ANDROID_API__ >= 23
 			// keep the codec alive so it does not lose reference frames; just stop rendering
 			decoder->surface_valid = false;
-			AMediaCodec_setOutputSurface(decoder->codec, NULL);
+			media_status_t sr = AMediaCodec_setOutputSurface(decoder->codec, NULL);
+			if(sr != AMEDIA_OK)
+			{
+				// Shield rejects the NULL swap (-22): the codec stays bound to the dying
+				// surface and a later swap to a fresh one renders nothing -> tear down so
+				// resume re-initializes the codec on the new surface (upstream behavior)
+				CHIAKI_LOGW(decoder->log, "AMediaCodec_setOutputSurface(NULL) failed: %d, killing codec", (int)sr);
+				kill_decoder_locked(decoder);
+			}
 			if(decoder->window)
 				ANativeWindow_release(decoder->window);
 			decoder->window = NULL;
