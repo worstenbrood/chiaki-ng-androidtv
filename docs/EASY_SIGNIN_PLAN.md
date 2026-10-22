@@ -51,23 +51,32 @@ npsso auth-code HTTP template near `0xa9880` (`Host: ca.account.sony.com`,
 `Cookie: npsso=`), coop strings cluster `0xa9300–0xa9400` (`handle_easy_signin`,
 `request_join`, `add reply`).
 
-## Phase 0 — RE spikes (do first, gate the rest)
+## Phase 0 — RE spikes
 
-- **S1 — `0x8068` reply semantics.** Decode `[playerId][status]` status values
-  (pending / easy-signin-required / refused-why). Method: RE the add-reply handler
-  (ctrl dispatch is a jump table; find the ctrl recv loop via the heartbeat-reply send,
-  dump case targets) or empirically once S3 works (join with a real 2nd-account rid and
-  compare replies).
-- **S2 — auth-code delivery message.** Identify the ctrl type + payload Asobi uses to
-  hand the auth code to the console (and whether the console pushes a per-slot
-  easy-signin request first). Method: jump-table RE around `handle_easy_signin`;
-  cross-check against known types (`LOGIN_PIN_REQ 0x4`, `LOGIN_PIN_REP 0x8004`,
-  `LOGIN 0x5`).
-- **S3 — auth-code HTTP.** Pin the `ca.account.sony.com/api/authz/v3/authorize` consent
-  call: does a Bearer OAuth access token work (kamaji path) or is the npsso cookie
-  required? Extract clientId/scope/nonce params from Asobi strings near `0xa9880`.
-  Our OAuth client is the official RP one (`PsnAuth.CLIENT_ID ba495a24-…`,
-  `remoteplay.dl.playstation.net` redirect) — same token class the official app uses.
+- **S1 — `0x8068` reply semantics.** OPEN. Decode `[playerId][status]` status values
+  (pending / easy-signin-required / refused-why). Empirical path now unblocked: probe with
+  a real *unseated* second-account rid (Phase 1) and compare replies vs `[01 01]`.
+- **S2 — auth-code delivery: RESOLVED (high confidence).** There is **no ctrl message
+  carrying the code**. Asobi's ctrl send wrapper (`0x45481c`) has 11 callers, all small
+  fixed payloads (`0x1fe` hb, `0x13`, `0x11`, `0xd`, `0x14`, `0x30`, `0x36`, `0x8`,
+  `0x9` del, `0x68` add) — nothing string-sized. The mechanism is `PSAppSignIn`: the app
+  completes a PSN **authorize** HTTP call with the chosen account's credentials and the
+  console picks the approval up from PSN. JNI surface: `nativeBeginPSAppSignIn(panel,
+  reauthAccountId)` → `nativeAwaitPSAppSignIn(panel, reauthAccountId)` (blocks, returns
+  JSON) / `nativeAwaitPSAppSignInGuest(panel)` / `nativeCancelPSAppSignIn` /
+  `nativePSAppSignInPresentation` (UI state JSON). Native: `handle_easy_signin`
+  (`0x450a88`, arg = slot) notifies the UI layer; authorize fn references
+  `PSAppSignIn: authorize context primed (signin host={}, HTTP {})` at `0x4b5020`,
+  callback-state + different-account guards near `0x4beeac`/`0x4beff8`.
+- **S3 — auth-code HTTP: PARTIAL.** Two paths in Asobi:
+  `get_auth_code_via_npsso` (raw HTTP template `Host: ca.account.sony.com` +
+  `Cookie: npsso=` at `0x4c8778`/`0x4d01fc` — used by `completePSNSignin(panel, "",
+  npsso)` = *add account to app* via manually entered npsso) and the `PSAppSignIn`
+  authorize (signin host + HTTP, code region `0x4b5020`–`0x4b5490`). Still unknown:
+  exact authorize URL/params and what binds the approval to the console's pending
+  request (nonce from the console's sign-in ctrl request, or account-bound). Our OAuth
+  client is the official RP one (`PsnAuth.CLIENT_ID ba495a24-…`) — same token class the
+  official app uses; test Bearer-token authorize first, fall back to npsso capture.
 
 ## Phase 1 — Multi-account PSN store (`common/psn/`)
 
@@ -135,10 +144,9 @@ New on top:
 
 ## Open unknowns
 
-- `0x8068` status byte meanings (S1).
-- Exact ctrl type/payload for auth-code delivery (S2).
-- Whether Bearer-token authorize works or npsso is mandatory (S3) — if npsso-only,
-  Phase 1 needs an in-app WebView capture of npsso (Asobi's `PSAppSignIn` path).
+- `0x8068` status byte meanings (S1) — probe with a real unseated account rid.
+- Exact `PSAppSignIn` authorize URL/params + what binds the approval to the console's
+  pending request (S3 remainder) — RE `0x4b5020`–`0x4b5490` or capture the HTTP.
 - Whether the console requires the easy-signin *before* or *after* `CTRLADD_EX`
   (Asobi logs "requesting join" then "add reply" then "seated" — suggests add first).
 - Per-slot rumble byte.
