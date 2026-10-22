@@ -140,6 +140,8 @@
 	<string name="sign_out_summary">PSN-inloggegevens van dit apparaat verwijderen</string>
 	<string name="sign_in_psn">Aanmelden met PSN</string>
 	<string name="sign_in_psn_summary">Vereist voor Remote Play via internet</string>
+	<string name="coop_add_account">Co-op-account toevoegen</string>
+	<string name="coop_add_account_summary">Voeg een tweede PSN-account toe om extra spelers te plaatsen</string>
 	<string name="backup">Back-up</string>
 	<string name="export_settings">Instellingen exporteren</string>
 	<string name="export_settings_summary">Geregistreerde en handmatige hosts opslaan in een JSON-bestand</string>

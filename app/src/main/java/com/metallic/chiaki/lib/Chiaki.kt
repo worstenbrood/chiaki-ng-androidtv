@@ -107,6 +107,8 @@ private class ChiakiNative
 		@JvmStatic external fun sessionSetMicPitch(ptr: Long, enabled: Boolean, factor: Float)
 		@JvmStatic external fun sessionGetStats(ptr: Long, out: LongArray)
 		@JvmStatic external fun sessionSetControllerState(ptr: Long, controllerState: ControllerState)
+		@JvmStatic external fun sessionAddUser(ptr: Long, slot: Int, rid: Long)
+		@JvmStatic external fun sessionRemoveUser(ptr: Long, slot: Int)
 		@JvmStatic external fun sessionSetLoginPin(ptr: Long, pin: String)
 		@JvmStatic external fun discoveryServiceCreate(result: CreateResult, options: DiscoveryServiceOptions, javaService: DiscoveryService)
 		@JvmStatic external fun discoveryServiceFree(ptr: Long)
@@ -529,6 +531,16 @@ class Session(connectInfo: ConnectInfo, logFile: String?, logVerbose: Boolean)
 	fun setControllerState(controllerState: ControllerState)
 	{
 		ChiakiNative.sessionSetControllerState(nativePtr, controllerState)
+	}
+
+	fun addUser(slot: Int, rid: Long)
+	{
+		ChiakiNative.sessionAddUser(nativePtr, slot, rid)
+	}
+
+	fun removeUser(slot: Int)
+	{
+		ChiakiNative.sessionRemoveUser(nativePtr, slot)
 	}
 
 	fun setLoginPin(pin: String)

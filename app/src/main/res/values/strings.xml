@@ -141,6 +141,8 @@
 	<string name="sign_out_summary">Remove PSN credentials from this device</string>
 	<string name="sign_in_psn">Sign in with PSN</string>
 	<string name="sign_in_psn_summary">Required for Remote Play over the internet</string>
+	<string name="coop_add_account">Add co-op account</string>
+	<string name="coop_add_account_summary">Add another PSN account to seat extra players</string>
 	<string name="backup">Backup</string>
 	<string name="export_settings">Export Settings</string>
 	<string name="export_settings_summary">Save registered and manual hosts to a JSON file</string>

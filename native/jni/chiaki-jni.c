@@ -7,6 +7,7 @@
 #include <chiaki/common.h>
 #include <chiaki/log.h>
 #include <chiaki/session.h>
+#include <chiaki/multislot.h>
 #include <chiaki/discoveryservice.h>
 #include <chiaki/regist.h>
 #include <chiaki/remote/holepunch.h>
@@ -713,6 +714,18 @@ JNIEXPORT void JNICALL JNI_FCN(sessionSetControllerState)(JNIEnv *env, jobject o
 	controller_state.orient_z = E->GetFloatField(env, controller_state_java, session->java_controller_state_orient_z);
 	controller_state.orient_w = E->GetFloatField(env, controller_state_java, session->java_controller_state_orient_w);
 	chiaki_session_set_controller_state(&session->session, &controller_state);
+}
+
+JNIEXPORT void JNICALL JNI_FCN(sessionAddUser)(JNIEnv *env, jobject obj, jlong ptr, jint slot, jlong rid)
+{
+	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
+	chiaki_session_add_user(&session->session, (uint8_t)slot, 0, (uint64_t)rid);
+}
+
+JNIEXPORT void JNICALL JNI_FCN(sessionRemoveUser)(JNIEnv *env, jobject obj, jlong ptr, jint slot)
+{
+	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
+	chiaki_session_remove_user(&session->session, (uint8_t)slot);
 }
 
 JNIEXPORT void JNICALL JNI_FCN(sessionSetLoginPin)(JNIEnv *env, jobject obj, jlong ptr, jstring pin_java)

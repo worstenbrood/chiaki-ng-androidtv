@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import com.chiaking.tv.common.AudioDevices
 import com.chiaking.tv.common.logging.LogManager
+import com.chiaking.tv.common.psn.PsnTokenStore
 import com.metallic.chiaki.lib.*
 
 class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, val logVerbose: Boolean, val input: StreamInput)
@@ -71,7 +72,31 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 		input.hudToggleCallback = {
 			_hudVisible.value = !_hudVisible.value
 		}
+		input.secondaryPadInputCallback = { slot ->
+			val s = session
+			val rid = coopSecondRid()
+			if(s != null && rid != 0L)
+			{
+				android.util.Log.i("Multislot", "secondary pad slot=$slot first input -> addUser rid=$rid")
+				s.addUser(slot, rid)
+			}
+			else
+				android.util.Log.i("Multislot", "secondary pad slot=$slot but no second account (rid=$rid)")
+		}
 		_micMuted.value = !input.preferences.micStartUnmuted
+	}
+
+	/** Numeric rid of the first co-op extra account (base64 LE decoded), or 0 if none. */
+	private fun coopSecondRid(): Long
+	{
+		val extra = PsnTokenStore.get(input.context).accounts().getOrNull(1) ?: return 0L
+		val bytes = runCatching { android.util.Base64.decode(extra.rid, android.util.Base64.NO_WRAP) }.getOrNull()
+		if(bytes == null || bytes.size < 8)
+			return 0L
+		var v = 0L
+		for(i in 0 until 8)
+			v = v or ((bytes[i].toLong() and 0xff) shl (8 * i))
+		return v
 	}
 
 	/** True when the mic feature is on and we hold the RECORD_AUDIO permission. */

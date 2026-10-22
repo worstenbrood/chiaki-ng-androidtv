@@ -79,6 +79,9 @@ class PadManager(context: Context)
 	 */
 	fun isPrimary(deviceId: Int): Boolean = _pads.value.isEmpty() || deviceId == primaryDeviceId
 
+	/** Index of a pad in the tracked list (0 = primary), or null if not a tracked gamepad. */
+	fun slotOf(deviceId: Int): Int? = _pads.value.indexOfFirst { it.id == deviceId }.takeIf { it >= 0 }
+
 	private fun refresh()
 	{
 		val pads = ArrayList<InputDevice>(MAX_PADS)

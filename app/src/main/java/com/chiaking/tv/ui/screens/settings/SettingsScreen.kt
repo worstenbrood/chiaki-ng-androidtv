@@ -109,6 +109,7 @@ fun SettingsScreen(
 	val ctx = LocalContext.current
 	var psnLoggedIn by remember { mutableStateOf(PsnTokenStore.get(ctx).isLoggedIn) }
 	var showPsnLogin by remember { mutableStateOf(false) }
+	var showCoopLogin by remember { mutableStateOf(false) }
 	var showPinEdit by remember { mutableStateOf(false) }
 	var pinDraft by remember { mutableStateOf(preferences.loginPin) }
 	val audioDevices = remember { AudioDevices.outputDevices(ctx) }
@@ -621,6 +622,12 @@ fun SettingsScreen(
 									},
 									focusRequester = fr(1), onFocus = fb(1)
 								)
+								TvActionRow(
+									stringResource(R.string.coop_add_account),
+									stringResource(R.string.coop_add_account_summary),
+									{ showCoopLogin = true },
+									focusRequester = fr(2), onFocus = fb(2)
+								)
 							}
 							else
 								TvActionRow(
@@ -685,6 +692,13 @@ fun SettingsScreen(
 		PsnLoginDialog(
 			onDismiss = { showPsnLogin = false },
 			onLoggedIn = { psnLoggedIn = true; showPsnLogin = false }
+		)
+
+	if(showCoopLogin)
+		PsnLoginDialog(
+			asExtra = true,
+			onDismiss = { showCoopLogin = false },
+			onLoggedIn = { showCoopLogin = false }
 		)
 
 	if(showPinEdit)

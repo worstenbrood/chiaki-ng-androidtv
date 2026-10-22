@@ -23,6 +23,10 @@ class StreamInput(val context: Context, val preferences: Preferences)
 	val padManager = PadManager(context)
 
 	var controllerStateChangedCallback: ((ControllerState) -> Unit)? = null
+
+	// Fires once per secondary-pad slot on its first key event (co-op join trigger).
+	var secondaryPadInputCallback: ((Int) -> Unit)? = null
+	private val secondaryPadSeen = mutableSetOf<Int>()
 	var hudToggleCallback: (() -> Unit)? = null
 
 	fun dispose()
@@ -252,7 +256,12 @@ class StreamInput(val context: Context, val preferences: Preferences)
 
 		// secondary pads are tracked but must not drive player 1 (until multi-controller lands)
 		if(PadManager.isGamepad(event.device) && !padManager.isPrimary(event.deviceId))
+		{
+			val slot = padManager.slotOf(event.deviceId)
+			if(slot != null && slot > 0 && secondaryPadSeen.add(slot))
+				secondaryPadInputCallback?.invoke(slot)
 			return true
+		}
 
 		when(event.keyCode)
 		{
