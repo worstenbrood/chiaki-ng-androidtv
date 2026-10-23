@@ -116,7 +116,7 @@ fun PsnLoginDialog(asExtra: Boolean = false, onDismiss: () -> Unit, onLoggedIn: 
 						Image(
 							bitmap = qr.asImageBitmap(),
 							contentDescription = "PSN login QR code",
-							modifier = Modifier.size(260.dp)
+							modifier = Modifier.size(180.dp)
 						)
 				}
 				else if(!busy)
