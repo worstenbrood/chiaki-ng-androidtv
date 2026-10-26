@@ -825,6 +825,49 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_takion_send_feedback_history(ChiakiTakion *
 	return err;
 }
 
+// per-slot variants for co-op: the feedback-state payload's first byte carries the
+// player slot (0xa0 | slot). History identifies slots in each event, never in byte 3.
+CHIAKI_EXPORT ChiakiErrorCode chiaki_takion_send_feedback_state_slot(ChiakiTakion *takion, ChiakiSeqNum16 seq_num, ChiakiFeedbackState *feedback_state, uint8_t slot)
+{
+	uint8_t buf[0xc + CHIAKI_FEEDBACK_STATE_BUF_SIZE_MAX];
+	buf[0] = TAKION_PACKET_TYPE_FEEDBACK_STATE;
+	*((chiaki_unaligned_uint16_t *)(buf + 1)) = htons(seq_num);
+	buf[3] = 0;
+	*((chiaki_unaligned_uint32_t *)(buf + 4)) = 0;
+	*((chiaki_unaligned_uint32_t *)(buf + 8)) = 0;
+	size_t buf_sz;
+	if(takion->version <= 9)
+	{
+		buf_sz = 0xc + CHIAKI_FEEDBACK_STATE_BUF_SIZE_V9;
+		chiaki_feedback_state_format_v9(buf + 0xc, feedback_state);
+	}
+	else
+	{
+		buf_sz = 0xc + CHIAKI_FEEDBACK_STATE_BUF_SIZE_V12;
+		chiaki_feedback_state_format_v12(buf + 0xc, feedback_state);
+	}
+	buf[0xc] = 0xa0 | slot;
+	return takion_send_feedback_packet(takion, buf, buf_sz);
+}
+
+CHIAKI_EXPORT ChiakiErrorCode chiaki_takion_send_feedback_history_slot(ChiakiTakion *takion, ChiakiSeqNum16 seq_num, uint8_t *payload, size_t payload_size, uint8_t slot)
+{
+	size_t buf_size = 0xc + payload_size;
+	uint8_t *buf = malloc(buf_size);
+	if(!buf)
+		return CHIAKI_ERR_MEMORY;
+	buf[0] = TAKION_PACKET_TYPE_FEEDBACK_HISTORY;
+	*((chiaki_unaligned_uint16_t *)(buf + 1)) = htons(seq_num);
+	(void)slot; // one sequence space; each history event contains its own slot tag
+	buf[3] = 0;
+	*((chiaki_unaligned_uint32_t *)(buf + 4)) = 0;
+	*((chiaki_unaligned_uint32_t *)(buf + 8)) = 0;
+	memcpy(buf + 0xc, payload, payload_size);
+	ChiakiErrorCode err = takion_send_feedback_packet(takion, buf, buf_size);
+	free(buf);
+	return err;
+}
+
 static ChiakiErrorCode takion_handshake(ChiakiTakion *takion, uint32_t *seq_num_remote_initial)
 {
 	ChiakiErrorCode err;

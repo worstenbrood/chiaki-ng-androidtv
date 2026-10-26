@@ -108,8 +108,10 @@ private class ChiakiNative
 		@JvmStatic external fun sessionGetStats(ptr: Long, out: LongArray)
 		@JvmStatic external fun sessionVideoOutputFrames(ptr: Long): Long
 		@JvmStatic external fun sessionSetControllerState(ptr: Long, controllerState: ControllerState)
-		@JvmStatic external fun sessionAddUser(ptr: Long, slot: Int, rid: Long)
-		@JvmStatic external fun sessionRemoveUser(ptr: Long, slot: Int)
+		@JvmStatic external fun sessionSetControllerStateSlot(ptr: Long, slot: Int, controllerState: ControllerState)
+		@JvmStatic external fun sessionAddUser(ptr: Long, slot: Int, rid: Long): Int
+		@JvmStatic external fun sessionRemoveUser(ptr: Long, slot: Int): Int
+		@JvmStatic external fun sessionCoopStatus(ptr: Long, slot: Int): Int
 		@JvmStatic external fun sessionSetLoginPin(ptr: Long, pin: String)
 		@JvmStatic external fun discoveryServiceCreate(result: CreateResult, options: DiscoveryServiceOptions, javaService: DiscoveryService)
 		@JvmStatic external fun discoveryServiceFree(ptr: Long)
@@ -409,6 +411,7 @@ class Session(connectInfo: ConnectInfo, logFile: String?, logVerbose: Boolean)
 	fun start() = ErrorCode(ChiakiNative.sessionStart(nativePtr))
 	fun stop() = ErrorCode(ChiakiNative.sessionStop(nativePtr))
 
+	@Synchronized
 	fun dispose()
 	{
 		if(nativePtr == 0L)
@@ -531,20 +534,29 @@ class Session(connectInfo: ConnectInfo, logFile: String?, logVerbose: Boolean)
 
 	fun videoOutputFrames(): Long = ChiakiNative.sessionVideoOutputFrames(nativePtr)
 
+	@Synchronized
 	fun setControllerState(controllerState: ControllerState)
 	{
-		ChiakiNative.sessionSetControllerState(nativePtr, controllerState)
+		if(nativePtr != 0L) ChiakiNative.sessionSetControllerState(nativePtr, controllerState)
 	}
 
-	fun addUser(slot: Int, rid: Long)
+	@Synchronized
+	fun setControllerStateSlot(slot: Int, controllerState: ControllerState)
 	{
-		ChiakiNative.sessionAddUser(nativePtr, slot, rid)
+		if(nativePtr != 0L) ChiakiNative.sessionSetControllerStateSlot(nativePtr, slot, controllerState)
 	}
 
-	fun removeUser(slot: Int)
-	{
-		ChiakiNative.sessionRemoveUser(nativePtr, slot)
-	}
+	@Synchronized
+	fun addUser(slot: Int, rid: Long): ErrorCode =
+		ErrorCode(if(nativePtr != 0L) ChiakiNative.sessionAddUser(nativePtr, slot, rid) else 14)
+
+	@Synchronized
+	fun removeUser(slot: Int): ErrorCode =
+		ErrorCode(if(nativePtr != 0L) ChiakiNative.sessionRemoveUser(nativePtr, slot) else 14)
+
+	@Synchronized
+	fun coopStatus(slot: Int): Int =
+		if(nativePtr != 0L) ChiakiNative.sessionCoopStatus(nativePtr, slot) else 0
 
 	fun setLoginPin(pin: String)
 	{

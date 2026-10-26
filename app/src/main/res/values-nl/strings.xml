@@ -272,4 +272,12 @@
 	<string name="tv_channel_description">Stream je PlayStation-consoles via LAN of Remote Play</string>
 	<string name="tv_connect_lan">Verbinden met %1$s via LAN</string>
 	<string name="tv_remote_psn">Remote Play via PSN (%1$s)</string>
+	<string name="coop_joined">Speler %1$d doet mee.</string>
+	<string name="coop_full">Speler %1$d kan niet meedoen: het spelersmaximum van de console is bereikt.</string>
+	<string name="coop_passcode">Speler %1$d heeft een profieltoegangscode nodig. Meld je aan op de console en druk daarna op een knop om opnieuw te proberen.</string>
+	<string name="coop_profile_required">Speler %1$d heeft een profiel op deze console nodig. Voeg dat profiel toe en meld je aan op de console. Probeer het daarna opnieuw.</string>
+	<string name="coop_timeout">Speler %1$d heeft geen antwoord op het deelnameverzoek ontvangen. Verbind opnieuw als de console het verzoek niet vrijgeeft.</string>
+	<string name="coop_refused">Speler %1$d kon niet deelnemen of vertrekken. Controleer de console en druk op een knop om opnieuw te proberen. Verbind zo nodig opnieuw.</string>
+	<string name="coop_ps5_only">Speler %1$d: extra Remote Play-spelers worden alleen op PS5 ondersteund.</string>
+	<string name="coop_account_required">Speler %1$d heeft een apart PSN-account voor co-op nodig. Voeg het toe in Instellingen voordat je deelneemt.</string>
 </resources>
