@@ -73,6 +73,7 @@ suspend fun parseSettingsImport(source: okio.BufferedSource): SerializedSettings
 			KEY_FORMAT -> format = reader.nextString()
 			KEY_VERSION -> version = reader.nextInt()
 			KEY_SETTINGS -> settingsValue = reader.readJsonValue()
+			else -> reader.skipValue()
 		}
 	}
 	reader.endObject()

@@ -6,10 +6,10 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
-import android.net.NetworkRequest
-import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlin.coroutines.resume
 
 /**
  * Caches the ConnectivityManager and exposes network-readiness checks.
@@ -32,21 +32,22 @@ class NetworkMonitor private constructor(context: Context)
 		if(isValidated)
 			return true
 		return withTimeoutOrNull(timeoutMs) {
-			suspendCancellableCoroutine { cont ->
+			callbackFlow {
 				val callback = object : ConnectivityManager.NetworkCallback()
 				{
 					override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities)
 					{
-						if(capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) && cont.isActive)
-							cont.resume(true)
+						if(network == cm.activeNetwork &&
+							capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED))
+							trySend(true)
 					}
 				}
-				cont.invokeOnCancellation { try { cm.unregisterNetworkCallback(callback) } catch(e: Exception) { } }
-				cm.registerNetworkCallback(
-					NetworkRequest.Builder().addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).build(),
-					callback
-				)
-			}
+				cm.registerDefaultNetworkCallback(callback)
+				// Cover validation between the initial check and callback registration.
+				if(isValidated)
+					trySend(true)
+				awaitClose { cm.unregisterNetworkCallback(callback) }
+			}.first()
 		} ?: false
 	}
 

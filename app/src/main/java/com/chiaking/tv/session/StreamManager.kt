@@ -86,7 +86,7 @@ object StreamManager
 		autoRegist: Boolean = true): StreamSession?
 	{
 		if(session != null)
-			return session
+			return null
 		val connectInfo = ConnectInfo(
 			ps5,
 			"",
