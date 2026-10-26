@@ -74,9 +74,14 @@ add_subdirectory(${CHIAKI_ROOT}/lib lib)
 get_target_property(CHIAKI_LIB_SOURCES chiaki-lib SOURCES)
 list(FILTER CHIAKI_LIB_SOURCES EXCLUDE REGEX "gkcrypt\\.c$")
 list(FILTER CHIAKI_LIB_SOURCES EXCLUDE REGEX "takion\\.c$")
+list(FILTER CHIAKI_LIB_SOURCES EXCLUDE REGEX "ctrl\\.c$")
+list(FILTER CHIAKI_LIB_SOURCES EXCLUDE REGEX "feedbacksender\\.c$")
 list(APPEND CHIAKI_LIB_SOURCES
 	"${CMAKE_CURRENT_SOURCE_DIR}/overrides/gkcrypt.c"
-	"${CMAKE_CURRENT_SOURCE_DIR}/overrides/takion.c")
+	"${CMAKE_CURRENT_SOURCE_DIR}/overrides/takion.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/overrides/ctrl.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/overrides/multislot.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/overrides/feedbacksender.c")
 set_target_properties(chiaki-lib PROPERTIES SOURCES "${CHIAKI_LIB_SOURCES}")
 target_include_directories(chiaki-lib BEFORE PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/overrides/include")
 # appended (not BEFORE) so public lib/include still wins; lets the override .c files

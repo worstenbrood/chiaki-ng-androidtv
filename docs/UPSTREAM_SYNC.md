@@ -44,7 +44,7 @@ bump applies it with **no app changes**:
 `native/CMakeLists.txt` and the `externalNativeBuild { cmake { arguments ... } }` block
 of `app/build.gradle`.
 
-**Exception 2:** we carry perf-only overrides for a few C core files **without dirtying the
+**Exception 2:** we carry local performance and co-op overrides for selected C core files **without dirtying the
 submodule**. `native/overrides/` holds full copies that replace the upstream ones at build
 time (`native/CMakeLists.txt` removes `src/gkcrypt.c`/`src/takion.c` from the `chiaki-lib`
 SOURCES and appends ours, plus a `BEFORE PUBLIC` include dir so `overrides/include/chiaki/gkcrypt.h`
@@ -54,6 +54,9 @@ shadows the upstream header for `chiaki-lib` and all its consumers):
 |---|---|
 | `native/overrides/gkcrypt.c` + `include/chiaki/gkcrypt.h` | `chiaki_gkcrypt_gmac()` caches its `EVP_CIPHER_CTX` in the struct (`gmac_ctx` + `gmac_key_cached`, OpenSSL path only) and only redoes the AES-GCM key schedule on gmac key refresh — upstream did a fresh ctx + key schedule **per packet**. Free'd in `chiaki_gkcrypt_fini()`. Safe because each gkcrypt instance is used from one thread (remote: takion recv thread; local: callers hold `gkcrypt_local_mutex`). `chiaki_gkcrypt_decrypt()` uses a 1600-byte stack keystream instead of malloc-per-packet. |
 | `native/overrides/takion.c` | recv loop reads into a reusable stack buffer — no `malloc`/`realloc` per datagram. `takion_handle_packet()` contract changed from "takes ownership of buf" to "buf is borrowed": the retain sites (`takion_handle_packet_message_data`, `takion_handle_packet_av` video-queue path, `takion_postpone_packet`) `malloc`+`memcpy` their own copy (with `payload`/`packet.data` rebased into the copy); the postponed-packet flush loop frees the copies. |
+| `native/overrides/feedbacksender.c` + `multislot.c` + `include/chiaki/multislot.h` | Session-owned co-op sender with shared state/history sequence counters, per-event player tags, history retransmission and host-accepted join/leave lifecycle. The delegate preserves the upstream feedback-sender struct ABI. Run `native/tests/run_multislot_tests.py` after configuring the native build. |
+| `native/overrides/ctrl.c` | Forwards co-op add/leave/profile/passcode replies into the session-owned state machine before the normal upstream dispatcher; keep the rest rebased on upstream. |
+
 
 **On each submodule bump:** diff the upstream originals against our copies and re-apply our
 divergences onto the new versions (compile errors from a stale `gkcrypt.h` are expected and

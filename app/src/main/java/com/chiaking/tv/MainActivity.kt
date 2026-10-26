@@ -25,6 +25,7 @@ import com.chiaking.tv.connect.LocalConnectController
 import com.chiaking.tv.connect.RemoteConnectController
 import com.chiaking.tv.connect.WakeConnectController
 import com.chiaking.tv.discovery.DiscoveryManager
+import com.chiaking.tv.session.PadManager
 import com.chiaking.tv.session.AwayController
 import com.chiaking.tv.session.StreamManager
 import com.chiaking.tv.session.StreamStateConnected
@@ -278,6 +279,13 @@ class MainActivity: ComponentActivity()
 		if(streamScreen != null)
 		{
 			val session = streamScreen.session
+			val input = StreamManager.input
+			if(input != null && session.state.value is StreamStateConnected &&
+				PadManager.isGamepad(event.device) && !input.padManager.isPrimary(event.deviceId))
+			{
+				input.dispatchKeyEvent(event)
+				return true
+			}
 			if(event.keyCode == KeyEvent.KEYCODE_BACK)
 			{
 				if(session.hudVisible.value)
@@ -363,6 +371,8 @@ class MainActivity: ComponentActivity()
 		if(event.source and (InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_JOYSTICK) == 0)
 			return false
 		val session = (screenStack.last() as ScreenStream).session
+		if(StreamManager.input?.padManager?.isPrimary(event.deviceId) == false)
+			return false
 		if(!session.hudVisible.value)
 		{
 			hudStickDir = 0

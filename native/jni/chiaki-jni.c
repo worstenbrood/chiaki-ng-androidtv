@@ -7,6 +7,7 @@
 #include <chiaki/common.h>
 #include <chiaki/log.h>
 #include <chiaki/session.h>
+#include <chiaki/multislot.h>
 #include <chiaki/discoveryservice.h>
 #include <chiaki/regist.h>
 #include <chiaki/remote/holepunch.h>
@@ -678,18 +679,16 @@ JNIEXPORT jlong JNICALL JNI_FCN(sessionVideoOutputFrames)(JNIEnv *env, jobject o
 	return (jlong)android_chiaki_video_decoder_get_output_frames(&session->video_decoder);
 }
 
-JNIEXPORT void JNICALL JNI_FCN(sessionSetControllerState)(JNIEnv *env, jobject obj, jlong ptr, jobject controller_state_java)
+static void read_controller_state(JNIEnv *env, AndroidChiakiSession *session, jobject controller_state_java, ChiakiControllerState *controller_state)
 {
-	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
-	ChiakiControllerState controller_state;
-	chiaki_controller_state_set_idle(&controller_state);
-	controller_state.buttons = (uint32_t)E->GetIntField(env, controller_state_java, session->java_controller_state_buttons);
-	controller_state.l2_state = (uint8_t)E->GetByteField(env, controller_state_java, session->java_controller_state_l2_state);
-	controller_state.r2_state = (uint8_t)E->GetByteField(env, controller_state_java, session->java_controller_state_r2_state);
-	controller_state.left_x = (int16_t)E->GetShortField(env, controller_state_java, session->java_controller_state_left_x);
-	controller_state.left_y = (int16_t)E->GetShortField(env, controller_state_java, session->java_controller_state_left_y);
-	controller_state.right_x = (int16_t)E->GetShortField(env, controller_state_java, session->java_controller_state_right_x);
-	controller_state.right_y = (int16_t)E->GetShortField(env, controller_state_java, session->java_controller_state_right_y);
+	chiaki_controller_state_set_idle(controller_state);
+	controller_state->buttons = (uint32_t)E->GetIntField(env, controller_state_java, session->java_controller_state_buttons);
+	controller_state->l2_state = (uint8_t)E->GetByteField(env, controller_state_java, session->java_controller_state_l2_state);
+	controller_state->r2_state = (uint8_t)E->GetByteField(env, controller_state_java, session->java_controller_state_r2_state);
+	controller_state->left_x = (int16_t)E->GetShortField(env, controller_state_java, session->java_controller_state_left_x);
+	controller_state->left_y = (int16_t)E->GetShortField(env, controller_state_java, session->java_controller_state_left_y);
+	controller_state->right_x = (int16_t)E->GetShortField(env, controller_state_java, session->java_controller_state_right_x);
+	controller_state->right_y = (int16_t)E->GetShortField(env, controller_state_java, session->java_controller_state_right_y);
 	jobjectArray touch_array = E->GetObjectField(env, controller_state_java, session->java_controller_state_touches);
 	size_t touch_array_len = (size_t)E->GetArrayLength(env, touch_array);
 	for(size_t i = 0; i < CHIAKI_CONTROLLER_TOUCHES_MAX; i++)
@@ -697,28 +696,65 @@ JNIEXPORT void JNICALL JNI_FCN(sessionSetControllerState)(JNIEnv *env, jobject o
 		if(i < touch_array_len)
 		{
 			jobject touch = E->GetObjectArrayElement(env, touch_array, i);
-			controller_state.touches[i].x = (uint16_t)E->GetShortField(env, touch, session->java_controller_touch_x);
-			controller_state.touches[i].y = (uint16_t)E->GetShortField(env, touch, session->java_controller_touch_y);
-			controller_state.touches[i].id = (int8_t)E->GetByteField(env, touch, session->java_controller_touch_id);
+			controller_state->touches[i].x = (uint16_t)E->GetShortField(env, touch, session->java_controller_touch_x);
+			controller_state->touches[i].y = (uint16_t)E->GetShortField(env, touch, session->java_controller_touch_y);
+			controller_state->touches[i].id = (int8_t)E->GetByteField(env, touch, session->java_controller_touch_id);
 		}
 		else
 		{
-			controller_state.touches[i].x = 0;
-			controller_state.touches[i].y = 0;
-			controller_state.touches[i].id = -1;
+			controller_state->touches[i].x = 0;
+			controller_state->touches[i].y = 0;
+			controller_state->touches[i].id = -1;
 		}
 	}
-	controller_state.gyro_x = E->GetFloatField(env, controller_state_java, session->java_controller_state_gyro_x);
-	controller_state.gyro_y = E->GetFloatField(env, controller_state_java, session->java_controller_state_gyro_y);
-	controller_state.gyro_z = E->GetFloatField(env, controller_state_java, session->java_controller_state_gyro_z);
-	controller_state.accel_x = E->GetFloatField(env, controller_state_java, session->java_controller_state_accel_x);
-	controller_state.accel_y = E->GetFloatField(env, controller_state_java, session->java_controller_state_accel_y);
-	controller_state.accel_z = E->GetFloatField(env, controller_state_java, session->java_controller_state_accel_z);
-	controller_state.orient_x = E->GetFloatField(env, controller_state_java, session->java_controller_state_orient_x);
-	controller_state.orient_y = E->GetFloatField(env, controller_state_java, session->java_controller_state_orient_y);
-	controller_state.orient_z = E->GetFloatField(env, controller_state_java, session->java_controller_state_orient_z);
-	controller_state.orient_w = E->GetFloatField(env, controller_state_java, session->java_controller_state_orient_w);
+	controller_state->gyro_x = E->GetFloatField(env, controller_state_java, session->java_controller_state_gyro_x);
+	controller_state->gyro_y = E->GetFloatField(env, controller_state_java, session->java_controller_state_gyro_y);
+	controller_state->gyro_z = E->GetFloatField(env, controller_state_java, session->java_controller_state_gyro_z);
+	controller_state->accel_x = E->GetFloatField(env, controller_state_java, session->java_controller_state_accel_x);
+	controller_state->accel_y = E->GetFloatField(env, controller_state_java, session->java_controller_state_accel_y);
+	controller_state->accel_z = E->GetFloatField(env, controller_state_java, session->java_controller_state_accel_z);
+	controller_state->orient_x = E->GetFloatField(env, controller_state_java, session->java_controller_state_orient_x);
+	controller_state->orient_y = E->GetFloatField(env, controller_state_java, session->java_controller_state_orient_y);
+	controller_state->orient_z = E->GetFloatField(env, controller_state_java, session->java_controller_state_orient_z);
+	controller_state->orient_w = E->GetFloatField(env, controller_state_java, session->java_controller_state_orient_w);
+}
+
+JNIEXPORT void JNICALL JNI_FCN(sessionSetControllerState)(JNIEnv *env, jobject obj, jlong ptr, jobject controller_state_java)
+{
+	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
+	ChiakiControllerState controller_state;
+	read_controller_state(env, session, controller_state_java, &controller_state);
 	chiaki_session_set_controller_state(&session->session, &controller_state);
+}
+
+JNIEXPORT void JNICALL JNI_FCN(sessionSetControllerStateSlot)(JNIEnv *env, jobject obj, jlong ptr, jint slot, jobject controller_state_java)
+{
+	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
+	ChiakiControllerState controller_state;
+	read_controller_state(env, session, controller_state_java, &controller_state);
+	if(slot >= 1 && slot < 7)
+		chiaki_multislot_set_controller_state(&session->session, (uint8_t)slot, &controller_state);
+}
+
+JNIEXPORT jint JNICALL JNI_FCN(sessionAddUser)(JNIEnv *env, jobject obj, jlong ptr, jint slot, jlong rid)
+{
+	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
+	if(slot < 1 || slot >= 7) return CHIAKI_ERR_INVALID_DATA;
+	return chiaki_session_add_user(&session->session, (uint8_t)slot, 0, (uint64_t)rid);
+}
+
+JNIEXPORT jint JNICALL JNI_FCN(sessionRemoveUser)(JNIEnv *env, jobject obj, jlong ptr, jint slot)
+{
+	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
+	if(slot < 1 || slot >= 7) return CHIAKI_ERR_INVALID_DATA;
+	return chiaki_session_remove_user(&session->session, (uint8_t)slot);
+}
+
+JNIEXPORT jint JNICALL JNI_FCN(sessionCoopStatus)(JNIEnv *env, jobject obj, jlong ptr, jint slot)
+{
+    AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
+    if(slot < 1 || slot >= 7) return -1;
+    return chiaki_multislot_status(&session->session, (uint8_t)slot);
 }
 
 JNIEXPORT void JNICALL JNI_FCN(sessionSetLoginPin)(JNIEnv *env, jobject obj, jlong ptr, jstring pin_java)

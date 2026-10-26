@@ -75,6 +75,9 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 		_micMuted.value = !input.preferences.micStartUnmuted
 	}
 
+	private val coopPlayers = CoopPlayers(input, mainScope, { session },
+		{ _state.value is StreamStateConnected && !stopped && !disconnecting }, connectInfo.ps5)
+
 	/** True when the mic feature is on and we hold the RECORD_AUDIO permission. */
 	fun micWanted(): Boolean =
 		input.preferences.micEnabled && MicCapture.hasPermission(input.context)
@@ -128,6 +131,8 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 		if(stopped)
 			return
 		stopped = true
+		connected = false
+		coopPlayers.stop()
 		videoWatchdog?.cancel()
 		stopMicCapture()
 		session?.stop()
@@ -248,6 +253,10 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 				connected = true
 				retryCount = 0
 				_state.value = StreamStateConnected
+				mainScope.launch {
+					if(!stopped && !disconnecting && _state.value is StreamStateConnected)
+						coopPlayers.start()
+				}
 				startMicIfNeeded()
 			}
 			is QuitEvent ->

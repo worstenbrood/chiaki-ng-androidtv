@@ -22,6 +22,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.key
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -107,8 +108,12 @@ fun SettingsScreen(
 	val autoConnectOptions = remember(registeredHosts) { listOf<RegisteredHost?>(null) + registeredHosts }
 
 	val ctx = LocalContext.current
-	var psnLoggedIn by remember { mutableStateOf(PsnTokenStore.get(ctx).isLoggedIn) }
+	val psnStore = remember { PsnTokenStore.get(ctx) }
+	var psnAccounts by remember { mutableStateOf(psnStore.accounts()) }
+	var psnLoggedIn by remember { mutableStateOf(psnStore.isLoggedIn) }
+	var removePsnAccount by remember { mutableStateOf<String?>(null) }
 	var showPsnLogin by remember { mutableStateOf(false) }
+	var showCoopLogin by remember { mutableStateOf(false) }
 	var showPinEdit by remember { mutableStateOf(false) }
 	var pinDraft by remember { mutableStateOf(preferences.loginPin) }
 	val audioDevices = remember { AudioDevices.outputDevices(ctx) }
@@ -147,7 +152,15 @@ fun SettingsScreen(
 		navFocus.tryRequestFocus()
 	}
 	rememberFocusRestore(restoreRow, navFocus, rowFocus)
-	fun fr(i: Int) = if(i == restoreRow.coerceAtLeast(1)) rowFocus else null
+	fun fr(i: Int): FocusRequester? {
+		var target = restoreRow.coerceAtLeast(1)
+		if(category == SettingsCategory.PSN) {
+			val count = psnAccounts.count { it.rid != psnStore.accountId }
+			target = target.coerceAtMost(count + 2)
+			if(count >= PsnTokenStore.MAX_EXTRA_ACCOUNTS && target == 2) target = 3
+		}
+		return if(i == target) rowFocus else null
+	}
 	fun fb(i: Int): (Boolean) -> Unit = { if(it) FocusMemory.set("settings_row_${category.ordinal}", i) }
 
 	Column(modifier = Modifier.fillMaxSize().padding(top = 24.dp)) {
@@ -608,30 +621,49 @@ fun SettingsScreen(
 
 					SettingsCategory.PSN ->
 					{
+						val extras = psnAccounts.filter { it.rid != psnStore.accountId }
 						SettingsCard(SurfaceFrosted) {
-							if(psnLoggedIn)
-							{
-								TvInfoRow(stringResource(R.string.account), stringResource(R.string.signed_in))
+							if(psnLoggedIn) {
+								TvInfoRow(stringResource(R.string.psn_primary_account), psnStore.accountId ?: "")
 								TvActionRow(
 									stringResource(R.string.sign_out),
-									stringResource(R.string.sign_out_summary),
+									stringResource(R.string.psn_sign_out_keep_extras),
 									{
-										PsnTokenStore.get(ctx).logout()
+										psnStore.logout()
+										psnAccounts = psnStore.accounts()
 										psnLoggedIn = false
-									},
-									focusRequester = fr(1), onFocus = fb(1)
+									}, focusRequester = fr(1), onFocus = fb(1)
 								)
-							}
-							else
+							} else {
 								TvActionRow(
 									stringResource(R.string.sign_in_psn),
 									stringResource(R.string.sign_in_psn_summary),
-									{ showPsnLogin = true },
-									focusRequester = fr(1), onFocus = fb(1)
+									{ showPsnLogin = true }, focusRequester = fr(1), onFocus = fb(1)
 								)
+							}
+							TvInfoRow(stringResource(R.string.psn_extra_accounts),
+								stringResource(R.string.psn_extra_count, extras.size, PsnTokenStore.MAX_EXTRA_ACCOUNTS))
+							if(extras.size < PsnTokenStore.MAX_EXTRA_ACCOUNTS) {
+								TvActionRow(
+									stringResource(R.string.coop_add_account),
+									stringResource(R.string.coop_add_account_summary),
+									{ showCoopLogin = true }, focusRequester = fr(2), onFocus = fb(2)
+								)
+							} else {
+								TvInfoRow(stringResource(R.string.coop_add_account), stringResource(R.string.psn_extra_limit))
+							}
+							extras.forEachIndexed { index, account ->
+								key(account.rid) {
+									TvActionRow(
+										stringResource(R.string.psn_extra_account, index + 1),
+										stringResource(R.string.psn_remove_account_summary, account.rid),
+										{ removePsnAccount = account.rid },
+										focusRequester = fr(index + 3), onFocus = fb(index + 3)
+									)
+								}
+							}
 						}
 					}
-
 					SettingsCategory.BACKUP ->
 					{
 						SettingsCard(SurfaceFrosted) {
@@ -684,9 +716,35 @@ fun SettingsScreen(
 	if(showPsnLogin)
 		PsnLoginDialog(
 			onDismiss = { showPsnLogin = false },
-			onLoggedIn = { psnLoggedIn = true; showPsnLogin = false }
+			onLoggedIn = { psnAccounts = psnStore.accounts(); psnLoggedIn = psnStore.isLoggedIn; showPsnLogin = false; navFocus.tryRequestFocus() }
 		)
 
+	if(showCoopLogin)
+		PsnLoginDialog(
+			asExtra = true,
+			onDismiss = { showCoopLogin = false },
+			onLoggedIn = { psnAccounts = psnStore.accounts(); showCoopLogin = false; navFocus.tryRequestFocus() }
+		)
+
+	removePsnAccount?.let { rid ->
+		PsAlertDialog(
+			onDismissRequest = { removePsnAccount = null },
+			title = { Text(stringResource(R.string.psn_remove_account)) },
+			text = { Text(stringResource(R.string.psn_remove_account_confirm, rid)) },
+			confirmButton = {
+				TextButton(onClick = {
+					psnStore.removeAccount(rid)
+					psnAccounts = psnStore.accounts()
+					removePsnAccount = null
+					FocusMemory.set("settings_row_${SettingsCategory.PSN.ordinal}", 1)
+					navFocus.tryRequestFocus()
+				}) { Text(stringResource(R.string.psn_remove_account)) }
+			},
+			dismissButton = {
+				TextButton(onClick = { removePsnAccount = null }) { Text(stringResource(R.string.cancel)) }
+			}
+		)
+	}
 	if(showPinEdit)
 	{
 		val save: () -> Unit = {
