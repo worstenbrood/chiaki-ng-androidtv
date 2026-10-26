@@ -23,6 +23,7 @@ ChiakiErrorCode chiaki_ctrl_send_message(ChiakiCtrl *ctrl, uint16_t type, const 
 {
     (void)ctrl;
     assert(size <= sizeof(last_control));
+    if(type == 0x68) assert(size == 16);
     memcpy(last_control, payload, size); last_control_type = type; controls++;
     return CHIAKI_ERR_SUCCESS;
 }
@@ -109,7 +110,10 @@ int main(void)
     assert(chiaki_session_add_user(&s, 7, 0, 42) == CHIAKI_ERR_INVALID_DATA);
     assert(chiaki_session_add_user(&s, 1, 0, 0) == CHIAKI_ERR_INVALID_DATA);
     assert(chiaki_session_add_user(&s, 1, 0, UINT64_C(0x0102030405060708)) == CHIAKI_ERR_SUCCESS);
-    assert(last_control_type == 0x68 && last_control[0] == 8 && last_control[7] == 1 && last_control[8] == 1 && last_control[9] == 8);
+    // Asobi: 0x34e598 passes control type 3 through the transport vtable
+    // at 0xca2668 to the CTRLADD_EX builder at 0x454f04.
+    const uint8_t expected_join[16] = {8, 7, 6, 5, 4, 3, 2, 1, 1, 3, 0, 0, 0, 0, 0, 0};
+    assert(last_control_type == 0x68 && memcmp(last_control, expected_join, sizeof(expected_join)) == 0);
     assert(chiaki_multislot_status(&s, 1) == 1 && connections == 0);
     assert(chiaki_session_add_user(&s, 2, 0, 43) == CHIAKI_ERR_MUTEX_LOCKED);
     reply(&s, 0x8068, 2, 0); // unrelated/stale reply cannot seat a player
@@ -117,7 +121,10 @@ int main(void)
     reply(&s, 0x8068, 1, 0);
     assert(chiaki_multislot_status(&s, 1) == 2 && joined_connections == 1);
     assert(chiaki_session_add_user(&s, 2, 0, UINT64_C(0x0102030405060708)) == CHIAKI_ERR_MUTEX_LOCKED);
+    s.connect_info.enable_dualsense = true;
     assert(chiaki_session_add_user(&s, 2, 0, 43) == CHIAKI_ERR_SUCCESS);
+    assert(last_control[9] == 3); // independent of Takion's DualSense type
+    s.connect_info.enable_dualsense = false;
     reply(&s, 0x8068, 2, 0);
     ChiakiControllerState state;
     chiaki_controller_state_set_idle(&state);

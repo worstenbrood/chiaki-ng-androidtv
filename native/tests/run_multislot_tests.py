@@ -17,7 +17,7 @@ with tempfile.TemporaryDirectory(prefix='chiaki-multislot-') as output:
     common += [f'-I{p}' for p in includes]
     sources = [root / 'native/tests/multislot_test.c', root / 'native/overrides/multislot.c',
                root / 'native/overrides/feedbacksender.c', core / 'src/controller.c',
-               core / 'src/feedback.c', core / 'src/thread.c', core / 'src/time.c',
+               core / 'src/feedback.c', core / 'src/thread.c', core / 'src/time.c', core / 'src/log.c',
                proto / 'takion.pb.c', nanopb / 'pb_common.c', nanopb / 'pb_encode.c', nanopb / 'pb_decode.c']
     target = str(Path(output) / 'multislot-test')
     subprocess.run(common + ['-DCHIAKI_COOP_JOIN_TIMEOUT_MS=1000'] + [str(p) for p in sources] + ['-lm', '-o', target], check=True)

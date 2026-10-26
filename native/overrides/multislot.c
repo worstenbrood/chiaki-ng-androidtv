@@ -300,9 +300,12 @@ ChiakiErrorCode chiaki_session_add_user(ChiakiSession *session, uint8_t slot, ui
     uint8_t payload[16] = {0};
     for(unsigned i = 0; i < 8; i++) payload[i] = (uint8_t)(rid >> (8 * i));
     payload[8] = slot;
-    payload[9] = ctrl_type ? ctrl_type : (session->connect_info.enable_dualsense ? 0x0c : 0x08);
+    // CTRLADD_EX uses the control-channel type (3), not the Takion
+    // CONTROLLERCONNECTION enum (DS4=8 / DualSense=12).
+    payload[9] = ctrl_type ? ctrl_type : 3;
     pad->reserved = true; pad->cancelled = false; pad->rid = rid; pad->status = 1; pad->failure = 0;
     s->pending_slot = slot; s->join_deadline = chiaki_time_now_monotonic_ms() + CHIAKI_COOP_JOIN_TIMEOUT_MS;
+    CHIAKI_LOGI(session->log, "Co-op requesting join: slot=%u control_type=%u", slot, payload[9]);
     err = chiaki_ctrl_send_message(&session->ctrl, 0x68, payload, sizeof(payload));
     if(err != CHIAKI_ERR_SUCCESS) { pad->reserved = false; pad->status = pad->failure = -5; s->pending_slot = 0; }
 done:
@@ -382,6 +385,7 @@ void chiaki_multislot_ctrl_received(ChiakiSession *session, uint16_t type, const
         goto done;
     }
     if(s->pending_slot != slot || !pad->reserved) goto done;
+    CHIAKI_LOGI(session->log, "Co-op join reply: slot=%u result=%u", slot, result);
     s->pending_slot = 0;
     if(result == 0) {
         if(pad->cancelled) leave_locked(session, s, slot);

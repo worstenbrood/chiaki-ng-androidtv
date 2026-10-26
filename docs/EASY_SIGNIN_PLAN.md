@@ -11,7 +11,7 @@ Checked directly against the local `temp/libasobidroid.so` reference:
 
 | Packet | Player identification | Asobi reference |
 | --- | --- | --- |
-| CTRLADD_EX `0x0068` | 16 bytes: `[u64 RID little endian][u8 slot][u8 controller type][6 zero bytes]` | `0x454f04` |
+| CTRLADD_EX `0x0068` | 16 bytes: `[u64 RID little endian][u8 slot][u8 control type = 3][6 zero bytes]` | `0x34e598`, vtable `0xca2668`, builder `0x454f04` |
 | CONTROLLER_DEL `0x0009` | `[u8 slot]` | `0x45509c` |
 | Feedback state | Payload byte 0 is `0xa0 | slot`; UDP header byte 3 remains zero | `0x52f148`, `0x474960` |
 | Button/trigger history | Each event starts with `0x80 | slot`; UDP header byte 3 remains zero | `0x52f4bc`, `0x52e314`, `0x474960` |
@@ -20,6 +20,11 @@ Checked directly against the local `temp/libasobidroid.so` reference:
 
 **Correction to the previous plan:** history does not put its slot in UDP header byte 3.
 Also, a CTRLADD_EX success in the local send queue is not host acceptance.
+The control type is **3**, independently of DualSense mode. Takion's
+CONTROLLERCONNECTION values (8 for DS4, 12 for DualSense) belong to a separate
+enum and must not be used in CTRLADD_EX. The Shield's previous request with type
+8 received `0x8068 [1, 1]` (host refusal). After changing the type to 3,
+the user confirmed that player 2 joins successfully on the Shield/PS5 setup.
 
 ## Join and leave state machine
 
