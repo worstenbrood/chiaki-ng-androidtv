@@ -239,11 +239,11 @@ class MainActivity: ComponentActivity()
 		val session = StreamManager.session
 		session?.stopMicCapture()
 		if(session != null && !session.disconnecting && session.session != null &&
-			screenStack.lastOrNull() is ScreenStream &&
-			preferences.disconnectAction != Preferences.DisconnectAction.NOTHING)
+			screenStack.lastOrNull() is ScreenStream)
 		{
 			session.setVolumePercent(0)
-			awayController.arm { sleepConsoleAway() }
+			if(preferences.disconnectAction != Preferences.DisconnectAction.NOTHING)
+				awayController.arm { sleepConsoleAway() }
 		}
 		else
 			session?.pause()

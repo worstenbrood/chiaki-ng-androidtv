@@ -81,7 +81,16 @@ The JNI layer is **not** compiled from the submodule. `native/jni/` is a copy of
   screen until next IDR). Ours sets `surface_valid=false` + `AMediaCodec_setOutputSurface(NULL)`
   and keeps decoding with `releaseOutputBuffer(render=false)`; a new surface swaps via
   `setOutputSurface` + `surface_valid=true`. `kill_decoder` split into `kill_decoder_locked`
-  (still used by `fini`). Per-frame "decoder not initialized" log downgraded to verbose.
+  (still used by `fini`). Shield rejects the NULL surface swap, so that path must stop
+  and join the output thread before deleting the codec. Every replacement codec must
+  receive the active receiver profile's VPS/SPS/PPS header as CODEC_CONFIG before frames;
+  the receiver only sends that header automatically on a profile switch, not on resume.
+  Read the profile on the video sample callback thread. Request IDR after surface attach;
+  the Kotlin resume watchdog requests another IDR without reconnecting the live session.
+  Smoke-test on Shield with H.264 and H.265: start a stream, press Android Home, return
+  to the app, and repeat. Video/audio and extra players must resume on the same session;
+  the log should show restored profile configuration when the codec was recreated.
+  Per-frame "decoder not initialized" log downgraded to verbose.
 - `audio-output.{h,cpp}`: `android_chiaki_audio_output_restart()` — drains the ring buffer and
   reopens the Oboe stream (the AudioTrack dies server-side when the app is backgrounded, the
   callback thread stalls in `obtainBuffer` and never recovers); `onErrorAfterClose` schedules a

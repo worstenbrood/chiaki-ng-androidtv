@@ -169,10 +169,8 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 	private var videoWatchdog: Job? = null
 
 	/**
-	 * After a keep-alive resume the console may stop honoring IDR requests (the takion
-	 * reliable channel desyncs across backgrounding), leaving a freshly re-initialized
-	 * decoder starved for a keyframe -> permanent black screen. If the decoder produces
-	 * no output within 6s, tear down and reconnect the stream.
+	 * Give a restored decoder another keyframe if output has not resumed yet.
+	 * Keep the live session: a video stall must not disconnect all players.
 	 */
 	fun armVideoStallWatchdog()
 	{
@@ -185,15 +183,8 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 				return@launch
 			if(s.videoOutputFrames() == baseline)
 			{
-				android.util.Log.w("StreamSession", "No video output 6s after resume -> reconnecting")
-				shutdown(StreamStateConnecting)
-				// fresh job: shutdown() cancels videoWatchdog (this very job), so the
-				// reconnect must not run inside it
-				mainScope.launch {
-					delay(RETRY_DELAY_MS)
-					if(!disconnecting && session == null)
-						resume()
-				}
+				android.util.Log.w("StreamSession", "No video output 6s after resume -> requesting IDR")
+				s.requestIDR()
 			}
 		}
 	}

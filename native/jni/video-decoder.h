@@ -21,6 +21,7 @@ typedef struct android_chiaki_video_decoder_t
 	uint64_t timestamp_cur;
 	ChiakiThread output_thread;
 	bool shutdown_output;
+	bool configuration_pending;
 	volatile bool surface_valid;
 	volatile bool needs_recreate;
 	volatile uint64_t frames_since_output;
