@@ -27,6 +27,9 @@ interface RegisteredHostDao
 	@Insert
 	suspend fun insert(host: RegisteredHost): Long
 
+	@Update
+	suspend fun update(host: RegisteredHost)
+
 	@Query("UPDATE registered_host SET rp_pin = :pin WHERE id == :id")
 	suspend fun setPin(id: Long, pin: String?)
 }

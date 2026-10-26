@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.room.withTransaction
 import com.chiaking.tv.R
 import com.chiaking.tv.common.db.AppDatabase
 import com.chiaking.tv.common.logging.LogManager
@@ -17,6 +18,7 @@ import com.chiaking.tv.common.db.RegisteredHost
 import com.chiaking.tv.common.psn.PsnTokenStore
 import com.chiaking.tv.session.StreamManager
 import com.chiaking.tv.session.StreamSession
+import com.chiaking.tv.session.StreamStateCreateError
 import com.chiaking.tv.session.StreamStateQuit
 import com.metallic.chiaki.lib.Holepunch
 import com.metallic.chiaki.lib.HolepunchDevice
@@ -25,6 +27,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -74,10 +77,7 @@ class RemoteConnectController(
 		job = null
 		connectingText = null
 		registSession?.let { session ->
-			registSession = null
 			session.disconnecting = true
-			StreamManager.clear(session)
-			scope.launch(Dispatchers.IO) { session.shutdown() }
 		}
 	}
 
@@ -88,6 +88,8 @@ class RemoteConnectController(
 		val deviceName = device.name.ifBlank { context.getString(R.string.console) }
 		connectingText = context.getString(R.string.remote_linking_with, deviceName)
 		job = scope.launch {
+			var ownedSession: StreamSession? = null
+			var holepunchPtr = 0L
 			try
 			{
 				connectingText = context.getString(R.string.remote_refreshing_token)
@@ -107,7 +109,12 @@ class RemoteConnectController(
 					return@launch
 				}
 				connectingText = context.getString(R.string.remote_creating_session, deviceName)
-				val result = withContext(Dispatchers.IO) { Holepunch.createSession(token, device.duid, device.isPS5) }
+				val result = withContext(Dispatchers.IO) {
+					Holepunch.createSession(token, device.duid, device.isPS5).also {
+						// Keep ownership even if cancellation discards the dispatcher result.
+						holepunchPtr = it.ptr
+					}
+				}
 				if(!result.errorCode.isSuccess)
 				{
 					// Right after auto-registration the console is busy finishing the regist session
@@ -127,14 +134,21 @@ class RemoteConnectController(
 				// First connect to a console: the session only performs the PSN auto-registration
 				// and then stops (upstream design). Save the host, then reconnect to actually stream.
 				val autoRegist = device.duid !in preferences.autoRegistDuids
+				if(StreamManager.session != null)
+				{
+					connectingText = null
+					return@launch
+				}
+				// Native session creation consumes the handle, including its failure paths.
+				holepunchPtr = 0L
 				val session = StreamManager.startRemote(context, preferences, logManager,
 					result.ptr, accountIdBytes, device.isPS5, autoRegist)
 				if(session == null)
 				{
-					Holepunch.fini(result.ptr)
 					connectingText = null
 					return@launch
 				}
+				ownedSession = session
 				// Claim ownership immediately: a cancel during resolveRemoteLoginPin (suspend) or the
 				// regist wait below must find the session here, otherwise it is orphaned mid-connect
 				// (still holding the audio output and blocking StreamManager for the next connect).
@@ -145,6 +159,7 @@ class RemoteConnectController(
 					connectingText = null
 					registSession = null // handed off to the stream screen
 					onStreamReady(session)
+					ownedSession = null
 					return@launch
 				}
 				val registOk = CompletableDeferred<Boolean>()
@@ -155,9 +170,14 @@ class RemoteConnectController(
 						try
 						{
 							val reg = RegisteredHost(host)
-							val previous = database.registeredHostDao().getByMac(reg.serverMac)
-							database.registeredHostDao().deleteByMac(reg.serverMac)
-							database.registeredHostDao().insert(reg.copy(rpPin = previous?.rpPin))
+							database.withTransaction {
+								val dao = database.registeredHostDao()
+								val previous = dao.getByMac(reg.serverMac)
+								if(previous == null)
+									dao.insert(reg)
+								else
+									dao.update(reg.copy(id = previous.id, rpPin = previous.rpPin))
+							}
 							preferences.remoteHostMacs = preferences.remoteHostMacs
 								.filterNot { it.startsWith("${device.duid}|") }.toSet() + "${device.duid}|${reg.serverMac}"
 							preferences.autoRegistDuids = preferences.autoRegistDuids + device.duid
@@ -171,15 +191,20 @@ class RemoteConnectController(
 						}
 					}
 				}
-				launch {
+				val quitObserver = launch {
 					session.state.collect { st ->
-						if(st is StreamStateQuit && !registSeen && !registOk.isCompleted)
+						if((st is StreamStateQuit || st is StreamStateCreateError) &&
+							!registSeen && !registOk.isCompleted)
 							registOk.complete(false)
 					}
 				}
-				val ok = withTimeoutOrNull(REGIST_TIMEOUT_MS) { registOk.await() } ?: false
-				registSession = null
-				StreamManager.clear(session)
+				val ok = try {
+					withTimeoutOrNull(REGIST_TIMEOUT_MS) { registOk.await() } ?: false
+				} finally {
+					quitObserver.cancel()
+				}
+				closeSession(session)
+				ownedSession = null
 				if(ok)
 				{
 					delay(SETTLE_DELAY_MS) // let the console settle after the regist session
@@ -201,7 +226,23 @@ class RemoteConnectController(
 				connectingText = null
 				Toast.makeText(context, context.getString(R.string.remote_connect_failed, e.message), Toast.LENGTH_LONG).show()
 			}
+			finally
+			{
+				ownedSession?.let { closeSession(it) }
+				if(holepunchPtr != 0L)
+					withContext(NonCancellable + Dispatchers.IO) { Holepunch.fini(holepunchPtr) }
+			}
 		}
+	}
+
+	private suspend fun closeSession(session: StreamSession)
+	{
+		if(registSession === session)
+			registSession = null
+		session.autoRegistCallback = null
+		session.disconnecting = true
+		StreamManager.clear(session)
+		withContext(NonCancellable + Dispatchers.IO) { session.shutdown() }
 	}
 
 	private suspend fun resolveRemoteLoginPin(session: StreamSession, duid: String)
