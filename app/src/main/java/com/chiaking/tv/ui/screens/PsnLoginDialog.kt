@@ -22,6 +22,8 @@ import com.chiaking.tv.common.psn.PsnAuth
 import com.chiaking.tv.common.psn.PsnLoginException
 import com.chiaking.tv.common.psn.PsnLoginPhase
 import com.chiaking.tv.common.psn.PsnTokenStore
+import com.chiaking.tv.common.psn.PsnAccountException
+import com.chiaking.tv.common.psn.PsnAccountError
 import com.chiaking.tv.ui.components.dialogs.PsAlertDialog
 import com.chiaking.tv.ui.components.TvTextField
 import com.chiaking.tv.ui.theme.*
@@ -48,6 +50,8 @@ fun PsnLoginDialog(asExtra: Boolean = false, onDismiss: () -> Unit, onLoggedIn: 
 	val uidFailedMsg = stringResource(R.string.psn_uid_failed)
 	val badCodeMsg = stringResource(R.string.psn_bad_code)
 	val signinFailedMsg = stringResource(R.string.psn_signin_failed)
+	val limitMsg = stringResource(R.string.psn_extra_limit)
+	val primaryMsg = stringResource(R.string.psn_extra_is_primary)
 	val statusText = stringResource(
 		when(status)
 		{
@@ -155,6 +159,10 @@ fun PsnLoginDialog(asExtra: Boolean = false, onDismiss: () -> Unit, onLoggedIn: 
 						{
 							val accountId = PsnTokenStore.get(ctx).loginWithCode(code, asExtra) { status = it }
 							success = accountId
+						}
+						catch(e: PsnAccountException)
+						{
+							error = if(e.reason == PsnAccountError.LIMIT_REACHED) limitMsg else primaryMsg
 						}
 						catch(e: PsnLoginException)
 						{

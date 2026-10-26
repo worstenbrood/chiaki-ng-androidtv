@@ -142,7 +142,7 @@
 	<string name="sign_in_psn">Sign in with PSN</string>
 	<string name="sign_in_psn_summary">Required for Remote Play over the internet</string>
 	<string name="coop_add_account">Add co-op account</string>
-	<string name="coop_add_account_summary">Add another PSN account to seat extra players</string>
+	<string name="coop_add_account_summary">Add extra PSN accounts for other players</string>
 	<string name="backup">Backup</string>
 	<string name="export_settings">Export Settings</string>
 	<string name="export_settings_summary">Save registered and manual hosts to a JSON file</string>
@@ -280,4 +280,14 @@
 	<string name="coop_refused">Player %1$d could not join or leave. Check the console and press a button to retry; reconnect if needed.</string>
 	<string name="coop_ps5_only">Player %1$d: extra Remote Play players are supported on PS5 only.</string>
 	<string name="coop_account_required">Player %1$d needs a separate co-op PSN account. Add it in Settings before joining.</string>
+	<string name="psn_primary_account">Primary PSN account</string>
+	<string name="psn_extra_accounts">Extra PSN accounts</string>
+	<string name="psn_extra_count">%1$d of %2$d extra accounts saved</string>
+	<string name="psn_extra_account">Extra account %1$d</string>
+	<string name="psn_extra_limit">You can save up to 7 extra accounts. Remove an account to add another.</string>
+	<string name="psn_extra_is_primary">This is your primary account. Sign in with a different PSN account.</string>
+	<string name="psn_sign_out_keep_extras">Sign out of the primary account. Extra accounts are kept.</string>
+	<string name="psn_remove_account">Remove account</string>
+	<string name="psn_remove_account_summary">Account ID: %1$s · Select to remove</string>
+	<string name="psn_remove_account_confirm">Remove saved account %1$s from this app? Other accounts and console profiles are kept.</string>
 </resources>

@@ -46,6 +46,14 @@ the user confirmed that player 2 joins successfully on the Shield/PS5 setup.
 
 ## Ownership and input
 
+PSN settings can store seven extra accounts in addition to the primary account.
+Each saved account is listed by account ID and can be removed individually.
+EncryptedSharedPreferences keeps `extra_rids` as a set of account IDs, with
+`extra_<rid>_access`, `_refresh`, and `_expiry` keys; display positions are never
+storage keys. Removing an account deletes its credentials and index entry in one
+editor transaction. Signing out of the primary account preserves the extras.
+Token refreshes cannot restore a deleted account or overwrite a newer login.
+
 `CoopPlayers.kt` serializes requests, assigns distinct extra accounts deterministically,
 shows localized host failures and restores wanted players after a new native session.
 There is no anonymous RID=0 fallback. `PadSlots.kt` preserves assignments when Android
