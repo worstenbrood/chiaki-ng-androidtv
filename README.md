@@ -10,6 +10,8 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
 **Jetpack Compose for TV** app with a PlayStation-inspired look (Inter typeface, PS5-style
 home with ambient glow and pill buttons, two-pane settings) and full D-pad/gamepad navigation.
 
+Current version: **1.22.0-tv** (Android version code **31**).
+
 ## Features
 
 - **Console discovery** — automatically finds PS4/PS5 consoles on the LAN
@@ -22,7 +24,8 @@ home with ambient glow and pill buttons, two-pane settings) and full D-pad/gamep
   is immediately asked for a fresh keyframe instead of waiting for the next one
   (*Settings → Stream → Request Keyframe on Frame Loss*, on by default)
 - **Session keep-alive** — leaving the app during a stream keeps the session connected (muted);
-  returning resumes instantly without a reconnect, even after the app was recreated
+  returning restores video and audio on the live session without reconnecting, including on
+  Shield TV when the video decoder must be recreated. The configured background timeout still applies
 - **When Leaving Stream** — *Settings → General → When Leaving Stream* (Ask / Sleep Console /
   Do Nothing): one setting for what happens to the console when you disconnect (HUD ✕ chip or
   remote Back) *and* when you leave the app mid-stream — show the Sleep/Disconnect dialog,
@@ -44,6 +47,13 @@ home with ambient glow and pill buttons, two-pane settings) and full D-pad/gamep
   a soft cyan glow, mirroring the console's own UI
 - **Dutch & English UI** — follows the system language
 - **Gamepad support** — full controller mapping incl. sticks, triggers, motion controls and rumble
+- **PS5 local multiplayer** — additional gamepads can join the same Remote Play session using
+  separate saved PSN accounts. Player 2 joining has been verified on a Shield TV and PS5;
+  the game and console determine how many players can participate
+- **PSN account management** — save up to **seven extra accounts in addition to the primary account**
+  in *Settings → PlayStation Network*. View saved account IDs and remove extra accounts individually;
+  removing one preserves the other accounts, and signing out of the primary account keeps the extras.
+  PSN tokens are stored encrypted on the device and are excluded from settings exports
 - **TV remote support** — D-pad and menu button act as controller input while streaming (toggleable)
 - **Manual hosts** — add consoles by IP when discovery is not enough
 - **Audio controls** — stream volume (applies live), output-device selection
@@ -141,6 +151,29 @@ home with ambient glow and pill buttons, two-pane settings) and full D-pad/gamep
 > Back) is forwarded to the console as the PS button instead. The **touchpad click** is
 > sent as a real touchpad click (not Create/Share).
 
+### Adding multiplayer users (PS5)
+
+1. Add each extra player's user profile to the PS5 and sign it in to that player's PSN account.
+   Complete any console sign-in or profile passcode prompts first.
+2. In Chiaki TV, open *Settings → PlayStation Network → Add co-op account* and sign in with
+   that player's PSN account. Repeat for other players; up to seven extra accounts can be saved.
+3. Connect the gamepads to the TV and start a PS5 stream. Press a button on an additional
+   gamepad to open the account cards over the stream. Choose an available account with
+   that controller's D-pad or left stick and press Cross to join; Back cancels. Accounts
+   already in use are unavailable. A message confirms when the console accepts the player.
+   Cards show a standard account icon, account number and saved account ID. No PSN profile requests are made.
+4. Start a game that supports local multiplayer. Additional controllers send their own input;
+   player 1 controls the stream HUD.
+
+The seven saved extra accounts form an account pool, not a promise of eight simultaneous
+players. The current protocol implementation has seven controller slots in total, including
+player 1, and the console or game may impose a lower limit. Extra-player joins are PS5-only.
+
+To remove a saved extra account, select its row in *Settings → PlayStation Network* and
+confirm removal. This removes its saved credentials from the app, not its profile on the PS5.
+Accounts are stored by account ID, so deleting one from the middle of the list does not change
+the credentials of the remaining accounts.
+
 ## Building
 
 All building happens in Docker — the Android NDK and aapt2 are x86_64-only, so on ARM hosts
@@ -157,8 +190,8 @@ git submodule update --init native/third-party/opus
 # one-time: build the Linux build image
 docker build --platform linux/amd64 -f docker/Dockerfile.build -t chiaki-tv-build-amd64 docker/
 
-# build the APK (~40 s incremental, ~4 min cold — build.ps1 keeps a persistent build container
-# with the Gradle daemon + cache alive between runs)
+# build the APK (build.ps1 keeps a persistent container with the Gradle daemon and cache;
+# full Kotlin/native rebuilds under emulation can take several minutes)
 .\build.ps1
 
 # Kotlin-only iteration: skip the CMake/NDK tasks (~25 s) when native/ and external/ are unchanged
@@ -170,7 +203,22 @@ docker build --platform linux/amd64 -f docker/Dockerfile.build -t chiaki-tv-buil
 
 Output: `app/build/outputs/apk/debug/app-debug.apk` or `app/build/outputs/apk/release/app-release.apk`.
 The release APK is signed with the repo's keystore, so it installs over a debug build without data loss.
-Other ABIs: append `-Pabis=arm64-v8a,armeabi-v7a`.
+Both ARM ABIs are included by default. For an ARM64-only build:
+
+```powershell
+.\build.ps1 "assembleRelease -Pabis=arm64-v8a"
+```
+
+Account-storage and controller-slot regression tests run in the same Docker environment:
+
+```powershell
+.\build.ps1 "testDebugUnitTest -Pabis=arm64-v8a"
+docker exec -w /src chiaki-tv-build python3 native/tests/run_multislot_tests.py
+```
+
+The native tests check join/leave handling and feedback packet bytes against the local
+Asobi reference. They simulate console replies; hardware testing is still needed for
+console acceptance and game compatibility.
 
 ## Project layout
 
@@ -182,12 +230,15 @@ native/                 CMake entry point + our copy of the JNI layer
                         native/third-party/opus, live mic pitch shift via
                         native/third-party/sonic, stream stats and surface keep-alive
                         on top of upstream)
+native/overrides/       Local C-core overrides, including PS5 co-op and feedback routing
+native/tests/           Native co-op lifecycle and wire-format regression tests
 docker/                 Docker build image definition
 docs/UPSTREAM_SYNC.md   How to integrate new upstream chiaki-ng commits
 AGENTS.md               Build/architecture notes for AI agents and contributors
 ```
 
-The C core is compiled directly from the submodule; the JNI layer is our own copy in
+The C core comes from the submodule, with selected files replaced by local overrides
+through `native/CMakeLists.txt`; the JNI layer is our own copy in
 `native/jni/` that must be re-diffed on upstream bumps (see `docs/UPSTREAM_SYNC.md`).
 The Kotlin layer is a manual port of upstream's Android app adapted for TV.
 
@@ -199,6 +250,11 @@ The Kotlin layer is a manual port of upstream's Android app adapted for TV.
   the PIN was entered within its validity window; enable *Verbose Logs* and check *Session Logs*.
 - **Stutter / high latency** — prefer 5 GHz Wi-Fi or Ethernet; try H.265 and lower the bitrate.
 - **D-pad does nothing in game** — enable *Settings → Controller → D-pad sends controller input*.
+- **Extra player cannot join** — use a PS5, add a distinct extra PSN account in the app, and
+  ensure that account has a signed-in profile on the console. Resolve any profile passcode
+  prompts on the PS5, then press a button on the extra controller to retry. Check the game's
+  local multiplayer support and the console's player limit. After a join timeout, reconnect
+  the stream if the console has not released the pending request.
 
 ## License
 

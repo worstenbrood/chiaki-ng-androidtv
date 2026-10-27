@@ -91,6 +91,9 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 			.remove(extraKey(accountId, "access"))
 			.remove(extraKey(accountId, "refresh"))
 			.remove(extraKey(accountId, "expiry"))
+			.remove(extraKey(accountId, "online_id"))
+			.remove(extraKey(accountId, "avatar_url"))
+			.remove(extraKey(accountId, "profile_updated"))
 			.putStringSet(KEY_EXTRA_INDEX, extraRids() - accountId)
 			.apply()
 	}
@@ -139,6 +142,9 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 			.remove(extraKey(rid, "access"))
 			.remove(extraKey(rid, "refresh"))
 			.remove(extraKey(rid, "expiry"))
+			.remove(extraKey(rid, "online_id"))
+			.remove(extraKey(rid, "avatar_url"))
+			.remove(extraKey(rid, "profile_updated"))
 			.putStringSet(KEY_EXTRA_INDEX, extraRids() - rid)
 			.apply()
 	}
@@ -168,7 +174,10 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 	@Synchronized
 	internal fun refreshExtraIfPresent(account: PsnAccount, previousRefreshToken: String): Boolean {
 		if(loadExtra(account.rid)?.refreshToken != previousRefreshToken || account.rid !in extraRids()) return false
-		putExtra(account)
+		// Update only the account whose credentials are still current.
+		prefs.edit().putString(extraKey(account.rid, "access"), account.accessToken)
+			.putString(extraKey(account.rid, "refresh"), account.refreshToken)
+			.putLong(extraKey(account.rid, "expiry"), account.expiryMs).apply()
 		return true
 	}
 

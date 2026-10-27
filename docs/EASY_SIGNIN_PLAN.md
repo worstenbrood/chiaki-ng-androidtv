@@ -54,8 +54,16 @@ storage keys. Removing an account deletes its credentials and index entry in one
 editor transaction. Signing out of the primary account preserves the extras.
 Token refreshes cannot restore a deleted account or overwrite a newer login.
 
-`CoopPlayers.kt` serializes requests, assigns distinct extra accounts deterministically,
-shows localized host failures and restores wanted players after a new native session.
+`CoopPlayers.kt` serializes requests and shows a card picker for each joining controller.
+Only that controller (or the TV remote) navigates its picker; existing players keep
+playing. Used accounts remain visible but cannot be selected. The chosen RID is
+revalidated before CTRLADD_EX, and the opening/selection button state is cleared so
+it never reaches the game. Cancelling or unplugging closes the pending choice without
+sending a join request. Cards show standard account icons and saved account IDs;
+there is no PSN profile lookup or avatar download. Shared OAuth JSON transport lives
+in `PsnHttpClient.kt` and logs status codes without URLs, tokens or response bodies.
+`CoopPlayers.kt` also shows localized host failures and restores wanted players
+after a new native session.
 There is no anonymous RID=0 fallback. `PadSlots.kt` preserves assignments when Android
 reorders devices or another controller disconnects; newly attached devices fill gaps.
 Secondary pads do not navigate player 1's HUD.

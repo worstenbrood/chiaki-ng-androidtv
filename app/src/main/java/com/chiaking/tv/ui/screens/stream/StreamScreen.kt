@@ -59,6 +59,8 @@ fun StreamScreen(
 {
 	val state by session.state.collectAsState()
 	val hudVisible by session.hudVisible.collectAsState()
+	val coopChoice by session.coopAccountChoice.collectAsState()
+	LaunchedEffect(coopChoice?.id) { if(coopChoice != null) session.hideHud() }
 	val disconnectDialogVisible by session.disconnectDialogVisible.collectAsState()
 	var pinDialog by remember { mutableStateOf<StreamStateLoginPinRequest?>(null) }
 	var quitDialog by remember { mutableStateOf<StreamStateQuit?>(null) }
@@ -166,7 +168,7 @@ fun StreamScreen(
 		StreamHud(
 			session = session,
 			preferences = preferences,
-			hudVisible = hudVisible,
+			hudVisible = hudVisible && coopChoice == null,
 			state = state,
 			displayMode = displayMode,
 			onCycleDisplayMode = {
@@ -177,6 +179,7 @@ fun StreamScreen(
 			onClose = closeAction,
 			modifier = Modifier.align(Alignment.BottomCenter)
 		)
+		coopChoice?.let { CoopAccountPicker(it, session) }
 	}
 
 	if(pinDialog != null)

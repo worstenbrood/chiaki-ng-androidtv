@@ -280,6 +280,12 @@ class MainActivity: ComponentActivity()
 		{
 			val session = streamScreen.session
 			val input = StreamManager.input
+			if(session.handleCoopAccountKey(event)) return true
+			if(session.coopAccountChoice.value != null && input != null && PadManager.isGamepad(event.device)) {
+				if(input.padManager.isPrimary(event.deviceId) && input.onHudComboKeyEvent(event)) return true
+				input.dispatchKeyEvent(event)
+				return true
+			}
 			if(input != null && session.state.value is StreamStateConnected &&
 				PadManager.isGamepad(event.device) && !input.padManager.isPrimary(event.deviceId))
 			{
@@ -341,6 +347,11 @@ class MainActivity: ComponentActivity()
 		val streamScreen = screenStack.lastOrNull() as? ScreenStream
 		if(streamScreen != null)
 		{
+			if(streamScreen.session.handleCoopAccountMotion(event)) return true
+			if(streamScreen.session.coopAccountChoice.value != null && PadManager.isGamepad(event.device)) {
+				StreamManager.input?.onGenericMotionEvent(event)
+				return true
+			}
 			if(hudStickNavigate(event))
 				return true
 			// While the HUD is open, gamepad sticks go straight to the game (Compose would eat them)

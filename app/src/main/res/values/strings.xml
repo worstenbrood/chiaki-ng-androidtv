@@ -290,4 +290,7 @@
 	<string name="psn_remove_account">Remove account</string>
 	<string name="psn_remove_account_summary">Account ID: %1$s · Select to remove</string>
 	<string name="psn_remove_account_confirm">Remove saved account %1$s from this app? Other accounts and console profiles are kept.</string>
+	<string name="coop_choose_account">Choose an account for player %1$d</string>
+	<string name="coop_choose_account_hint">Use this controller to choose an account. Press Cross to join or Back to cancel.</string>
+	<string name="coop_account_unavailable">Already in use or unavailable</string>
 </resources>
