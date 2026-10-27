@@ -39,10 +39,10 @@ class CoopAccountChoiceTest {
         assertEquals(occupied, occupied.move(-1))
     }
 
-    @Test fun selectionPreservesAccountIdentityAndRequest() {
+    @Test fun metadataUpdatesPreserveSelectedAccountIdentityAndRequest() {
         val choice = CoopAccountChoice(7, 2,
             listOf(CoopAccountOption("a", true), CoopAccountOption("b", true))).focus(1)
-        val updated = choice.move(-1).move(1)
+        val updated = choice.copy(accounts = choice.accounts.map { it.copy(onlineId = "Name-${it.rid}") })
         assertEquals("b", updated.accounts[updated.selectedIndex].rid)
         assertEquals(7L, updated.id)
         assertEquals(2, updated.slot)

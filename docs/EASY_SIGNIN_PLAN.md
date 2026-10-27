@@ -59,9 +59,7 @@ Only that controller (or the TV remote) navigates its picker; existing players k
 playing. Used accounts remain visible but cannot be selected. The chosen RID is
 revalidated before CTRLADD_EX, and the opening/selection button state is cleared so
 it never reaches the game. Cancelling or unplugging closes the pending choice without
-sending a join request. Cards show standard account icons and saved account IDs;
-there is no PSN profile lookup or avatar download. Shared OAuth JSON transport lives
-in `PsnHttpClient.kt` and logs status codes without URLs, tokens or response bodies.
+sending a join request. Profiles follow the Remote Play 9.5.0 flow: account info from `vl.api.np.km.playstation.net` with `X-NP-ACCESS-TOKEN`, then service discovery from `asm.np.community.playstation.net`, followed by `v1/users/<onlineId>/profile` with Bearer authentication. Discovered services must use HTTPS under `*.np.community.playstation.net`. The returned account ID must match the saved RID. Metadata is cached per RID in encrypted preferences; late responses cannot recreate removed accounts. All requests use `PsnHttpClient.kt`, including bounded public image downloads without credentials. Failed lookups leave standard account cards usable; incomplete avatar metadata retries after five minutes.
 `CoopPlayers.kt` also shows localized host failures and restores wanted players
 after a new native session.
 There is no anonymous RID=0 fallback. `PadSlots.kt` preserves assignments when Android

@@ -35,6 +35,7 @@ internal class CoopPlayers(
     private val _choice = MutableStateFlow<CoopAccountChoice?>(null)
     val choice = _choice.asStateFlow()
     private var nextChoiceId = 0L
+    private var profileJob: Job? = null
     private val choiceKeys = CoopChoiceKeys()
     private var hatDirection = 0
 
@@ -72,6 +73,7 @@ internal class CoopPlayers(
 
     fun stop() {
         job?.cancel()
+        profileJob?.cancel()
         _choice.value = null
     }
 
@@ -84,6 +86,7 @@ internal class CoopPlayers(
         wanted.remove(choice.slot)
         retryAfter[choice.slot] = SystemClock.elapsedRealtime() + 500
         input.resetSecondaryState(choice.slot)
+        profileJob?.cancel()
         _choice.value = null
     }
 
@@ -99,6 +102,7 @@ internal class CoopPlayers(
             return
         }
         input.resetSecondaryState(choice.slot)
+        profileJob?.cancel()
         _choice.value = null
         val result = session.addUser(choice.slot, numeric)
         if(result.isSuccess) assigned[choice.slot] = rid
@@ -171,6 +175,7 @@ internal class CoopPlayers(
     private fun tick() {
         val session = currentSession()
         if(session !== native) {
+            profileJob?.cancel()
             _choice.value = null
             if(native != null) input.resetSecondaryStates()
             native = session
@@ -179,6 +184,7 @@ internal class CoopPlayers(
             retryAfter.clear()
         }
         if(session == null || !connected()) {
+            profileJob?.cancel()
             _choice.value = null
             return
         }
@@ -216,11 +222,20 @@ internal class CoopPlayers(
         val store = PsnTokenStore.get(input.context)
         val accounts = store.accounts().filter { it.rid != store.accountId }.sortedBy { it.rid }
         val choice = CoopAccountChoice(++nextChoiceId, slot, accounts.map {
-            CoopAccountOption(it.rid, it.rid !in assigned.values && numericRid(it.rid) != null)
+            CoopAccountOption(it.rid, it.rid !in assigned.values && numericRid(it.rid) != null, it.onlineId, it.avatarUrl)
         })
         input.resetSecondaryState(slot)
         choiceKeys.reset()
         hatDirection = 0
         _choice.value = choice
+        profileJob = scope.launch {
+            for(account in accounts) {
+                val profile = store.refreshProfile(account.rid) ?: continue
+                val current = _choice.value?.takeIf { it.id == choice.id } ?: return@launch
+                _choice.value = current.copy(accounts = current.accounts.map {
+                    if(it.rid == profile.rid) it.copy(onlineId = profile.onlineId, avatarUrl = profile.avatarUrl) else it
+                })
+            }
+        }
     }
 }
