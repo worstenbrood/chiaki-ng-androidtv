@@ -7,6 +7,26 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PsnTokenStoreTest {
+    @Test fun profilesPersistWithTheirAccountAndCannotResurrectADeletedAccount() {
+        val memory = MemoryPreferences()
+        val store = PsnTokenStore(memory.prefs)
+        store.putExtra(extra("a"))
+        store.putExtra(extra("b"))
+        val profile = PsnAuth.Profile("Player B", "https://example.test/avatar.png")
+        assertTrue(store.saveProfileIfPresent("b", profile))
+        val cached = PsnTokenStore(memory.prefs).account("b")!!
+        assertEquals("Player B", cached.onlineId)
+        assertEquals(profile.avatarUrl, cached.avatarUrl)
+        assertEquals("access-b", cached.accessToken)
+        assertTrue(cached.profileUpdatedMs > 0)
+        assertTrue(store.refreshExtraIfPresent(extra("b").copy(accessToken = "fresh"), "refresh-b"))
+        assertEquals("Player B", store.account("b")?.onlineId)
+        assertEquals("fresh", store.account("b")?.accessToken)
+        store.removeAccount("b")
+        assertFalse(store.saveProfileIfPresent("b", profile))
+        assertFalse(memory.values.keys.any { it.startsWith("extra_b_") })
+        assertEquals(extra("a"), store.account("a"))
+    }
     private fun extra(id: String) = PsnAccount(id, "access-$id", "refresh-$id", 1234)
     private fun primary(store: PsnTokenStore, id: String = "primary") =
         store.save(PsnAuth.PsnTokens("main-access", "main-refresh", 3600), id, "duid")

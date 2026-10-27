@@ -290,4 +290,7 @@
 	<string name="psn_remove_account">Account verwijderen</string>
 	<string name="psn_remove_account_summary">Account-ID: %1$s · Selecteer om te verwijderen</string>
 	<string name="psn_remove_account_confirm">Opgeslagen account %1$s uit deze app verwijderen? Andere accounts en consoleprofielen blijven bewaard.</string>
+	<string name="coop_choose_account">Kies een account voor speler %1$d</string>
+	<string name="coop_choose_account_hint">Kies met deze controller een account. Druk op kruisje om deel te nemen of Terug om te annuleren.</string>
+	<string name="coop_account_unavailable">Al in gebruik of niet beschikbaar</string>
 </resources>

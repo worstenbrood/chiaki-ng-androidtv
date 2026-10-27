@@ -60,6 +60,12 @@ class StreamInput(val context: Context, val preferences: Preferences)
 		slotMotionStates.clear()
 	}
 
+	fun resetSecondaryState(slot: Int)
+	{
+		slotKeyStates.remove(slot)
+		slotMotionStates.remove(slot)
+	}
+
 	fun slotControllerState(slot: Int): ControllerState
 	{
 		val keys = slotKeyState(slot)
@@ -402,7 +408,11 @@ class StreamInput(val context: Context, val preferences: Preferences)
 					ControllerState.BUTTON_DPAD_UP).inv() or
 					dpadButtons
 		}
-		if(st != previous) secondaryPadInputCallback?.invoke(slot)
+		// Joining requires a deliberate press/movement, never a release or stick drift.
+		val joinIntent = st.buttons != 0U || st.l2State > 32U || st.r2State > 32U ||
+			kotlin.math.abs(st.leftX.toInt()) > 16000 || kotlin.math.abs(st.leftY.toInt()) > 16000 ||
+			kotlin.math.abs(st.rightX.toInt()) > 16000 || kotlin.math.abs(st.rightY.toInt()) > 16000
+		if(st != previous && joinIntent) secondaryPadInputCallback?.invoke(slot)
 		emitSlotState(slot)
 		return true
 	}
