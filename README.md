@@ -161,8 +161,7 @@ Current version: **1.22.0-tv** (Android version code **31**).
    gamepad to open the account cards over the stream. Choose an available account with
    that controller's D-pad or left stick and press Cross to join; Back cancels. Accounts
    already in use are unavailable. A message confirms when the console accepts the player.
-   PSN names and avatars load in the background and are cached; an account icon and ID
-   remain available if profile information cannot be fetched.
+   Cards show a standard account icon, account number and saved account ID. No PSN profile requests are made.
 4. Start a game that supports local multiplayer. Additional controllers send their own input;
    player 1 controls the stream HUD.
 

@@ -26,22 +26,6 @@ object PsnAuth
 	private val http = PsnHttpClient()
 
 	data class PsnTokens(val accessToken: String, val refreshToken: String, val expiresInSeconds: Long)
-	data class Profile(val onlineId: String, val avatarUrl: String)
-
-	/** Optional profile data for account avatars; failures must not prevent Remote Play. */
-	suspend fun fetchProfile(rid: String, accessToken: String): Profile = withContext(Dispatchers.IO) {
-		require(Base64.decode(rid, Base64.NO_WRAP).size == 8)
-		val service = http.request(
-			"https://asm.np.community.playstation.net/asm/v1/apps/me/baseUrls/userProfile",
-			"Bearer $accessToken", timeoutMs = 5000, operation = "profile discovery"
-		)
-		val json = http.request(
-			PsnProfileEndpoint.profileUrl(service.getString("url")),
-			"Bearer $accessToken", timeoutMs = 5000, operation = "profile"
-		)
-		Profile(json.optString("onlineId", ""), json.optString("avatarUrl", ""))
-	}
-
 	fun loginUrl(duid: String): String =
 		"$AUTHORIZE_URL?service_entity=urn:service-entity:psn&response_type=code" +
 			"&client_id=$CLIENT_ID&redirect_uri=${enc(REDIRECT_PAGE)}&scope=${enc(SCOPES)}" +
