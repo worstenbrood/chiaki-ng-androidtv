@@ -17,7 +17,7 @@ import com.chiaking.tv.ui.theme.OnSurfaceMuted
 
 /** Non-focusable title/value row (read-only info). */
 @Composable
-fun TvInfoRow(title: String, value: String)
+fun TvInfoRow(title: String, value: String, leadingContent: (@Composable () -> Unit)? = null)
 {
 	Row(
 		modifier = Modifier
@@ -25,6 +25,7 @@ fun TvInfoRow(title: String, value: String)
 			.padding(horizontal = 22.dp, vertical = 12.dp),
 		verticalAlignment = Alignment.CenterVertically
 	) {
+		leadingContent?.invoke()
 		Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
 		Spacer(Modifier.width(12.dp))
 		Text(value, style = MaterialTheme.typography.bodyMedium, color = OnSurfaceMuted)

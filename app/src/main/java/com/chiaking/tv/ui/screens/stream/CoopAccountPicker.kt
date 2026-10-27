@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -23,6 +22,7 @@ import com.chiaking.tv.R
 import com.chiaking.tv.session.CoopAccountChoice
 import com.chiaking.tv.session.StreamSession
 import com.chiaking.tv.ui.components.TvFocusCard
+import com.chiaking.tv.ui.components.PsnAccountAvatar
 import com.chiaking.tv.ui.theme.*
 import kotlinx.coroutines.delay
 
@@ -65,9 +65,9 @@ fun CoopAccountPicker(choice: CoopAccountChoice, session: StreamSession) {
                             Column(Modifier.width(200.dp).height(210.dp).padding(20.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center) {
-                                Icon(Icons.Default.Person, null, Modifier.size(72.dp), tint = OnSurfaceMuted)
+                                PsnAccountAvatar(account.avatarUrl, Modifier.size(72.dp))
                                 Spacer(Modifier.height(16.dp))
-                                Text(stringResource(R.string.psn_extra_account, index + 1),
+                                Text(account.onlineId.ifBlank { stringResource(R.string.psn_extra_account, index + 1) },
                                     style = MaterialTheme.typography.titleMedium, color = OnSurfaceLight,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Spacer(Modifier.height(8.dp))

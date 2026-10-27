@@ -109,6 +109,10 @@ Current version: **1.23.0-tv** (Android version code **32**).
 | --- | --- |
 | ![Console registration screen with PIN flow](docs/screenshots/regist.jpg) | ![Stream with the HUD bar open](docs/screenshots/stream_hud.jpg) |
 
+| PSN accounts | Co-op account picker |
+| --- | --- |
+| ![PSN settings showing the primary and extra accounts with their names and avatars](docs/screenshots/psn_accounts.png) | ![Co-op account selection with PSN name and avatar over the active stream](docs/screenshots/coop_account_picker.png) |
+
 ## Requirements
 
 - Android TV 7.0+ (API 24), **arm64-v8a** and **armeabi-v7a** (Shield TV and other modern TV
@@ -161,7 +165,7 @@ Current version: **1.23.0-tv** (Android version code **32**).
    gamepad to open the account cards over the stream. Choose an available account with
    that controller's D-pad or left stick and press Cross to join; Back cancels. Accounts
    already in use are unavailable. A message confirms when the console accepts the player.
-   Cards show a standard account icon, account number and saved account ID. No PSN profile requests are made.
+   PSN names and avatars are fetched when an account is added and shown in PSN settings for the primary and extra accounts. Cards reuse this cache, refreshing it through the Remote Play account-info and profile services. A standard account icon and saved account ID remain available if fetching fails.
 4. Start a game that supports local multiplayer. Additional controllers send their own input;
    player 1 controls the stream HUD.
 

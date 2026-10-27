@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -52,6 +53,7 @@ import com.chiaking.tv.ui.focus.FocusMemory
 import com.chiaking.tv.ui.components.PinTextField
 import com.chiaking.tv.ui.components.dialogs.PsAlertDialog
 import com.chiaking.tv.ui.components.ScreenHeader
+import com.chiaking.tv.ui.components.PsnAccountAvatar
 import com.chiaking.tv.ui.components.settings.SettingsCard
 import com.chiaking.tv.ui.components.settings.TvActionRow
 import com.chiaking.tv.ui.components.settings.TvCycleRow
@@ -141,6 +143,14 @@ fun SettingsScreen(
 
 	var category by remember { mutableStateOf(
 		SettingsCategory.entries.getOrElse(FocusMemory.get("settings_cat")) { SettingsCategory.STREAM }) }
+	LaunchedEffect(category, psnAccounts.map { it.rid }) {
+		if(category == SettingsCategory.PSN) {
+			for(rid in psnAccounts.map { it.rid }) {
+				psnStore.refreshProfile(rid)
+				psnAccounts = psnStore.accounts()
+			}
+		}
+	}
 	val restoreRow = FocusMemory.get("settings_row_${category.ordinal}")
 
 	val navFocus = remember { FocusRequester() }
@@ -624,7 +634,13 @@ fun SettingsScreen(
 						val extras = psnAccounts.filter { it.rid != psnStore.accountId }
 						SettingsCard(SurfaceFrosted) {
 							if(psnLoggedIn) {
-								TvInfoRow(stringResource(R.string.psn_primary_account), psnStore.accountId ?: "")
+								val primary = psnAccounts.firstOrNull { it.rid == psnStore.accountId }
+								TvInfoRow(stringResource(R.string.psn_primary_account),
+									primary?.onlineId?.ifBlank { primary.rid } ?: "",
+									leadingContent = {
+										PsnAccountAvatar(primary?.avatarUrl.orEmpty(), Modifier.size(48.dp))
+										Spacer(Modifier.width(16.dp))
+									})
 								TvActionRow(
 									stringResource(R.string.sign_out),
 									stringResource(R.string.psn_sign_out_keep_extras),
@@ -655,10 +671,14 @@ fun SettingsScreen(
 							extras.forEachIndexed { index, account ->
 								key(account.rid) {
 									TvActionRow(
-										stringResource(R.string.psn_extra_account, index + 1),
+										account.onlineId.ifBlank { stringResource(R.string.psn_extra_account, index + 1) },
 										stringResource(R.string.psn_remove_account_summary, account.rid),
 										{ removePsnAccount = account.rid },
-										focusRequester = fr(index + 3), onFocus = fb(index + 3)
+										focusRequester = fr(index + 3), onFocus = fb(index + 3),
+										leadingContent = {
+											PsnAccountAvatar(account.avatarUrl, Modifier.size(48.dp))
+											Spacer(Modifier.width(16.dp))
+										}
 									)
 								}
 							}

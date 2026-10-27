@@ -23,9 +23,43 @@ object PsnAuth
 
 	private const val AUTHORIZE_URL = "https://auth.api.sonyentertainmentnetwork.com/2.0/oauth/authorize"
 	private const val TOKEN_URL = "https://auth.api.sonyentertainmentnetwork.com/2.0/oauth/token"
+	private const val ACCOUNT_INFO_URL =
+		"https://vl.api.np.km.playstation.net/vl/api/v1/mobile/users/me/info?languageSet=accountSet2"
+	private const val USER_PROFILE_SERVICE_URL =
+		"https://asm.np.community.playstation.net/asm/v1/apps/me/baseUrls/userProfile"
 	private val http = PsnHttpClient()
 
 	data class PsnTokens(val accessToken: String, val refreshToken: String, val expiresInSeconds: Long)
+	data class Profile(val onlineId: String, val avatarUrl: String)
+
+	/** Mirrors Remote Play 9.5.0: account info first, then profile by online ID. */
+	suspend fun fetchProfile(rid: String, accessToken: String): Profile = withContext(Dispatchers.IO) {
+		val info = http.request(
+			ACCOUNT_INFO_URL,
+			accessToken, timeoutMs = 5000, operation = "account info",
+			authorizationHeader = "X-NP-ACCESS-TOKEN"
+		)
+		// Never attach a response to another stored account, even after a stale refresh.
+		val accountId = info.getString("accountId").toULong()
+		val expected = Base64.encodeToString(ByteArray(8) { i ->
+			((accountId shr (8 * i)) and 0xffUL).toByte()
+		}, Base64.NO_WRAP)
+		require(expected == rid) { "PSN profile account mismatch" }
+		val onlineId = info.getString("onlineId")
+		require(onlineId.isNotBlank())
+		try {
+			val service = http.request(
+				USER_PROFILE_SERVICE_URL,
+				"Bearer $accessToken", timeoutMs = 5000, operation = "profile discovery"
+			)
+			val profile = http.request(PsnProfileEndpoint.profileUrl(service.getString("url"), onlineId),
+				"Bearer $accessToken", timeoutMs = 5000, operation = "profile")
+			val picture = profile.optJSONObject("personalDetail")?.optString("profilePictureUrl").orEmpty()
+			Profile(onlineId, picture.ifBlank { profile.optString("avatarUrl", "") })
+		} catch(e: kotlinx.coroutines.CancellationException) { throw e }
+		catch(_: Exception) { Profile(onlineId, "") }
+	}
+
 	fun loginUrl(duid: String): String =
 		"$AUTHORIZE_URL?service_entity=urn:service-entity:psn&response_type=code" +
 			"&client_id=$CLIENT_ID&redirect_uri=${enc(REDIRECT_PAGE)}&scope=${enc(SCOPES)}" +

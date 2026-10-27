@@ -1,9 +1,11 @@
 package com.chiaking.tv.session
 
-/** Account identifiers only: never expose PSN tokens to the stream UI. */
+/** Public profile data only: never expose PSN tokens to the stream UI. */
 data class CoopAccountOption(
     val rid: String,
     val available: Boolean,
+    val onlineId: String = "",
+    val avatarUrl: String = "",
 )
 
 data class CoopAccountChoice(

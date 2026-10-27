@@ -18,6 +18,9 @@ data class PsnAccount(
 	val accessToken: String,
 	val refreshToken: String,
 	val expiryMs: Long,
+	val onlineId: String = "",
+	val avatarUrl: String = "",
+	val profileUpdatedMs: Long = 0,
 )
 
 /**
@@ -82,6 +85,8 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 	@Synchronized
 	fun save(tokens: PsnAuth.PsnTokens, accountId: String, duid: String)
 	{
+		val previous = this.accountId
+		if(previous != null && previous != accountId) clearProfile(previous)
 		prefs.edit()
 			.putString(KEY_ACCESS, tokens.accessToken)
 			.putString(KEY_REFRESH, tokens.refreshToken)
@@ -91,9 +96,6 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 			.remove(extraKey(accountId, "access"))
 			.remove(extraKey(accountId, "refresh"))
 			.remove(extraKey(accountId, "expiry"))
-			.remove(extraKey(accountId, "online_id"))
-			.remove(extraKey(accountId, "avatar_url"))
-			.remove(extraKey(accountId, "profile_updated"))
 			.putStringSet(KEY_EXTRA_INDEX, extraRids() - accountId)
 			.apply()
 	}
@@ -101,6 +103,7 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 	@Synchronized
 	fun logout()
 	{
+		accountId?.let { clearProfile(it) }
 		prefs.edit().remove(KEY_ACCESS).remove(KEY_REFRESH).remove(KEY_EXPIRY)
 			.remove(KEY_ACCOUNT_ID).remove(KEY_DUID).apply()
 	}
@@ -109,6 +112,10 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 		accountId?.let { runCatching { android.util.Base64.decode(it, android.util.Base64.NO_WRAP) }.getOrNull() }
 
 	private fun extraKey(rid: String, field: String) = "extra_${rid}_$field"
+	private fun clearProfile(rid: String) {
+		prefs.edit().remove(extraKey(rid, "online_id")).remove(extraKey(rid, "avatar_url"))
+			.remove(extraKey(rid, "profile_updated")).apply()
+	}
 
 	private fun extraRids(): Set<String> = prefs.getStringSet(KEY_EXTRA_INDEX, emptySet())?.toSet() ?: emptySet()
 
@@ -116,7 +123,10 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 	{
 		val access = prefs.getString(extraKey(rid, "access"), null) ?: return null
 		val refresh = prefs.getString(extraKey(rid, "refresh"), null) ?: return null
-		return PsnAccount(rid, access, refresh, prefs.getLong(extraKey(rid, "expiry"), 0L))
+		return PsnAccount(rid, access, refresh, prefs.getLong(extraKey(rid, "expiry"), 0L),
+			prefs.getString(extraKey(rid, "online_id"), "") ?: "",
+			prefs.getString(extraKey(rid, "avatar_url"), "") ?: "",
+			prefs.getLong(extraKey(rid, "profile_updated"), 0L))
 	}
 
 	private fun loadExtras(): List<PsnAccount> = extraRids().sorted().filter { it != accountId }.mapNotNull { loadExtra(it) }
@@ -132,6 +142,12 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 			.putString(extraKey(account.rid, "access"), account.accessToken)
 			.putString(extraKey(account.rid, "refresh"), account.refreshToken)
 			.putLong(extraKey(account.rid, "expiry"), account.expiryMs)
+			.putString(extraKey(account.rid, "online_id"), account.onlineId.ifBlank {
+				prefs.getString(extraKey(account.rid, "online_id"), "") ?: "" })
+			.putString(extraKey(account.rid, "avatar_url"), account.avatarUrl.ifBlank {
+				prefs.getString(extraKey(account.rid, "avatar_url"), "") ?: "" })
+			.putLong(extraKey(account.rid, "profile_updated"), maxOf(account.profileUpdatedMs,
+				prefs.getLong(extraKey(account.rid, "profile_updated"), 0L)))
 			.putStringSet(KEY_EXTRA_INDEX, index + account.rid)
 			.apply()
 	}
@@ -157,12 +173,38 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 		val primaryRid = accountId
 		if(!primaryRid.isNullOrEmpty())
 			out.add(PsnAccount(primaryRid, prefs.getString(KEY_ACCESS, "") ?: "",
-				prefs.getString(KEY_REFRESH, "") ?: "", prefs.getLong(KEY_EXPIRY, 0L)))
+				prefs.getString(KEY_REFRESH, "") ?: "", prefs.getLong(KEY_EXPIRY, 0L),
+				prefs.getString(extraKey(primaryRid, "online_id"), "") ?: "",
+				prefs.getString(extraKey(primaryRid, "avatar_url"), "") ?: "",
+				prefs.getLong(extraKey(primaryRid, "profile_updated"), 0L)))
 		out.addAll(loadExtras())
 		return out
 	}
 
 	fun account(rid: String): PsnAccount? = accounts().firstOrNull { it.rid == rid }
+
+	suspend fun refreshProfile(rid: String, force: Boolean = false): PsnAccount? = withContext(Dispatchers.IO) {
+		val cached = account(rid) ?: return@withContext null
+		if(!force && cached.profileUpdatedMs > System.currentTimeMillis() -
+			(if(cached.avatarUrl.isBlank()) 5 * 60 * 1000L else 24 * 60 * 60 * 1000L))
+			return@withContext cached
+		try {
+			val token = ensureFreshTokenFor(rid) ?: return@withContext cached
+			val profile = PsnAuth.fetchProfile(rid, token)
+			saveProfileIfPresent(rid, profile)
+		} catch(e: kotlinx.coroutines.CancellationException) { throw e }
+		catch(_: Exception) { /* Optional profile data must never prevent joining. */ }
+		account(rid)
+	}
+
+	@Synchronized
+	internal fun saveProfileIfPresent(rid: String, profile: PsnAuth.Profile): Boolean {
+		if(rid != accountId && (rid !in extraRids() || loadExtra(rid) == null)) return false
+		prefs.edit().putString(extraKey(rid, "online_id"), profile.onlineId)
+			.putString(extraKey(rid, "avatar_url"), profile.avatarUrl)
+			.putLong(extraKey(rid, "profile_updated"), System.currentTimeMillis()).apply()
+		return true
+	}
 
 	@Synchronized
 	fun removeAccount(rid: String)
@@ -174,7 +216,7 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 	@Synchronized
 	internal fun refreshExtraIfPresent(account: PsnAccount, previousRefreshToken: String): Boolean {
 		if(loadExtra(account.rid)?.refreshToken != previousRefreshToken || account.rid !in extraRids()) return false
-		// Update only the account whose credentials are still current.
+		// Refresh only credentials; a concurrent profile response may contain newer metadata.
 		prefs.edit().putString(extraKey(account.rid, "access"), account.accessToken)
 			.putString(extraKey(account.rid, "refresh"), account.refreshToken)
 			.putLong(extraKey(account.rid, "expiry"), account.expiryMs).apply()
@@ -247,6 +289,8 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 			putExtra(PsnAccount(accountId, tokens.accessToken, tokens.refreshToken, expiry))
 		else
 			save(tokens, accountId, duid)
+		// Optional metadata failure does not undo a successful login.
+		refreshProfile(accountId, force = true)
 		android.util.Log.i("PsnTokenStore", "PSN login ok, account_id=$accountId extra=$asExtra")
 		accountId
 	}
