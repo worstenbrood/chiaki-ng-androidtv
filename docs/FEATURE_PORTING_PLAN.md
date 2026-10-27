@@ -163,7 +163,7 @@ polls discovery for READY ≤25 s, then auto-starts the stream; progress is the 
 
 ### 3.3 Hide discovered console — **PORT**
 - **What**: hide unregistered discovered consoles from list; unhide in settings (`settings.h:710-714`, `MainView.qml:232-233`, `SettingsDialog.qml:2096-2169`).
-- **How**: `Preferences.hiddenMacs: MutableSet<String>` (SharedPreferences string set); filter in `MainViewModel` host list; card long-press → "Hide"; SettingsScreen row cycling hidden entries with Unhide.
+- **How**: `Preferences.hiddenMacs: MutableSet<String>` (SharedPreferences string set); filter in `HomeViewModel` host list; card long-press → "Hide"; SettingsScreen row cycling hidden entries with Unhide.
 - **Effort**: S.
 
 ### 3.4 Running-app / title-ID display — **DONE** (no JNI work needed — `runningAppName`/
@@ -195,7 +195,7 @@ success toast shows imported console count)
 
 ### 4.1 PSN OAuth login + token storage/refresh — **DONE**
 - `common/psn/PsnAuth.kt` (OAuth code flow with manual URL/code paste — QR + short code shown in
-  `ui/screens/PsnLoginDialog.kt`, full redirect URL or bare code accepted),
+  `ui/screens/psn/PsnLoginDialog.kt`, full redirect URL or bare code accepted),
   `common/psn/PsnTokenStore.kt` (tokens + expiry, `ensureFreshToken` refresh before use),
   `common/psn/CaBundle.kt` (bundled CA certs for the HTTPS calls).
 - Settings → "PSN Account" section: sign in / sign out / account display.
@@ -327,7 +327,7 @@ starts a stream of that MAC on launch — used by the TV home channel programs, 
 - **How**: dynamic shortcuts built from `RegisteredHost` DAO (the intent-extra plumbing already exists).
 - **Effort**: S. Nice TV ergonomics.
 
-### 8.5 TV home channel (preview channel) — **DONE** (`common/TvChannel.kt`, androidx.tvprovider)
+### 8.5 TV home channel (preview channel) — **DONE** (`platform/tv/TvChannel.kt`, androidx.tvprovider)
 - "Chiaki TV" preview channel on the Google TV home row: one program per registered console,
   poster art + preview video per console type (PS5 twin-fin / PS4 slab silhouettes, `res/raw/tv_preview_ps5.mp4`
   / `tv_preview_ps4.mp4` served via FileProvider — Google TV only renders programs that carry a

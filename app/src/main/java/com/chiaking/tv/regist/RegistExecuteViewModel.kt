@@ -32,6 +32,7 @@ class RegistExecuteViewModel(val database: AppDatabase): ViewModel()
 
 	private val log = ChiakiRxLog(ChiakiLog.Level.ALL.value)
 	private var regist: Regist? = null
+	@Volatile private var closed = false
 
 	val logText: StateFlow<String> get() = log.logText
 
@@ -64,6 +65,7 @@ class RegistExecuteViewModel(val database: AppDatabase): ViewModel()
 
 	private fun registEvent(event: RegistEvent)
 	{
+		if(closed) return
 		when(event)
 		{
 			is RegistEventCanceled -> _state.value = State.STOPPED
@@ -104,7 +106,10 @@ class RegistExecuteViewModel(val database: AppDatabase): ViewModel()
 
 	override fun onCleared()
 	{
+		closed = true
 		super.onCleared()
+		regist?.stop()
 		regist?.dispose()
+		regist = null
 	}
 }

@@ -1,19 +1,21 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
 
-package com.chiaking.tv.ui.components.dialogs
+package com.chiaking.tv.ui.screens.settings
 
+import com.chiaking.tv.ui.components.dialogs.PsAlertDialog
 import androidx.compose.material3.Text
+import com.chiaking.tv.ui.components.dialogs.PsAlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.chiaking.tv.R
-import com.chiaking.tv.common.settings.SettingsTransfer
+import com.chiaking.tv.ui.screens.settings.SettingsTransferController
 
 /**
- * Replace/Merge prompt shown while a settings import is pending on [SettingsTransfer].
+ * Replace/Merge prompt shown while a settings import is pending on [SettingsTransferController].
  */
 @Composable
-fun ImportSettingsDialog(settingsTransfer: SettingsTransfer)
+fun ImportSettingsDialog(settingsTransfer: SettingsTransferController)
 {
 	settingsTransfer.pendingImport?.let {
 		PsAlertDialog(

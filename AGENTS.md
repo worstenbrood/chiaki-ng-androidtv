@@ -12,8 +12,8 @@ app/                      Android TV app (namespace com.chiaking.tv)
     common/               Room DB, Preferences, settings import/export, MAC type
     session/              StreamManager (process-wide session owner), StreamSession (StateFlow),
                           StreamInput (gamepad + TV remote input), PadManager (7-slot gamepad
-                          tracking mirroring the protocol's userId model — only slot 0 drives the
-                          session until upstream multi-controller support lands, chiaki-ng #835),
+                          tracking mirroring the protocol's userId model — PS5 co-op uses a distinct saved
+                          PSN account per secondary player),
                           AwayController, RumbleFeedback
     connect/              WakeConnectController, RemoteConnectController (PSN hole-punch),
                           LocalConnectController (deep-link + auto-connect)
@@ -119,7 +119,7 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   (wakeup packet + READY polling + `wakingHost`/`bannerText` state), `RemoteConnectController`
   (PSN hole-punch flow + `cancel()` tearing down the regist session), `LocalConnectController`
   (deep-link + startup auto-connect). Progress for both is one modal `TvProgressDialog`
-  (spinner + text + Cancel; Back cancels) from `ui/components/TvProgressDialog.kt`, shown in `ScreenHome` —
+  (spinner + text + Cancel; Back cancels) from `ui/components/dialogs/TvProgressDialog.kt`, shown in `ScreenHome` —
   home cards are never disabled during wake/connect.
 - **CMake entry point** is `native/CMakeLists.txt` (a trimmed copy of upstream's root
   CMakeLists: third-party + lib + our `native/jni`). It must keep `CHIAKI_ENABLE_ANDROID=ON`
@@ -133,8 +133,8 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   It is NOT kept in sync automatically — see `docs/UPSTREAM_SYNC.md` for the file-by-file
   mapping and the list of intentional divergences (StateFlow instead of LiveData,
   D-pad-as-controller input, no touch controls, package rename).
-- New settings need four places: `common/Preferences.kt` (key + property),
-  `ui/screens/SettingsScreen.kt` (row), the string in **both** `res/values/strings.xml`
+- New settings need four places: `common/settings/Preferences.kt` (key + property),
+  `ui/screens/settings/SettingsViewModel.kt` + category panel (row), the string in **both** `res/values/strings.xml`
   and `res/values-nl/strings.xml` (Dutch is a full translation — a missing key silently
   falls back to English), and wiring into `Preferences.videoProfile` or the session if
   they affect streaming.
@@ -197,7 +197,7 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   HUD chips share one `hudFocusIdx` state for the grey focus highlight and use `clickable`
   with `indication = null` (a ripple would linger after cross-press; plain `focusable()` never
   receives focus in this layout). All HUD UI + state (scroll, focus-restore from `FocusMemory`,
-  stats polling, `HudItem`/`HudDivider`) lives in `ui/screens/StreamHud.kt`, not `StreamScreen.kt`.
+  stats polling, `HudItem`/`HudDivider`) lives in `ui/screens/stream/StreamHud.kt`, not `StreamScreen.kt`.
   The scroll edge arrows key off `hudFocusIdx` bounds (not `hudScroll.value`) because auto-scroll
   to a remembered item does not always reach the scroll edge. The open/close combo is configurable (`menu_shortcut` pref:
   L3+R3 / Select+Start / L1+R1+L2+R2) via `StreamInput.onHudComboKeyEvent`, which clears the
@@ -209,7 +209,7 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
   READY ≤25 s, then auto-starts the stream; used by the home-screen card, startup auto-connect
   (`auto_connect_enabled`/`auto_connect_mac` prefs) and the TV-channel deep link
   (`EXTRA_AUTO_CONNECT_MAC`, handled via `pendingDeepLinkMac` so it runs with the ViewModel).
-- TV home channel (`common/TvChannel.kt`, androidx.tvprovider): programs need a `previewVideoUri`
+- TV home channel (`platform/tv/TvChannel.kt`, androidx.tvprovider): programs need a `previewVideoUri`
   (FileProvider URI to `res/raw/tv_preview_*.mp4`) or Google TV renders nothing; delete programs
   by row ID (`ContentUris.withAppendedId`) — `delete()` with a WHERE selection throws
   `SecurityException: Selection not allowed`.
@@ -219,3 +219,12 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
 1. Build the APK (command above) — Kotlin/Room/KSP errors show as `e:` lines; grep for `FAILED|BUILD`.
 2. Smoke-test on a TV/emulator: discovery finds console, registration completes with PIN,
    video+audio stream, gamepad and remote D-pad work, settings export/import round-trips.
+
+## Kotlin ownership
+
+- Screen ViewModels are created with `ui/navigation/rememberRouteViewModel` so leaving a route clears their jobs and native resources.
+- `ui/screens/settings/SettingsViewModel` owns settings actions and account state; category panels only render state and forward actions.
+- `common/psn/PsnTokenStore` only persists credentials/metadata. `PsnAccountRepository` coordinates login/refresh; `PsnAuth` handles OAuth and `PsnProfileClient` handles profiles. UI receives token-free account summaries.
+- `session/CoopPlayers` owns player assignments and native join status. Android picker input, profile loading and notifications belong to `ui/screens/stream/`.
+- Backup DTOs do not query Room. `SettingsBackupRepository` maps between backup DTOs and DAO records; Activity-result handling lives in `ui/screens/settings/SettingsTransferController`.
+- Host management lives in `ui/screens/hosts/`, PSN login in `ui/screens/psn/`, launcher integration in `platform/tv/`, avatar loading in `ui/images/`.

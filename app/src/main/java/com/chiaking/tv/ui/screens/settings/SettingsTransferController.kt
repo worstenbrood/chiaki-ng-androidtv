@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
 
-package com.chiaking.tv.common.settings
+package com.chiaking.tv.ui.screens.settings
 
 import com.chiaking.tv.common.db.*
 
+import com.chiaking.tv.common.settings.*
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
@@ -20,15 +21,17 @@ import okio.source
  * Owns the settings export/import document launchers and the pending-import confirmation state,
  * so the Activity only has to render the Replace/Merge dialog.
  */
-class SettingsTransfer(private val activity: ComponentActivity, private val database: AppDatabase)
+class SettingsTransferController(private val activity: ComponentActivity, database: AppDatabase)
 {
+	private val backup = SettingsBackupRepository(database)
+
 	var pendingImport by mutableStateOf<SerializedSettings?>(null)
 		private set
 
 	private val exportLauncher = activity.registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
 		if(uri == null) return@registerForActivityResult
 		activity.lifecycleScope.launch {
-			val json = exportAllSettings(database)
+			val json = backup.export()
 			activity.contentResolver.openOutputStream(uri)?.use { out ->
 				out.write(json.toByteArray())
 			}
@@ -44,7 +47,7 @@ class SettingsTransfer(private val activity: ComponentActivity, private val data
 				}
 				pendingImport = settings
 			} catch(e: Exception) {
-				android.util.Log.e("SettingsTransfer", "Import failed", e)
+				android.util.Log.e("SettingsTransferController", "Import failed", e)
 				Toast.makeText(activity, activity.getString(R.string.import_failed, e.message), Toast.LENGTH_LONG).show()
 			}
 		}
@@ -71,10 +74,10 @@ class SettingsTransfer(private val activity: ComponentActivity, private val data
 		pendingImport = null
 		activity.lifecycleScope.launch {
 			try {
-				importSettings(database, settings, replace)
+				backup.restore(settings, replace)
 				Toast.makeText(activity, activity.getString(R.string.imported_count, settings.registeredHosts.size), Toast.LENGTH_SHORT).show()
 			} catch(e: Exception) {
-				android.util.Log.e("SettingsTransfer", "Import failed", e)
+				android.util.Log.e("SettingsTransferController", "Import failed", e)
 				Toast.makeText(activity, activity.getString(R.string.import_failed, e.message), Toast.LENGTH_LONG).show()
 			}
 		}

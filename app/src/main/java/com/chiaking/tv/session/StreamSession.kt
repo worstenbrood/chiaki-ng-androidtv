@@ -70,20 +70,13 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 			session?.setControllerState(it)
 		}
 		input.hudToggleCallback = {
-			if(coopAccountChoice.value == null) _hudVisible.value = !_hudVisible.value
+			if(coopPlayers.request.value == null) _hudVisible.value = !_hudVisible.value
 		}
 		_micMuted.value = !input.preferences.micStartUnmuted
 	}
 
-	private val coopPlayers = CoopPlayers(input, mainScope, { session },
-		{ _state.value is StreamStateConnected && !stopped && !disconnecting }, connectInfo.ps5)
-	val coopAccountChoice get() = coopPlayers.choice
-	fun handleCoopAccountKey(event: android.view.KeyEvent) = coopPlayers.handleKey(event)
-	fun handleCoopAccountMotion(event: android.view.MotionEvent) = coopPlayers.handleMotion(event)
-	fun focusCoopAccount(id: Long, index: Int) = coopPlayers.focusChoice(id, index)
-	fun chooseCoopAccount(id: Long, rid: String) = coopPlayers.chooseAccount(id, rid)
-	fun cancelCoopAccountChoice(id: Long) = coopPlayers.cancelChoice(id)
-
+	internal val coopPlayers = CoopPlayers(input, mainScope, { session },
+		{ _state.value is StreamStateConnected && !stopped && !disconnecting }, connectInfo.ps5, com.chiaking.tv.common.psn.PsnAccountRepository.get(input.context))
 	/** True when the mic feature is on and we hold the RECORD_AUDIO permission. */
 	fun micWanted(): Boolean =
 		input.preferences.micEnabled && MicCapture.hasPermission(input.context)

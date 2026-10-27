@@ -3,10 +3,8 @@ package com.chiaking.tv.session
 import android.content.Context
 import android.hardware.*
 import android.view.*
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleObserver
+import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.OnLifecycleEvent
 import com.chiaking.tv.common.settings.Preferences
 import com.metallic.chiaki.lib.ControllerState
 import com.metallic.chiaki.lib.ControllerTouch
@@ -78,6 +76,7 @@ class StreamInput(val context: Context, val preferences: Preferences)
 
 	fun dispose()
 	{
+		motionOwner?.let { unobserve(it) }
 		padManager.stop()
 	}
 
@@ -209,9 +208,9 @@ class StreamInput(val context: Context, val preferences: Preferences)
 		override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {}
 	}
 
-	private val motionLifecycleObserver = object: LifecycleObserver {
-		@OnLifecycleEvent(Lifecycle.Event.ON_RESUME)
-		fun onResume()
+	private var motionOwner: LifecycleOwner? = null
+	private val motionLifecycleObserver = object: DefaultLifecycleObserver {
+		override fun onResume(owner: LifecycleOwner)
 		{
 			val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
 			listOfNotNull(
@@ -223,8 +222,7 @@ class StreamInput(val context: Context, val preferences: Preferences)
 			}
 		}
 
-		@OnLifecycleEvent(Lifecycle.Event.ON_PAUSE)
-		fun onPause()
+		override fun onPause(owner: LifecycleOwner)
 		{
 			val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
 			sensorManager.unregisterListener(sensorEventListener)
@@ -233,8 +231,20 @@ class StreamInput(val context: Context, val preferences: Preferences)
 
 	fun observe(lifecycleOwner: LifecycleOwner)
 	{
+		motionOwner?.let { unobserve(it) }
 		if(preferences.motionEnabled)
+		{
+			motionOwner = lifecycleOwner
 			lifecycleOwner.lifecycle.addObserver(motionLifecycleObserver)
+		}
+	}
+
+	fun unobserve(lifecycleOwner: LifecycleOwner)
+	{
+		if(motionOwner !== lifecycleOwner) return
+		lifecycleOwner.lifecycle.removeObserver(motionLifecycleObserver)
+		(context.getSystemService(Context.SENSOR_SERVICE) as SensorManager).unregisterListener(sensorEventListener)
+		motionOwner = null
 	}
 
 	private fun controllerStateUpdated()

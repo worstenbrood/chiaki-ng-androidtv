@@ -12,6 +12,9 @@ interface RegisteredHostDao
 	@Query("SELECT * FROM registered_host")
 	fun getAll(): Flow<List<RegisteredHost>>
 
+	@Query("SELECT * FROM registered_host")
+	suspend fun getAllOnce(): List<RegisteredHost>
+
 	@Query("SELECT * FROM registered_host WHERE server_mac == :mac LIMIT 1")
 	suspend fun getByMac(mac: MacAddress): RegisteredHost?
 

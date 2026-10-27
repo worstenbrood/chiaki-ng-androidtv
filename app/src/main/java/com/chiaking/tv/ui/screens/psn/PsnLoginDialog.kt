@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
 
-package com.chiaking.tv.ui.screens
+package com.chiaking.tv.ui.screens.psn
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
@@ -14,14 +14,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.chiaking.tv.R
 import com.chiaking.tv.common.psn.PsnAuth
 import com.chiaking.tv.common.psn.PsnLoginException
 import com.chiaking.tv.common.psn.PsnLoginPhase
-import com.chiaking.tv.common.psn.PsnTokenStore
+import com.chiaking.tv.common.psn.PsnAccountRepository
 import com.chiaking.tv.common.psn.PsnAccountException
 import com.chiaking.tv.common.psn.PsnAccountError
 import com.chiaking.tv.ui.components.dialogs.PsAlertDialog
@@ -157,7 +155,7 @@ fun PsnLoginDialog(asExtra: Boolean = false, onDismiss: () -> Unit, onLoggedIn: 
 					scope.launch {
 						try
 						{
-							val accountId = PsnTokenStore.get(ctx).loginWithCode(code, asExtra) { status = it }
+							val accountId = PsnAccountRepository.get(ctx).loginWithCode(code, asExtra) { status = it }
 							success = accountId
 						}
 						catch(e: PsnAccountException)

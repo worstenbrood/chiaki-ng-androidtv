@@ -19,8 +19,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.chiaking.tv.R
-import com.chiaking.tv.session.CoopAccountChoice
-import com.chiaking.tv.session.StreamSession
 import com.chiaking.tv.ui.components.TvFocusCard
 import com.chiaking.tv.ui.components.PsnAccountAvatar
 import com.chiaking.tv.ui.theme.*
@@ -28,8 +26,8 @@ import kotlinx.coroutines.delay
 
 /** A Compose overlay keeps the existing video surface and Remote Play session attached. */
 @Composable
-fun CoopAccountPicker(choice: CoopAccountChoice, session: StreamSession) {
-    BackHandler { session.cancelCoopAccountChoice(choice.id) }
+internal fun CoopAccountPicker(choice: CoopAccountChoice, controller: CoopAccountPickerController) {
+    BackHandler { controller.cancelChoice(choice.id) }
     val focus = remember(choice.id) { List(choice.accounts.size + 1) { FocusRequester() } }
     LaunchedEffect(choice.id, choice.selectedIndex) {
         // Retry after composition has attached the new cards, just like the stream HUD.
@@ -59,8 +57,8 @@ fun CoopAccountPicker(choice: CoopAccountChoice, session: StreamSession) {
                         TvFocusCard(
                             focusRequester = focus[index],
                             containerColor = if(account.available) SurfaceCard else SurfaceFrosted,
-                            onFocusChange = { if(it) session.focusCoopAccount(choice.id, index) },
-                            onClick = if(account.available) ({ session.chooseCoopAccount(choice.id, account.rid) }) else null
+                            onFocusChange = { if(it) controller.focusChoice(choice.id, index) },
+                            onClick = if(account.available) ({ controller.chooseAccount(choice.id, account.rid) }) else null
                         ) {
                             Column(Modifier.width(200.dp).height(210.dp).padding(20.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -79,8 +77,8 @@ fun CoopAccountPicker(choice: CoopAccountChoice, session: StreamSession) {
                     }
                 }
                 TvFocusCard(focusRequester = focus.last(),
-                    onFocusChange = { if(it) session.focusCoopAccount(choice.id, choice.accounts.size) },
-                    onClick = { session.cancelCoopAccountChoice(choice.id) }) {
+                    onFocusChange = { if(it) controller.focusChoice(choice.id, choice.accounts.size) },
+                    onClick = { controller.cancelChoice(choice.id) }) {
                     Column(Modifier.width(200.dp).height(210.dp).padding(20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                         Icon(Icons.Default.Close, null, Modifier.size(48.dp), tint = OnSurfaceMuted)

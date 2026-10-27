@@ -3,7 +3,6 @@
 package com.chiaking.tv.common.db
 
 import com.chiaking.tv.common.MacAddress
-import com.chiaking.tv.common.settings.SerializedSettings
 
 import androidx.room.Dao
 import androidx.room.Insert
@@ -31,7 +30,7 @@ abstract class ImportDao
 	abstract fun registeredHostsByMac(macs: List<MacAddress>): List<IdWithMac>
 
 	@Transaction
-	open fun importAll(settings: SerializedSettings, replace: Boolean)
+	open fun importAll(registeredHosts: List<RegisteredHost>, manualHosts: List<ManualHostImport>, replace: Boolean)
 	{
 		if(replace)
 		{
@@ -39,23 +38,9 @@ abstract class ImportDao
 			deleteAllRegisteredHosts()
 		}
 
-		insertRegisteredHosts(
-			settings.registeredHosts.map {
-				RegisteredHost(
-					target = it.target,
-					apSsid = it.apSsid,
-					apBssid = it.apBssid,
-					apKey = it.apKey,
-					apName = it.apName,
-					serverMac = it.serverMac,
-					serverNickname = it.serverNickname,
-					rpRegistKey = it.rpRegistKey,
-					rpKeyType = it.rpKeyType,
-					rpKey = it.rpKey
-				)
-		})
+		insertRegisteredHosts(registeredHosts)
 
-		val macs = settings.manualHosts.mapNotNull { it.serverMac }
+		val macs = manualHosts.mapNotNull { it.serverMac }
 		val idMacs =
 			if(macs.isNotEmpty())
 				registeredHostsByMac(macs)
@@ -63,7 +48,7 @@ abstract class ImportDao
 				listOf()
 
 		insertManualHosts(
-			settings.manualHosts.map {
+			manualHosts.map {
 				ManualHost(
 					host = it.host,
 					registeredHost = idMacs.firstOrNull { regHost -> regHost.mac == it.serverMac }?.id

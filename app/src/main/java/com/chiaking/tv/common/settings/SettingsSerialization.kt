@@ -3,7 +3,6 @@
 package com.chiaking.tv.common.settings
 
 import com.chiaking.tv.common.MacAddressJsonAdapter
-import com.chiaking.tv.common.db.*
 
 import android.util.Base64
 import com.squareup.moshi.FromJson
@@ -39,8 +38,7 @@ private const val KEY_VERSION = "version"
 private const val VERSION = 2
 private const val KEY_SETTINGS = "settings"
 
-suspend fun exportAllSettings(db: AppDatabase): String = withContext(Dispatchers.IO) {
-	val settings = SerializedSettings.fromDatabase(db)
+suspend fun exportSettings(settings: SerializedSettings): String = withContext(Dispatchers.IO) {
 	val buffer = Buffer()
 	val writer = JsonWriter.of(buffer)
 	val adapter = moshi().serializedSettingsAdapter()
@@ -90,8 +88,4 @@ suspend fun parseSettingsImport(source: okio.BufferedSource): SerializedSettings
 	} catch(e: JsonDataException) {
 		throw SettingsImportException(e.message ?: "Failed to parse Settings JSON")
 	}
-}
-
-suspend fun importSettings(db: AppDatabase, settings: SerializedSettings, replace: Boolean) = withContext(Dispatchers.IO) {
-	db.importDao().importAll(settings, replace)
 }

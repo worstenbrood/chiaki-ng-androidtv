@@ -15,7 +15,7 @@ import com.chiaking.tv.common.logging.LogManager
 import com.chiaking.tv.common.MacAddress
 import com.chiaking.tv.common.settings.Preferences
 import com.chiaking.tv.common.db.RegisteredHost
-import com.chiaking.tv.common.psn.PsnTokenStore
+import com.chiaking.tv.common.psn.PsnAccountRepository
 import com.chiaking.tv.session.StreamManager
 import com.chiaking.tv.session.StreamSession
 import com.chiaking.tv.session.StreamStateCreateError
@@ -93,7 +93,7 @@ class RemoteConnectController(
 			try
 			{
 				connectingText = context.getString(R.string.remote_refreshing_token)
-				val store = PsnTokenStore.get(context)
+				val store = PsnAccountRepository.get(context)
 				val token = withContext(Dispatchers.IO) { store.ensureFreshToken() }
 				if(token == null)
 				{

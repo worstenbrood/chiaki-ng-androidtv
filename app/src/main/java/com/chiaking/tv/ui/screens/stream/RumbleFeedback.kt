@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
 
-package com.chiaking.tv.session
+package com.chiaking.tv.ui.screens.stream
 
+import com.chiaking.tv.session.StreamSession
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator

@@ -2,7 +2,7 @@
 
 package com.chiaking.tv.ui.screens.home
 
-import com.chiaking.tv.ui.screens.ManualHostDialog
+import com.chiaking.tv.ui.screens.hosts.ManualHostDialog
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
@@ -15,7 +15,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import com.chiaking.tv.MainViewModel
+import com.chiaking.tv.ui.navigation.rememberRouteViewModel
 import com.chiaking.tv.common.db.AppDatabase
 import com.chiaking.tv.common.db.ManualHost
 import com.chiaking.tv.common.settings.Preferences
@@ -42,7 +42,7 @@ fun HomeRoute(
 )
 {
 	val context = LocalContext.current
-	val viewModel = remember { MainViewModel(context, database, preferences) }
+	val viewModel = rememberRouteViewModel { HomeViewModel(context, database, preferences) }
 	val hosts by viewModel.displayHosts.collectAsState()
 	val discoveryActive by viewModel.discoveryActive.collectAsState()
 	val psnLoggedIn by viewModel.psnLoggedIn.collectAsState()

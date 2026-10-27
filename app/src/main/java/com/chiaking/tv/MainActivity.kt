@@ -2,6 +2,8 @@
 
 package com.chiaking.tv
 
+import com.chiaking.tv.platform.tv.TvChannel
+import com.chiaking.tv.ui.screens.hosts.*
 import android.content.Intent
 import android.os.Bundle
 import android.view.InputDevice
@@ -30,9 +32,8 @@ import com.chiaking.tv.session.AwayController
 import com.chiaking.tv.session.StreamManager
 import com.chiaking.tv.session.StreamStateConnected
 import com.chiaking.tv.session.StreamStateDisconnecting
-import com.chiaking.tv.ui.components.dialogs.ImportSettingsDialog
+import com.chiaking.tv.ui.screens.settings.ImportSettingsDialog
 import com.chiaking.tv.ui.navigation.*
-import com.chiaking.tv.ui.screens.*
 import com.chiaking.tv.ui.screens.home.*
 import com.chiaking.tv.ui.screens.settings.*
 import com.chiaking.tv.ui.screens.stream.*
@@ -58,7 +59,9 @@ class MainActivity: ComponentActivity()
 	private lateinit var remoteController: RemoteConnectController
 	private lateinit var localController: LocalConnectController
 	private lateinit var awayController: AwayController
-	private lateinit var settingsTransfer: SettingsTransfer
+	private lateinit var settingsTransfer: SettingsTransferController
+
+	private var coopPickerController: CoopAccountPickerController? = null
 
 	private val screenStack = mutableStateListOf<Screen>()
 
@@ -87,7 +90,7 @@ class MainActivity: ComponentActivity()
 		}
 		localController.onRemoteConnectRequest = { device -> remoteController.connect(device) }
 		awayController = AwayController(lifecycleScope, preferences)
-		settingsTransfer = SettingsTransfer(this, database)
+		settingsTransfer = SettingsTransferController(this, database)
 		screenStack.add(ScreenHome)
 		StreamManager.session?.let { screenStack.add(ScreenStream(it)) }
 
@@ -156,6 +159,7 @@ class MainActivity: ComponentActivity()
 			}
 
 			is ScreenStream -> StreamRoute(screen.session, preferences, database, awayController,
+				onPickerChanged = { coopPickerController = it },
 				onQuit = { disconnectStream() },
 				onSleep = {
 					StreamManager.markDisplayHostStandby()
@@ -166,7 +170,7 @@ class MainActivity: ComponentActivity()
 
 			ScreenLogs -> LogsScreen(logManager) { popScreen() }
 
-			ScreenManageHosts -> ManageHostsRoute(database, preferences) { popScreen() }
+			ScreenManageHosts -> ManageHostsRoute(database) { popScreen() }
 		}
 	}
 
@@ -280,8 +284,8 @@ class MainActivity: ComponentActivity()
 		{
 			val session = streamScreen.session
 			val input = StreamManager.input
-			if(session.handleCoopAccountKey(event)) return true
-			if(session.coopAccountChoice.value != null && input != null && PadManager.isGamepad(event.device)) {
+			if(coopPickerController?.handleKey(event) == true) return true
+			if(coopPickerController?.choice?.value != null && input != null && PadManager.isGamepad(event.device)) {
 				if(input.padManager.isPrimary(event.deviceId) && input.onHudComboKeyEvent(event)) return true
 				input.dispatchKeyEvent(event)
 				return true
@@ -347,8 +351,8 @@ class MainActivity: ComponentActivity()
 		val streamScreen = screenStack.lastOrNull() as? ScreenStream
 		if(streamScreen != null)
 		{
-			if(streamScreen.session.handleCoopAccountMotion(event)) return true
-			if(streamScreen.session.coopAccountChoice.value != null && PadManager.isGamepad(event.device)) {
+			if(coopPickerController?.handleMotion(event) == true) return true
+			if(coopPickerController?.choice?.value != null && PadManager.isGamepad(event.device)) {
 				StreamManager.input?.onGenericMotionEvent(event)
 				return true
 			}

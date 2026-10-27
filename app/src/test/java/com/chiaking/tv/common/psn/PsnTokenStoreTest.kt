@@ -1,18 +1,16 @@
 package com.chiaking.tv.common.psn
 
-import android.content.SharedPreferences
-import java.lang.reflect.Proxy
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
 
 class PsnTokenStoreTest {
     @Test fun primaryProfileSurvivesReloadAndLateResultsCannotRestoreLoggedOutAccount() {
-        val memory = MemoryPreferences()
+        val memory = MemoryPsnPreferences()
         val store = PsnTokenStore(memory.prefs)
         primary(store)
         store.putExtra(extra("other"))
-        val profile = PsnAuth.Profile("Main Player", "https://example.test/main.png")
+        val profile = PsnProfile("Main Player", "https://example.test/main.png")
         assertTrue(store.saveProfileIfPresent("primary", profile))
         val reloaded = PsnTokenStore(memory.prefs)
         assertEquals("Main Player", reloaded.account("primary")?.onlineId)
@@ -24,25 +22,25 @@ class PsnTokenStoreTest {
     }
 
     @Test fun promotingExtraPreservesItsProfileAndSwitchingPrimaryClearsPreviousProfile() {
-        val memory = MemoryPreferences()
+        val memory = MemoryPsnPreferences()
         val store = PsnTokenStore(memory.prefs)
         primary(store)
-        store.saveProfileIfPresent("primary", PsnAuth.Profile("Previous", ""))
+        store.saveProfileIfPresent("primary", PsnProfile("Previous", ""))
         store.putExtra(extra("b"))
-        store.saveProfileIfPresent("b", PsnAuth.Profile("Player B", "https://example.test/b.png"))
+        store.saveProfileIfPresent("b", PsnProfile("Player B", "https://example.test/b.png"))
         primary(store, "b")
         assertEquals(listOf("b"), store.accounts().map { it.rid })
         assertEquals("Player B", store.account("b")?.onlineId)
         assertFalse(memory.values.containsKey("extra_primary_online_id"))
-        assertFalse(store.saveProfileIfPresent("primary", PsnAuth.Profile("Late", "")))
+        assertFalse(store.saveProfileIfPresent("primary", PsnProfile("Late", "")))
     }
 
     @Test fun profilesPersistWithTheirAccountAndCannotResurrectADeletedAccount() {
-        val memory = MemoryPreferences()
+        val memory = MemoryPsnPreferences()
         val store = PsnTokenStore(memory.prefs)
         store.putExtra(extra("a"))
         store.putExtra(extra("b"))
-        val profile = PsnAuth.Profile("Player B", "https://example.test/avatar.png")
+        val profile = PsnProfile("Player B", "https://example.test/avatar.png")
         assertTrue(store.saveProfileIfPresent("b", profile))
         val cached = PsnTokenStore(memory.prefs).account("b")!!
         assertEquals("Player B", cached.onlineId)
@@ -59,10 +57,10 @@ class PsnTokenStoreTest {
     }
     private fun extra(id: String) = PsnAccount(id, "access-$id", "refresh-$id", 1234)
     private fun primary(store: PsnTokenStore, id: String = "primary") =
-        store.save(PsnAuth.PsnTokens("main-access", "main-refresh", 3600), id, "duid")
+        store.save(PsnTokens("main-access", "main-refresh", 3600), id, "duid")
 
     @Test fun removingMiddleAccountKeepsOtherCredentialsAndSurvivesReload() {
-        val memory = MemoryPreferences()
+        val memory = MemoryPsnPreferences()
         val store = PsnTokenStore(memory.prefs)
         primary(store)
         listOf("a", "b", "c").forEach { store.putExtra(extra(it)) }
@@ -78,7 +76,7 @@ class PsnTokenStoreTest {
     }
 
     @Test fun sevenExtrasAreAllowedInAdditionToPrimaryAndDeletionFreesCapacity() {
-        val store = PsnTokenStore(MemoryPreferences().prefs)
+        val store = PsnTokenStore(MemoryPsnPreferences().prefs)
         primary(store)
         (1..7).forEach { store.putExtra(extra("$it")) }
         assertEquals(8, store.accounts().size)
@@ -93,7 +91,7 @@ class PsnTokenStoreTest {
     }
 
     @Test fun removingPrimaryPreservesExtrasAndNewLoginDoesNotDuplicateAnExtra() {
-        val store = PsnTokenStore(MemoryPreferences().prefs)
+        val store = PsnTokenStore(MemoryPsnPreferences().prefs)
         primary(store)
         store.putExtra(extra("a"))
         store.putExtra(extra("b"))
@@ -107,7 +105,7 @@ class PsnTokenStoreTest {
     }
 
     @Test fun primaryCannotBeAddedAsExtra() {
-        val store = PsnTokenStore(MemoryPreferences().prefs)
+        val store = PsnTokenStore(MemoryPsnPreferences().prefs)
         primary(store)
         assertEquals(PsnAccountError.PRIMARY_ACCOUNT,
             assertThrows(PsnAccountException::class.java) { store.putExtra(extra("primary")) }.reason)
@@ -115,13 +113,13 @@ class PsnTokenStoreTest {
     }
 
     @Test(timeout = 10000) fun primaryTokenLookupDoesNotLockTheRefreshMutexTwice() = runBlocking {
-        val store = PsnTokenStore(MemoryPreferences().prefs)
+        val store = PsnTokenStore(MemoryPsnPreferences().prefs)
         primary(store)
-        assertEquals("main-access", store.ensureFreshTokenFor("primary"))
+        assertEquals("main-access", PsnAccountRepository(store).ensureFreshTokenFor("primary"))
     }
 
     @Test fun refreshCannotResurrectDeletedAccountOrOverwriteNewLogin() {
-        val store = PsnTokenStore(MemoryPreferences().prefs)
+        val store = PsnTokenStore(MemoryPsnPreferences().prefs)
         store.putExtra(extra("a"))
         store.removeAccount("a")
         assertFalse(store.refreshExtraIfPresent(extra("a"), "refresh-a"))
@@ -134,7 +132,7 @@ class PsnTokenStoreTest {
     }
 
     @Test fun legacyRidIndexIsReadWithoutRenumberingOrMutatingSharedSet() {
-        val memory = MemoryPreferences()
+        val memory = MemoryPsnPreferences()
         val legacyIndex = setOf("c", "a", "b")
         memory.values["extra_rids"] = legacyIndex
         legacyIndex.forEach {
@@ -151,10 +149,10 @@ class PsnTokenStoreTest {
     }
 
     @Test fun stalePrimaryRefreshCannotRestoreRemovedCredentialsOrOverwriteAnotherAccount() {
-        val memory = MemoryPreferences()
+        val memory = MemoryPsnPreferences()
         val store = PsnTokenStore(memory.prefs)
         primary(store)
-        val tokens = PsnAuth.PsnTokens("stale-access", "stale-refresh", 3600)
+        val tokens = PsnTokens("stale-access", "stale-refresh", 3600)
         store.logout()
         assertFalse(store.refreshPrimaryIfCurrent("primary", "main-refresh", tokens))
         assertFalse(memory.values.containsKey("access_token"))
@@ -163,41 +161,4 @@ class PsnTokenStoreTest {
         assertEquals("main-access", store.account("different")?.accessToken)
     }
 
-    /** Test the SharedPreferences contract without an Android device or encrypted test secrets. */
-    private class MemoryPreferences {
-        val values = mutableMapOf<String, Any?>()
-        val prefs = Proxy.newProxyInstance(SharedPreferences::class.java.classLoader,
-            arrayOf(SharedPreferences::class.java)) { _, method, args ->
-            when(method.name) {
-                "edit" -> editor()
-                "getAll" -> values.toMap()
-                "contains" -> values.containsKey(args!![0] as String)
-                "getString", "getLong", "getStringSet" -> values[args!![0] as String] ?: args[1]
-                else -> error("Unexpected SharedPreferences method ${method.name}")
-            }
-        } as SharedPreferences
-
-        private fun editor(): SharedPreferences.Editor {
-            val changes = mutableMapOf<String, Any?>()
-            lateinit var proxy: SharedPreferences.Editor
-            proxy = Proxy.newProxyInstance(SharedPreferences.Editor::class.java.classLoader,
-                arrayOf(SharedPreferences.Editor::class.java)) { _, method, args ->
-                when(method.name) {
-                    "putString", "putLong", "putStringSet" -> {
-                        changes[args!![0] as String] = args[1]
-                        proxy
-                    }
-                    "remove" -> { changes[args!![0] as String] = null; proxy }
-                    "apply", "commit" -> {
-                        changes.forEach { (key, value) ->
-                            if(value == null) values.remove(key) else values[key] = value
-                        }
-                        if(method.name == "commit") true else null
-                    }
-                    else -> error("Unexpected Editor method ${method.name}")
-                }
-            } as SharedPreferences.Editor
-            return proxy
-        }
-    }
 }

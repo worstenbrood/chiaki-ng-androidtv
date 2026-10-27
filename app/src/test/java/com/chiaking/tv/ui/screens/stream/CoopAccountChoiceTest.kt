@@ -1,4 +1,6 @@
-package com.chiaking.tv.session
+package com.chiaking.tv.ui.screens.stream
+
+import com.chiaking.tv.session.CoopAccountOption
 
 import org.junit.Assert.*
 import org.junit.Test

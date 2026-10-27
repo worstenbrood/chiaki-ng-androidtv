@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
 
-package com.chiaking.tv
+package com.chiaking.tv.ui.screens.home
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
@@ -9,7 +9,7 @@ import com.chiaking.tv.common.*
 import com.chiaking.tv.common.db.*
 import com.chiaking.tv.common.settings.*
 import com.chiaking.tv.common.logging.*
-import com.chiaking.tv.common.psn.PsnTokenStore
+import com.chiaking.tv.common.psn.PsnAccountRepository
 import com.chiaking.tv.discovery.DiscoveryManager
 import com.chiaking.tv.discovery.serverMac
 import com.metallic.chiaki.lib.Holepunch
@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class MainViewModel(context: Context, val database: AppDatabase, val preferences: Preferences): ViewModel()
+class HomeViewModel(context: Context, val database: AppDatabase, val preferences: Preferences): ViewModel()
 {
 	companion object
 	{
@@ -78,17 +78,14 @@ class MainViewModel(context: Context, val database: AppDatabase, val preferences
 		discoveryManager.discoveryActive.stateIn(viewModelScope, SharingStarted.WhileSubscribed(SUBSCRIBE_TIMEOUT_MS), false)
 	}
 
-	val registeredHostCount = database.registeredHostDao().count()
-		.stateIn(viewModelScope, SharingStarted.WhileSubscribed(SUBSCRIBE_TIMEOUT_MS), 0)
-
-	val psnLoggedIn = MutableStateFlow(PsnTokenStore.get(appContext).isLoggedIn)
+	val psnLoggedIn = MutableStateFlow(PsnAccountRepository.get(appContext).isLoggedIn)
 	val psnDevices = MutableStateFlow<List<HolepunchDevice>>(emptyList())
 	val psnLoading = MutableStateFlow(false)
 	val psnDeviceCount = MutableStateFlow<Int?>(null)
 
 	fun refreshPsnLoginState()
 	{
-		psnLoggedIn.value = PsnTokenStore.get(appContext).isLoggedIn
+		psnLoggedIn.value = PsnAccountRepository.get(appContext).isLoggedIn
 	}
 
 	fun refreshPsnDevices()
@@ -100,8 +97,8 @@ class MainViewModel(context: Context, val database: AppDatabase, val preferences
 			try
 			{
 				if(!NetworkMonitor.get(appContext).awaitValidated(NETWORK_WAIT_TIMEOUT_MS))
-					android.util.Log.w("MainViewModel", "no validated network after ${NETWORK_WAIT_TIMEOUT_MS}ms, trying anyway")
-				val store = PsnTokenStore.get(appContext)
+					android.util.Log.w("HomeViewModel", "no validated network after ${NETWORK_WAIT_TIMEOUT_MS}ms, trying anyway")
+				val store = PsnAccountRepository.get(appContext)
 				psnLoggedIn.value = store.isLoggedIn
 				// On cold start DNS may not be resolved yet ("Could not resolve hostname"),
 				// so retry with backoff before surfacing the failure.
@@ -118,7 +115,7 @@ class MainViewModel(context: Context, val database: AppDatabase, val preferences
 						val ps5 = Holepunch.listDevices(token, true)
 						if(!ps5.errorCode.isSuccess)
 						{
-							android.util.Log.e("MainViewModel", "PSN listDevices failed (attempt ${attempt + 1}): ps5=${ps5.errorCode}")
+							android.util.Log.e("HomeViewModel", "PSN listDevices failed (attempt ${attempt + 1}): ps5=${ps5.errorCode}")
 							return@withContext null
 						}
 						ps5.devices
@@ -138,7 +135,7 @@ class MainViewModel(context: Context, val database: AppDatabase, val preferences
 			}
 			catch(e: Exception)
 			{
-				android.util.Log.e("MainViewModel", "PSN device refresh failed", e)
+				android.util.Log.e("HomeViewModel", "PSN device refresh failed", e)
 				psnDevices.value = emptyList()
 				psnDeviceCount.value = -1
 			}
@@ -154,15 +151,6 @@ class MainViewModel(context: Context, val database: AppDatabase, val preferences
 		viewModelScope.launch(Dispatchers.IO) {
 			try {
 				database.manualHostDao().delete(manualHost)
-			} catch(_: Exception) {}
-		}
-	}
-
-	fun deleteRegisteredHost(host: RegisteredHost)
-	{
-		viewModelScope.launch(Dispatchers.IO) {
-			try {
-				database.registeredHostDao().delete(host)
 			} catch(_: Exception) {}
 		}
 	}

@@ -2,8 +2,6 @@
 
 package com.chiaking.tv.common.settings
 
-import com.chiaking.tv.common.db.RegisteredHost
-
 import com.chiaking.tv.common.MacAddress
 
 import com.metallic.chiaki.lib.Target
@@ -22,17 +20,4 @@ class SerializedRegisteredHost(
 	@Json(name = "rp_regist_key") val rpRegistKey: ByteArray,
 	@Json(name = "rp_key_type") val rpKeyType: Int,
 	@Json(name = "rp_key") val rpKey: ByteArray
-){
-	constructor(registeredHost: RegisteredHost) : this(
-		registeredHost.target,
-		registeredHost.apSsid,
-		registeredHost.apBssid,
-		registeredHost.apKey,
-		registeredHost.apName,
-		registeredHost.serverMac,
-		registeredHost.serverNickname,
-		registeredHost.rpRegistKey,
-		registeredHost.rpKeyType,
-		registeredHost.rpKey
-	)
-}
+)

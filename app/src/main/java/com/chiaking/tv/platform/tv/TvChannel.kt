@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
 
-package com.chiaking.tv.common
+package com.chiaking.tv.platform.tv
 
 import com.chiaking.tv.common.db.RegisteredHost
 import com.chiaking.tv.common.settings.Preferences
@@ -15,7 +15,7 @@ import androidx.tvprovider.media.tv.PreviewProgram
 import androidx.tvprovider.media.tv.TvContractCompat
 import com.chiaking.tv.MainActivity
 import com.chiaking.tv.R
-import com.chiaking.tv.common.psn.PsnTokenStore
+import com.chiaking.tv.common.psn.PsnAccountRepository
 import com.chiaking.tv.connect.LocalConnectController
 import com.metallic.chiaki.lib.Holepunch
 import com.metallic.chiaki.lib.HolepunchDevice
@@ -121,7 +121,7 @@ object TvChannel
 	{
 		return try
 		{
-			val store = PsnTokenStore.get(context)
+			val store = PsnAccountRepository.get(context)
 			if(!store.isLoggedIn)
 				return emptyList()
 			val token = store.ensureFreshToken() ?: return emptyList()

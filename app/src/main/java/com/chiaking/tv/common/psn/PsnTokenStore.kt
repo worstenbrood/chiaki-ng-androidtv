@@ -6,11 +6,6 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
-import com.metallic.chiaki.lib.Holepunch
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 
 /** A stored PSN account. [rid] is the base64 account id (LE-encoded userinfo `user_id`). */
 data class PsnAccount(
@@ -39,7 +34,6 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 		private const val KEY_ACCOUNT_ID = "account_id"
 		private const val KEY_DUID = "duid"
 		private const val KEY_EXTRA_INDEX = "extra_rids"
-		private const val REFRESH_MARGIN_MS = 5 * 60 * 1000L
 
 		@Volatile
 		private var instance: PsnTokenStore? = null
@@ -76,14 +70,12 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 		}
 	}
 
-	private val refreshMutex = Mutex()
-
 	val isLoggedIn get() = !prefs.getString(KEY_ACCOUNT_ID, "").isNullOrEmpty()
 	val accountId: String? get() = prefs.getString(KEY_ACCOUNT_ID, null)
 	val duid: String get() = prefs.getString(KEY_DUID, "") ?: ""
 
 	@Synchronized
-	fun save(tokens: PsnAuth.PsnTokens, accountId: String, duid: String)
+	fun save(tokens: PsnTokens, accountId: String, duid: String)
 	{
 		val previous = this.accountId
 		if(previous != null && previous != accountId) clearProfile(previous)
@@ -183,22 +175,8 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 
 	fun account(rid: String): PsnAccount? = accounts().firstOrNull { it.rid == rid }
 
-	suspend fun refreshProfile(rid: String, force: Boolean = false): PsnAccount? = withContext(Dispatchers.IO) {
-		val cached = account(rid) ?: return@withContext null
-		if(!force && cached.profileUpdatedMs > System.currentTimeMillis() -
-			(if(cached.avatarUrl.isBlank()) 5 * 60 * 1000L else 24 * 60 * 60 * 1000L))
-			return@withContext cached
-		try {
-			val token = ensureFreshTokenFor(rid) ?: return@withContext cached
-			val profile = PsnAuth.fetchProfile(rid, token)
-			saveProfileIfPresent(rid, profile)
-		} catch(e: kotlinx.coroutines.CancellationException) { throw e }
-		catch(_: Exception) { /* Optional profile data must never prevent joining. */ }
-		account(rid)
-	}
-
 	@Synchronized
-	internal fun saveProfileIfPresent(rid: String, profile: PsnAuth.Profile): Boolean {
+	internal fun saveProfileIfPresent(rid: String, profile: PsnProfile): Boolean {
 		if(rid != accountId && (rid !in extraRids() || loadExtra(rid) == null)) return false
 		prefs.edit().putString(extraKey(rid, "online_id"), profile.onlineId)
 			.putString(extraKey(rid, "avatar_url"), profile.avatarUrl)
@@ -223,77 +201,14 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 		return true
 	}
 
-	/** Returns a valid access token for [rid], refreshing when near expiry. */
-	suspend fun ensureFreshTokenFor(rid: String): String? {
-		if(rid == accountId) return ensureFreshToken()
-		return refreshMutex.withLock {
-			val acct = loadExtra(rid) ?: return null
-			if(acct.expiryMs - System.currentTimeMillis() > REFRESH_MARGIN_MS)
-				return acct.accessToken
-			try
-			{
-				val tokens = PsnAuth.refresh(acct.refreshToken)
-				val updated = acct.copy(accessToken = tokens.accessToken, refreshToken = tokens.refreshToken,
-					expiryMs = System.currentTimeMillis() + tokens.expiresInSeconds * 1000L)
-				if(refreshExtraIfPresent(updated, acct.refreshToken)) updated.accessToken else null
-			}
-			catch(e: Exception)
-			{
-				android.util.Log.e("PsnTokenStore", "Token refresh failed for $rid", e)
-				null
-			}
-		}
-	}
-
-	/** Returns a valid access token, refreshing when it expires within [REFRESH_MARGIN_MS]. */
-	suspend fun ensureFreshToken(): String? = refreshMutex.withLock {
-		val rid = accountId ?: return null
-		val refresh = prefs.getString(KEY_REFRESH, null) ?: return null
-		val access = prefs.getString(KEY_ACCESS, null) ?: return null
-		val expiry = prefs.getLong(KEY_EXPIRY, 0L)
-		if(expiry - System.currentTimeMillis() > REFRESH_MARGIN_MS)
-			return access
-		try
-		{
-			val tokens = PsnAuth.refresh(refresh)
-			if(refreshPrimaryIfCurrent(rid, refresh, tokens)) tokens.accessToken else null
-		}
-		catch(e: Exception)
-		{
-			android.util.Log.e("PsnTokenStore", "Token refresh failed", e)
-			null
-		}
-	}
-
 	@Synchronized
-	internal fun refreshPrimaryIfCurrent(rid: String, previousRefreshToken: String, tokens: PsnAuth.PsnTokens): Boolean {
+	internal fun refreshPrimaryIfCurrent(rid: String, previousRefreshToken: String, tokens: PsnTokens): Boolean {
 		if(accountId != rid || prefs.getString(KEY_REFRESH, null) != previousRefreshToken) return false
 		prefs.edit().putString(KEY_ACCESS, tokens.accessToken).putString(KEY_REFRESH, tokens.refreshToken)
 			.putLong(KEY_EXPIRY, System.currentTimeMillis() + tokens.expiresInSeconds * 1000L).apply()
 		return true
 	}
 
-	/** Generates a fresh duid, logs in with the given code, returns the account id. */
-	suspend fun loginWithCode(code: String, asExtra: Boolean = false, onStatus: (PsnLoginPhase) -> Unit = {}): String = withContext(Dispatchers.IO) {
-		onStatus(PsnLoginPhase.GENERATING_UID)
-		val duid = Holepunch.generateClientDeviceUid()
-		if(duid.isEmpty())
-			throw PsnLoginException(PsnLoginPhase.GENERATING_UID)
-		onStatus(PsnLoginPhase.EXCHANGING)
-		val tokens = PsnAuth.exchangeCode(code)
-		onStatus(PsnLoginPhase.FETCHING_ACCOUNT)
-		val accountId = PsnAuth.fetchAccountId(tokens.accessToken)
-		onStatus(PsnLoginPhase.SAVING)
-		val expiry = System.currentTimeMillis() + tokens.expiresInSeconds * 1000L
-		if(asExtra)
-			putExtra(PsnAccount(accountId, tokens.accessToken, tokens.refreshToken, expiry))
-		else
-			save(tokens, accountId, duid)
-		// Optional metadata failure does not undo a successful login.
-		refreshProfile(accountId, force = true)
-		android.util.Log.i("PsnTokenStore", "PSN login ok, account_id=$accountId extra=$asExtra")
-		accountId
-	}
 }
 
 internal enum class PsnAccountError { LIMIT_REACHED, PRIMARY_ACCOUNT }

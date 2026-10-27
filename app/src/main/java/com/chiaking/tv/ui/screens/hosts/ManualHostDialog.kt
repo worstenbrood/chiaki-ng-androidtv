@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
 
-package com.chiaking.tv.ui.screens
+package com.chiaking.tv.ui.screens.hosts
 
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton

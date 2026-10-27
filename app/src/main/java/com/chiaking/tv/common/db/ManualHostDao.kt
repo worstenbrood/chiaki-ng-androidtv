@@ -22,6 +22,9 @@ interface ManualHostDao
 	@Query("SELECT * FROM manual_host")
 	fun getAll(): Flow<List<ManualHost>>
 
+	@Query("SELECT * FROM manual_host")
+	suspend fun getAllOnce(): List<ManualHost>
+
 	@Query("UPDATE manual_host SET registered_host = :registeredHostId WHERE id = :manualHostId")
 	suspend fun assignRegisteredHost(manualHostId: Long, registeredHostId: Long?)
 

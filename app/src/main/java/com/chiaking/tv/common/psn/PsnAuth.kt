@@ -13,7 +13,7 @@ import java.net.URLEncoder
  * The user opens [loginUrl] on a phone, logs in, and pastes back the final
  * remoteplay.dl.playstation.net redirect URL (or just its code parameter).
  */
-object PsnAuth
+object PsnAuth : PsnAuthentication
 {
 	const val CLIENT_ID = "ba495a24-818c-472b-b12d-ff231c1b5745"
 	const val CLIENT_SECRET = "mvaiZkRsAsI1IBkY"
@@ -23,42 +23,7 @@ object PsnAuth
 
 	private const val AUTHORIZE_URL = "https://auth.api.sonyentertainmentnetwork.com/2.0/oauth/authorize"
 	private const val TOKEN_URL = "https://auth.api.sonyentertainmentnetwork.com/2.0/oauth/token"
-	private const val ACCOUNT_INFO_URL =
-		"https://vl.api.np.km.playstation.net/vl/api/v1/mobile/users/me/info?languageSet=accountSet2"
-	private const val USER_PROFILE_SERVICE_URL =
-		"https://asm.np.community.playstation.net/asm/v1/apps/me/baseUrls/userProfile"
 	private val http = PsnHttpClient()
-
-	data class PsnTokens(val accessToken: String, val refreshToken: String, val expiresInSeconds: Long)
-	data class Profile(val onlineId: String, val avatarUrl: String)
-
-	/** Mirrors Remote Play 9.5.0: account info first, then profile by online ID. */
-	suspend fun fetchProfile(rid: String, accessToken: String): Profile = withContext(Dispatchers.IO) {
-		val info = http.request(
-			ACCOUNT_INFO_URL,
-			accessToken, timeoutMs = 5000, operation = "account info",
-			authorizationHeader = "X-NP-ACCESS-TOKEN"
-		)
-		// Never attach a response to another stored account, even after a stale refresh.
-		val accountId = info.getString("accountId").toULong()
-		val expected = Base64.encodeToString(ByteArray(8) { i ->
-			((accountId shr (8 * i)) and 0xffUL).toByte()
-		}, Base64.NO_WRAP)
-		require(expected == rid) { "PSN profile account mismatch" }
-		val onlineId = info.getString("onlineId")
-		require(onlineId.isNotBlank())
-		try {
-			val service = http.request(
-				USER_PROFILE_SERVICE_URL,
-				"Bearer $accessToken", timeoutMs = 5000, operation = "profile discovery"
-			)
-			val profile = http.request(PsnProfileEndpoint.profileUrl(service.getString("url"), onlineId),
-				"Bearer $accessToken", timeoutMs = 5000, operation = "profile")
-			val picture = profile.optJSONObject("personalDetail")?.optString("profilePictureUrl").orEmpty()
-			Profile(onlineId, picture.ifBlank { profile.optString("avatarUrl", "") })
-		} catch(e: kotlinx.coroutines.CancellationException) { throw e }
-		catch(_: Exception) { Profile(onlineId, "") }
-	}
 
 	fun loginUrl(duid: String): String =
 		"$AUTHORIZE_URL?service_entity=urn:service-entity:psn&response_type=code" +
@@ -81,20 +46,20 @@ object PsnAuth
 		return trimmed.takeIf { it.matches(Regex("[A-Za-z0-9_\\-.]+")) && it.length >= 4 }
 	}
 
-	suspend fun exchangeCode(code: String): PsnTokens = withContext(Dispatchers.IO) {
+	override suspend fun exchangeCode(code: String): PsnTokens = withContext(Dispatchers.IO) {
 		request(
 			"grant_type=authorization_code&code=$code&scope=${enc(SCOPES)}&redirect_uri=${enc(REDIRECT_PAGE)}"
 		)
 	}
 
-	suspend fun refresh(refreshToken: String): PsnTokens = withContext(Dispatchers.IO) {
+	override suspend fun refresh(refreshToken: String): PsnTokens = withContext(Dispatchers.IO) {
 		request(
 			"grant_type=refresh_token&refresh_token=$refreshToken&scope=${enc(SCOPES)}&redirect_uri=${enc(REDIRECT_PAGE)}"
 		)
 	}
 
 	/** Account-ID: user_id as 8-byte little-endian, base64 (see psnaccountid.cpp). */
-	suspend fun fetchAccountId(accessToken: String): String = withContext(Dispatchers.IO) {
+	override suspend fun fetchAccountId(accessToken: String): String = withContext(Dispatchers.IO) {
 		val json = httpRequest("GET", "$TOKEN_URL/$accessToken", null)
 		val userId = json.getString("user_id").toULong()
 		val bytes = ByteArray(8) { i -> ((userId shr (8 * i)) and 0xffUL).toByte() }

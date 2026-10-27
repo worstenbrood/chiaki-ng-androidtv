@@ -3,17 +3,14 @@ package com.chiaking.tv.session
 
 import android.os.SystemClock
 import android.util.Base64
-import android.widget.Toast
-import android.view.InputDevice
-import android.view.KeyEvent
-import android.view.MotionEvent
-import com.chiaking.tv.R
-import com.chiaking.tv.common.psn.PsnTokenStore
+import com.chiaking.tv.common.psn.PsnAccountRepository
 import com.metallic.chiaki.lib.Session
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -24,6 +21,7 @@ internal class CoopPlayers(
     private val currentSession: () -> Session?,
     private val connected: () -> Boolean,
     private val ps5: Boolean,
+    private val accounts: PsnAccountRepository,
 ) {
     private val wanted = mutableSetOf<Int>()
     private val assigned = mutableMapOf<Int, String>()
@@ -32,12 +30,11 @@ internal class CoopPlayers(
     private var devices = input.padManager.slots
     private var native: Session? = null
     @Volatile private var job: Job? = null
-    private val _choice = MutableStateFlow<CoopAccountChoice?>(null)
-    val choice = _choice.asStateFlow()
+    private val _request = MutableStateFlow<CoopAccountRequest?>(null)
+    val request = _request.asStateFlow()
+    private val _notices = MutableSharedFlow<CoopNotice>(extraBufferCapacity = 16)
+    val notices = _notices.asSharedFlow()
     private var nextChoiceId = 0L
-    private var profileJob: Job? = null
-    private val choiceKeys = CoopChoiceKeys()
-    private var hatDirection = 0
 
     init {
         input.secondaryPadInputCallback = { slot ->
@@ -50,7 +47,7 @@ internal class CoopPlayers(
         input.padSlotsChangedCallback = { slots ->
             for((slot, device) in devices)
                 if(slot > 0 && slots[slot] != device) {
-                    _choice.value?.takeIf { it.slot == slot }?.let { cancelChoice(it.id) }
+                    _request.value?.takeIf { it.slot == slot }?.let { cancelChoice(it.id) }
                     native?.removeUser(slot)
                     wanted.remove(slot)
                     assigned.remove(slot)
@@ -73,27 +70,21 @@ internal class CoopPlayers(
 
     fun stop() {
         job?.cancel()
-        profileJob?.cancel()
-        _choice.value = null
-    }
-
-    fun focusChoice(id: Long, index: Int) {
-        _choice.value?.takeIf { it.id == id }?.let { _choice.value = it.focus(index) }
+        _request.value = null
     }
 
     fun cancelChoice(id: Long) {
-        val choice = _choice.value?.takeIf { it.id == id } ?: return
+        val choice = _request.value?.takeIf { it.id == id } ?: return
         wanted.remove(choice.slot)
         retryAfter[choice.slot] = SystemClock.elapsedRealtime() + 500
         input.resetSecondaryState(choice.slot)
-        profileJob?.cancel()
-        _choice.value = null
+        _request.value = null
     }
 
     fun chooseAccount(id: Long, rid: String) {
-        val choice = _choice.value?.takeIf { it.id == id } ?: return
+        val choice = _request.value?.takeIf { it.id == id } ?: return
         if(choice.accounts.none { it.rid == rid && it.available }) return
-        val store = PsnTokenStore.get(input.context)
+        val store = accounts
         val session = currentSession()
         val numeric = numericRid(rid)
         if(!connected() || session == null || session !== native || choice.slot !in devices ||
@@ -102,66 +93,18 @@ internal class CoopPlayers(
             return
         }
         input.resetSecondaryState(choice.slot)
-        profileJob?.cancel()
-        _choice.value = null
+        _request.value = null
         val result = session.addUser(choice.slot, numeric)
         if(result.isSuccess) assigned[choice.slot] = rid
         else {
             retryAfter[choice.slot] = SystemClock.elapsedRealtime() + 5000
             wanted.remove(choice.slot)
-            notify(choice.slot, R.string.coop_refused)
+            notify(choice.slot, CoopNoticeKind.REFUSED)
         }
     }
 
-    private fun acceptsDevice(deviceId: Int, device: InputDevice?): Boolean {
-        val choice = _choice.value ?: return false
-        return !PadManager.isGamepad(device) || input.padManager.slotOf(deviceId) == choice.slot
-    }
-
-    fun handleKey(event: KeyEvent): Boolean {
-        val choice = _choice.value ?: return false
-        if(!acceptsDevice(event.deviceId, event.device)) return false
-        if(event.action == KeyEvent.ACTION_DOWN) {
-            choiceKeys.down(event.deviceId, event.keyCode, event.repeatCount)
-            val direction = when(event.keyCode) {
-                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_UP -> -1
-                KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_DOWN -> 1
-                else -> 0
-            }
-            if(direction != 0) _choice.value = choice.move(direction)
-        } else if(event.action == KeyEvent.ACTION_UP) {
-            if(!choiceKeys.up(event.deviceId, event.keyCode)) return true
-            when(event.keyCode) {
-                KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_BUTTON_B -> cancelChoice(choice.id)
-                KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                    val account = choice.accounts.getOrNull(choice.selectedIndex)
-                    if(account == null) cancelChoice(choice.id) else chooseAccount(choice.id, account.rid)
-                }
-            }
-        }
-        return true
-    }
-
-    fun handleMotion(event: MotionEvent): Boolean {
-        val choice = _choice.value ?: return false
-        if(!PadManager.isGamepad(event.device)) return false
-        if(!acceptsDevice(event.deviceId, event.device)) return false
-        val x = event.getAxisValue(MotionEvent.AXIS_HAT_X).takeIf { kotlin.math.abs(it) > 0.5f }
-            ?: event.getAxisValue(MotionEvent.AXIS_X)
-        val y = event.getAxisValue(MotionEvent.AXIS_HAT_Y).takeIf { kotlin.math.abs(it) > 0.5f }
-            ?: event.getAxisValue(MotionEvent.AXIS_Y)
-        val direction = when {
-            x < -0.5f || y < -0.5f -> -1
-            x > 0.5f || y > 0.5f -> 1
-            else -> 0
-        }
-        if(direction != 0 && direction != hatDirection) _choice.value = choice.move(direction)
-        hatDirection = direction
-        return true
-    }
-
-    private fun notify(slot: Int, message: Int) {
-        Toast.makeText(input.context, input.context.getString(message, slot + 1), Toast.LENGTH_LONG).show()
+    private fun notify(slot: Int, message: CoopNoticeKind) {
+        _notices.tryEmit(CoopNotice(slot, message))
     }
 
     private fun numericRid(rid: String): Long? = runCatching {
@@ -175,8 +118,7 @@ internal class CoopPlayers(
     private fun tick() {
         val session = currentSession()
         if(session !== native) {
-            profileJob?.cancel()
-            _choice.value = null
+            _request.value = null
             if(native != null) input.resetSecondaryStates()
             native = session
             assigned.clear()
@@ -184,8 +126,7 @@ internal class CoopPlayers(
             retryAfter.clear()
         }
         if(session == null || !connected()) {
-            profileJob?.cancel()
-            _choice.value = null
+            _request.value = null
             return
         }
         val now = SystemClock.elapsedRealtime()
@@ -193,7 +134,7 @@ internal class CoopPlayers(
             val status = session.coopStatus(slot)
             if(status == 2 && joined.add(slot)) {
                 session.setControllerStateSlot(slot, input.slotControllerState(slot))
-                notify(slot, R.string.coop_joined)
+                notify(slot, CoopNoticeKind.JOINED)
             } else if(status < 0) {
                 joined.remove(slot)
                 assigned.remove(slot)
@@ -201,41 +142,30 @@ internal class CoopPlayers(
                 // A new input is required to retry: no automatic repeated host prompts.
                 wanted.remove(slot)
                 notify(slot, when(status) {
-                    -2 -> R.string.coop_full
-                    -3 -> R.string.coop_passcode
-                    -4 -> R.string.coop_profile_required
-                    -6 -> R.string.coop_timeout
-                    else -> R.string.coop_refused
+                    -2 -> CoopNoticeKind.FULL
+                    -3 -> CoopNoticeKind.PASSCODE
+                    -4 -> CoopNoticeKind.PROFILE_REQUIRED
+                    -6 -> CoopNoticeKind.TIMEOUT
+                    else -> CoopNoticeKind.REFUSED
                 })
             }
         }
-        if(_choice.value != null || assigned.keys.any { session.coopStatus(it) == 1 }) return
+        if(_request.value != null || assigned.keys.any { session.coopStatus(it) == 1 }) return
         val slot = wanted.sorted().firstOrNull {
             it in devices && it !in assigned && now >= (retryAfter[it] ?: 0L)
         } ?: return
         if(!ps5) {
             wanted.remove(slot)
             retryAfter[slot] = now + 5000
-            notify(slot, R.string.coop_ps5_only)
+            notify(slot, CoopNoticeKind.PS5_ONLY)
             return
         }
-        val store = PsnTokenStore.get(input.context)
+        val store = accounts
         val accounts = store.accounts().filter { it.rid != store.accountId }.sortedBy { it.rid }
-        val choice = CoopAccountChoice(++nextChoiceId, slot, accounts.map {
+        val choice = CoopAccountRequest(++nextChoiceId, slot, accounts.map {
             CoopAccountOption(it.rid, it.rid !in assigned.values && numericRid(it.rid) != null, it.onlineId, it.avatarUrl)
         })
         input.resetSecondaryState(slot)
-        choiceKeys.reset()
-        hatDirection = 0
-        _choice.value = choice
-        profileJob = scope.launch {
-            for(account in accounts) {
-                val profile = store.refreshProfile(account.rid) ?: continue
-                val current = _choice.value?.takeIf { it.id == choice.id } ?: return@launch
-                _choice.value = current.copy(accounts = current.accounts.map {
-                    if(it.rid == profile.rid) it.copy(onlineId = profile.onlineId, avatarUrl = profile.avatarUrl) else it
-                })
-            }
-        }
+        _request.value = choice
     }
 }

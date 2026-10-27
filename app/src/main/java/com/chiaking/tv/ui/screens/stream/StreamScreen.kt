@@ -49,9 +49,10 @@ private const val RECONNECT_RESUME_DELAY_MS = 1500L
 private const val FIRST_FRAME_POLL_MS = 100L
 
 @Composable
-fun StreamScreen(
+internal fun StreamScreen(
 	session: StreamSession,
 	preferences: Preferences,
+	controller: CoopAccountPickerController,
 	onQuit: () -> Unit,
 	onSleep: () -> Unit,
 	onPinStored: (String) -> Unit = {}
@@ -59,7 +60,7 @@ fun StreamScreen(
 {
 	val state by session.state.collectAsState()
 	val hudVisible by session.hudVisible.collectAsState()
-	val coopChoice by session.coopAccountChoice.collectAsState()
+	val coopChoice by controller.choice.collectAsState()
 	LaunchedEffect(coopChoice?.id) { if(coopChoice != null) session.hideHud() }
 	val disconnectDialogVisible by session.disconnectDialogVisible.collectAsState()
 	var pinDialog by remember { mutableStateOf<StreamStateLoginPinRequest?>(null) }
@@ -179,7 +180,7 @@ fun StreamScreen(
 			onClose = closeAction,
 			modifier = Modifier.align(Alignment.BottomCenter)
 		)
-		coopChoice?.let { CoopAccountPicker(it, session) }
+		coopChoice?.let { CoopAccountPicker(it, controller) }
 	}
 
 	if(pinDialog != null)
