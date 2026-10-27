@@ -293,4 +293,5 @@
 	<string name="coop_choose_account">Kies een account voor speler %1$d</string>
 	<string name="coop_choose_account_hint">Kies met deze controller een account. Druk op kruisje om deel te nemen of Terug om te annuleren.</string>
 	<string name="coop_account_unavailable">Al in gebruik of niet beschikbaar</string>
+    <string name="export_failed">Exporteren mislukt: %1$s</string>
 </resources>

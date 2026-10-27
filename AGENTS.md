@@ -222,9 +222,12 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
 
 ## Kotlin ownership
 
-- Screen ViewModels are created with `ui/navigation/rememberRouteViewModel` so leaving a route clears their jobs and native resources.
+- Screen ViewModels are created with `ui/navigation/rememberRouteViewModel` using the retained `NavigationViewModel` and an owner per screen entry. Covering a screen or recreating the Activity preserves its ViewModels; popping the entry clears jobs and native resources.
 - `ui/screens/settings/SettingsViewModel` owns settings actions and account state; category panels only render state and forward actions.
 - `common/psn/PsnTokenStore` only persists credentials/metadata. `PsnAccountRepository` coordinates login/refresh; `PsnAuth` handles OAuth and `PsnProfileClient` handles profiles. UI receives token-free account summaries.
 - `session/CoopPlayers` owns player assignments and native join status. Android picker input, profile loading and notifications belong to `ui/screens/stream/`.
 - Backup DTOs do not query Room. `SettingsBackupRepository` maps between backup DTOs and DAO records; Activity-result handling lives in `ui/screens/settings/SettingsTransferController`.
 - Host management lives in `ui/screens/hosts/`, PSN login in `ui/screens/psn/`, launcher integration in `platform/tv/`, avatar loading in `ui/images/`.
+
+- StreamInput delegates sensors and orientation to StreamMotionSensors and HUD shortcut state to HudShortcut/ShortcutKeyState. Keep resource attachment in ResumedResourceBinding so stale Activity cleanup cannot detach a newer owner.
+- Backup document streams are opened, parsed/written and closed by SettingsDocumentIO on Dispatchers.IO; transfer callbacks must propagate cancellation and report other errors.

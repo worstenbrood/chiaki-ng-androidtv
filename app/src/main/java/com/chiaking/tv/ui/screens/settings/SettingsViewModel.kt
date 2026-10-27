@@ -12,14 +12,14 @@ import com.chiaking.tv.common.db.RegisteredHost
 import com.chiaking.tv.common.psn.PsnAccountRepository
 import com.chiaking.tv.common.settings.Preferences
 import com.chiaking.tv.ui.theme.AppThemeState
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlin.properties.ReadWriteProperty
-import kotlin.reflect.KProperty
 
 /** Settings mutations and account data live here; panels only render state and issue actions. */
 internal class SettingsViewModel(context: Context, database: AppDatabase, private val preferences: Preferences) : ViewModel() {
+    private val appContext = context.applicationContext
+    private val settings = mutableListOf<() -> Unit>()
     private val accounts = PsnAccountRepository.get(context)
     private var accountState by mutableStateOf(accounts.state.value)
     var registeredHosts by mutableStateOf<List<RegisteredHost>>(emptyList())
@@ -44,8 +44,10 @@ internal class SettingsViewModel(context: Context, database: AppDatabase, privat
     }
 
     val bitrateAuto get() = preferences.bitrateAuto
-    val audioDevices = AudioDevices.outputDevices(context)
-    val micDevices = AudioDevices.inputDevices(context)
+    var audioDevices by mutableStateOf(AudioDevices.outputDevices(appContext))
+        private set
+    var micDevices by mutableStateOf(AudioDevices.inputDevices(appContext))
+        private set
     var deviceIndex by mutableStateOf(AudioDevices.indexOfSavedOutput(audioDevices,
         preferences.audioDeviceName, preferences.audioDeviceId))
         private set
@@ -68,15 +70,16 @@ internal class SettingsViewModel(context: Context, database: AppDatabase, privat
         autoConnectMac = autoConnectOptions[index]?.serverMac?.toString().orEmpty()
     }
 
-    private fun <T> preferenceState(read: () -> T, write: (T) -> Unit): ReadWriteProperty<Any?, T> =
-        object : ReadWriteProperty<Any?, T> {
-            private var value by mutableStateOf(read())
-            override fun getValue(thisRef: Any?, property: KProperty<*>) = value
-            override fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
-                write(value)
-                this.value = read()
-            }
-        }
+    private fun <T> preferenceState(read: () -> T, write: (T) -> Unit): PersistedSetting<T> =
+        PersistedSetting(read, write).also { settings.add(it::refresh) }
+
+    fun refresh() {
+        settings.forEach { it() }
+        audioDevices = AudioDevices.outputDevices(appContext)
+        micDevices = AudioDevices.inputDevices(appContext)
+        deviceIndex = AudioDevices.indexOfSavedOutput(audioDevices, preferences.audioDeviceName, preferences.audioDeviceId)
+        micDeviceIndex = micDevices.indexOfFirst { it.first == preferences.micDeviceName }.coerceAtLeast(0)
+    }
 
     var resolution by preferenceState({ preferences.resolution }, { preferences.resolution = it })
     var fps by preferenceState({ preferences.fps }, { preferences.fps = it })

@@ -293,4 +293,5 @@
 	<string name="coop_choose_account">Choose an account for player %1$d</string>
 	<string name="coop_choose_account_hint">Use this controller to choose an account. Press Cross to join or Back to cancel.</string>
 	<string name="coop_account_unavailable">Already in use or unavailable</string>
+    <string name="export_failed">Export failed: %1$s</string>
 </resources>
