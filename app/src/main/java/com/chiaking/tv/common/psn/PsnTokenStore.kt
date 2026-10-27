@@ -85,6 +85,8 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 	@Synchronized
 	fun save(tokens: PsnAuth.PsnTokens, accountId: String, duid: String)
 	{
+		val previous = this.accountId
+		if(previous != null && previous != accountId) clearProfile(previous)
 		prefs.edit()
 			.putString(KEY_ACCESS, tokens.accessToken)
 			.putString(KEY_REFRESH, tokens.refreshToken)
@@ -94,9 +96,6 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 			.remove(extraKey(accountId, "access"))
 			.remove(extraKey(accountId, "refresh"))
 			.remove(extraKey(accountId, "expiry"))
-			.remove(extraKey(accountId, "online_id"))
-			.remove(extraKey(accountId, "avatar_url"))
-			.remove(extraKey(accountId, "profile_updated"))
 			.putStringSet(KEY_EXTRA_INDEX, extraRids() - accountId)
 			.apply()
 	}
@@ -104,6 +103,7 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 	@Synchronized
 	fun logout()
 	{
+		accountId?.let { clearProfile(it) }
 		prefs.edit().remove(KEY_ACCESS).remove(KEY_REFRESH).remove(KEY_EXPIRY)
 			.remove(KEY_ACCOUNT_ID).remove(KEY_DUID).apply()
 	}
@@ -112,6 +112,10 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 		accountId?.let { runCatching { android.util.Base64.decode(it, android.util.Base64.NO_WRAP) }.getOrNull() }
 
 	private fun extraKey(rid: String, field: String) = "extra_${rid}_$field"
+	private fun clearProfile(rid: String) {
+		prefs.edit().remove(extraKey(rid, "online_id")).remove(extraKey(rid, "avatar_url"))
+			.remove(extraKey(rid, "profile_updated")).apply()
+	}
 
 	private fun extraRids(): Set<String> = prefs.getStringSet(KEY_EXTRA_INDEX, emptySet())?.toSet() ?: emptySet()
 
@@ -169,17 +173,20 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 		val primaryRid = accountId
 		if(!primaryRid.isNullOrEmpty())
 			out.add(PsnAccount(primaryRid, prefs.getString(KEY_ACCESS, "") ?: "",
-				prefs.getString(KEY_REFRESH, "") ?: "", prefs.getLong(KEY_EXPIRY, 0L)))
+				prefs.getString(KEY_REFRESH, "") ?: "", prefs.getLong(KEY_EXPIRY, 0L),
+				prefs.getString(extraKey(primaryRid, "online_id"), "") ?: "",
+				prefs.getString(extraKey(primaryRid, "avatar_url"), "") ?: "",
+				prefs.getLong(extraKey(primaryRid, "profile_updated"), 0L)))
 		out.addAll(loadExtras())
 		return out
 	}
 
 	fun account(rid: String): PsnAccount? = accounts().firstOrNull { it.rid == rid }
 
-	suspend fun refreshProfile(rid: String): PsnAccount? = withContext(Dispatchers.IO) {
+	suspend fun refreshProfile(rid: String, force: Boolean = false): PsnAccount? = withContext(Dispatchers.IO) {
 		val cached = account(rid) ?: return@withContext null
-		if(rid == accountId || cached.profileUpdatedMs > System.currentTimeMillis() -
-            (if(cached.avatarUrl.isBlank()) 5 * 60 * 1000L else 24 * 60 * 60 * 1000L))
+		if(!force && cached.profileUpdatedMs > System.currentTimeMillis() -
+			(if(cached.avatarUrl.isBlank()) 5 * 60 * 1000L else 24 * 60 * 60 * 1000L))
 			return@withContext cached
 		try {
 			val token = ensureFreshTokenFor(rid) ?: return@withContext cached
@@ -192,7 +199,7 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 
 	@Synchronized
 	internal fun saveProfileIfPresent(rid: String, profile: PsnAuth.Profile): Boolean {
-		if(rid !in extraRids() || loadExtra(rid) == null || rid == accountId) return false
+		if(rid != accountId && (rid !in extraRids() || loadExtra(rid) == null)) return false
 		prefs.edit().putString(extraKey(rid, "online_id"), profile.onlineId)
 			.putString(extraKey(rid, "avatar_url"), profile.avatarUrl)
 			.putLong(extraKey(rid, "profile_updated"), System.currentTimeMillis()).apply()
@@ -282,6 +289,8 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 			putExtra(PsnAccount(accountId, tokens.accessToken, tokens.refreshToken, expiry))
 		else
 			save(tokens, accountId, duid)
+		// Optional metadata failure does not undo a successful login.
+		refreshProfile(accountId, force = true)
 		android.util.Log.i("PsnTokenStore", "PSN login ok, account_id=$accountId extra=$asExtra")
 		accountId
 	}

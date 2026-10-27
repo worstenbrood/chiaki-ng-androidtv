@@ -7,6 +7,36 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PsnTokenStoreTest {
+    @Test fun primaryProfileSurvivesReloadAndLateResultsCannotRestoreLoggedOutAccount() {
+        val memory = MemoryPreferences()
+        val store = PsnTokenStore(memory.prefs)
+        primary(store)
+        store.putExtra(extra("other"))
+        val profile = PsnAuth.Profile("Main Player", "https://example.test/main.png")
+        assertTrue(store.saveProfileIfPresent("primary", profile))
+        val reloaded = PsnTokenStore(memory.prefs)
+        assertEquals("Main Player", reloaded.account("primary")?.onlineId)
+        assertEquals(profile.avatarUrl, reloaded.account("primary")?.avatarUrl)
+        reloaded.logout()
+        assertFalse(reloaded.saveProfileIfPresent("primary", profile))
+        assertFalse(memory.values.containsKey("extra_primary_online_id"))
+        assertEquals(extra("other"), reloaded.account("other"))
+    }
+
+    @Test fun promotingExtraPreservesItsProfileAndSwitchingPrimaryClearsPreviousProfile() {
+        val memory = MemoryPreferences()
+        val store = PsnTokenStore(memory.prefs)
+        primary(store)
+        store.saveProfileIfPresent("primary", PsnAuth.Profile("Previous", ""))
+        store.putExtra(extra("b"))
+        store.saveProfileIfPresent("b", PsnAuth.Profile("Player B", "https://example.test/b.png"))
+        primary(store, "b")
+        assertEquals(listOf("b"), store.accounts().map { it.rid })
+        assertEquals("Player B", store.account("b")?.onlineId)
+        assertFalse(memory.values.containsKey("extra_primary_online_id"))
+        assertFalse(store.saveProfileIfPresent("primary", PsnAuth.Profile("Late", "")))
+    }
+
     @Test fun profilesPersistWithTheirAccountAndCannotResurrectADeletedAccount() {
         val memory = MemoryPreferences()
         val store = PsnTokenStore(memory.prefs)

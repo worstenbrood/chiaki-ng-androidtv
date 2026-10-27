@@ -32,7 +32,8 @@ fun TvActionRow(
 	summary: String?,
 	onClick: () -> Unit,
 	focusRequester: FocusRequester? = null,
-	onFocus: (Boolean) -> Unit = {}
+	onFocus: (Boolean) -> Unit = {},
+	leadingContent: (@Composable () -> Unit)? = null
 )
 {
 	val focused = remember { mutableStateOf(false) }
@@ -42,6 +43,7 @@ fun TvActionRow(
 			.tvRow(focused, onClick, focusRequester, onFocus),
 		verticalAlignment = Alignment.CenterVertically
 	) {
+		leadingContent?.invoke()
 		Column(modifier = Modifier.weight(1f)) {
 			RowTitle(title)
 			if(summary != null)
