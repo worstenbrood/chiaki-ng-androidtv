@@ -158,7 +158,7 @@
 
 	<!-- PSN login dialog -->
 	<string name="psn_login_title">Aanmelden met PSN</string>
-	<string name="psn_login_instructions">Scan deze QR-code met je telefoon en meld je aan bij PlayStation Network. Na het aanmelden komt je browser op een lege pagina — kopieer de volledige URL uit de adresbalk en plak die hieronder.</string>
+	<string name="psn_login_instructions">Scan met je telefoon en meld je aan bij PlayStation. Kopieer de uiteindelijke redirect-URL en kies Handmatig invoeren op de tv.</string>
 	<string name="psn_paste_hint">Omleidings-URL (of code) plakken</string>
 	<string name="psn_sign_in">Aanmelden</string>
 	<string name="psn_working">Bezig…</string>
@@ -294,4 +294,18 @@
 	<string name="coop_choose_account_hint">Kies met deze controller een account. Druk op kruisje om deel te nemen of Terug om te annuleren.</string>
 	<string name="coop_account_unavailable">Al in gebruik of niet beschikbaar</string>
     <string name="export_failed">Exporteren mislukt: %1$s</string>
+    <string name="psn_phone_instructions">Scan met een telefoon op hetzelfde netwerk. Meld je aan en plak de redirect op de telefoonpagina.</string>
+    <string name="psn_phone_qr">QR-code voor PSN-aanmelding</string>
+    <string name="psn_phone_expiry">Link 10 minuten geldig.</string>
+    <string name="psn_phone_manual">Plak de Sony-redirect-URL of aanmeldcode met het tv-toetsenbord.</string>
+    <string name="psn_phone_unavailable">De telefoonpagina is niet beschikbaar of is verlopen. Scan de Sony-QR-code en plak de redirect hier, of open dit venster opnieuw voor een nieuwe telefoonlink.</string>
+    <string name="psn_phone_page_instructions">Laat deze pagina openstaan. Open hieronder de PlayStation-aanmelding in een nieuw tabblad, voltooi de aanmelding en captcha en kopieer de volledige uiteindelijke redirect-URL uit de adresbalk. Keer terug naar deze pagina en plak die hieronder. Voer je wachtwoord alleen in op de website van Sony. Gebruik je vertrouwde lokale netwerk; deze tijdelijke pagina gebruikt een lokale HTTP-verbinding.</string>
+    <string name="psn_phone_paste">Plak de volledige Sony-redirect-URL</string>
+    <string name="psn_phone_send">Account toevoegen op tv</string>
+    <string name="psn_phone_success">Account toegevoegd. Je kunt deze pagina sluiten en verdergaan op de tv.</string>
+    <string name="psn_phone_failed">Aanmelden mislukt. Bekijk de melding op de tv, haal een nieuwe Sony-redirect op en probeer opnieuw.</string>
+    <string name="psn_phone_invalid">Dit is geen geldige redirect voor deze aanmeldpoging. Open de PlayStation-aanmelding vanaf deze pagina en kopieer de volledige uiteindelijke URL, inclusief code en state.</string>
+    <string name="psn_phone_retry">Opnieuw proberen</string>
+    <string name="psn_show_qr">Terug naar QR-code</string>
+    <string name="psn_manual_entry">Handmatig invoeren</string>
 </resources>

@@ -25,36 +25,35 @@ object PsnAuth : PsnAuthentication
 	private const val TOKEN_URL = "https://auth.api.sonyentertainmentnetwork.com/2.0/oauth/token"
 	private val http = PsnHttpClient()
 
-	fun loginUrl(duid: String): String =
+	fun loginUrl(duid: String, state: String? = null): String =
 		"$AUTHORIZE_URL?service_entity=urn:service-entity:psn&response_type=code" +
 			"&client_id=$CLIENT_ID&redirect_uri=${enc(REDIRECT_PAGE)}&scope=${enc(SCOPES)}" +
 			"&request_locale=en_US&ui=pr&service_logo=ps&layout_type=popup&smcid=remoteplay" +
-			"&prompt=always&PlatformPrivacyWs1=minimal&duid=$duid&"
+			"&prompt=always&PlatformPrivacyWs1=minimal&duid=${enc(duid)}&" +
+            (state?.let { "state=${enc(it)}" } ?: "")
 
 	/** Accepts the full redirect URL or a bare authorization code; returns the code. */
 	fun parseRedirect(input: String): String?
 	{
 		val trimmed = input.trim()
-		if(trimmed.startsWith(REDIRECT_PAGE))
+		if(trimmed.startsWith("https://"))
 		{
-			val query = trimmed.substringAfter('?', "")
-			return query.split('&')
-				.firstOrNull { it.startsWith("code=") }
-				?.substringAfter('=')
-				?.takeIf { it.isNotEmpty() }
+            val parameters = redirectParameters(trimmed) ?: return null
+            if(parameters.containsKey("error")) return null
+            return parameters["code"]?.takeIf { it.isNotBlank() }
 		}
 		return trimmed.takeIf { it.matches(Regex("[A-Za-z0-9_\\-.]+")) && it.length >= 4 }
 	}
 
 	override suspend fun exchangeCode(code: String): PsnTokens = withContext(Dispatchers.IO) {
 		request(
-			"grant_type=authorization_code&code=$code&scope=${enc(SCOPES)}&redirect_uri=${enc(REDIRECT_PAGE)}"
+			"grant_type=authorization_code&code=${enc(code)}&scope=${enc(SCOPES)}&redirect_uri=${enc(REDIRECT_PAGE)}"
 		)
 	}
 
 	override suspend fun refresh(refreshToken: String): PsnTokens = withContext(Dispatchers.IO) {
 		request(
-			"grant_type=refresh_token&refresh_token=$refreshToken&scope=${enc(SCOPES)}&redirect_uri=${enc(REDIRECT_PAGE)}"
+			"grant_type=refresh_token&refresh_token=${enc(refreshToken)}&scope=${enc(SCOPES)}&redirect_uri=${enc(REDIRECT_PAGE)}"
 		)
 	}
 

@@ -34,7 +34,7 @@ Current version: **1.25.0-tv** (Android version code **34**).
   wake and remote-connect progress shows as a modal dialog with a Cancel button (Back cancels too)
 - **Auto-connect on startup** — pick a console in Settings; the app wakes and connects to it automatically on launch
 - **PSN sign-in + Remote Play over Internet** — sign in to PlayStation Network from the TV
-  (*Settings → PlayStation Network*: scan the QR code or enter the short code on any phone/PC);
+  (*Settings → PlayStation Network*: scan the QR code and complete sign-in on a phone/PC on the same local network);
   your PS5 consoles then appear in the **Remote** section and stream from anywhere over the
   internet (PSN holepunching). First connection to a console auto-registers it — no PIN needed
 - **Google TV home channel** — registered consoles appear as programs on a "Chiaki TV" preview
@@ -136,10 +136,15 @@ Current version: **1.25.0-tv** (Android version code **34**).
 5. **Remote Play over the internet (optional):**
    1. Enable Remote Play on the console and make sure it is linked to your PSN account.
    2. In Chiaki TV open *Settings → Sign in with PSN*. A QR code appears on the TV.
-   3. Scan it with your phone (or open the same URL on a PC), sign in to PlayStation Network,
-      then copy the full URL your browser lands on (a blank page) and paste it into the dialog
-      on the TV — or just paste the authorization **code** alone (the `code=` value from that URL).
-      The app exchanges the code and stores the tokens encrypted on the device.
+   3. Scan it with a phone on the same local network.
+      The TV serves a temporary phone page: open **Sign in** there, complete Sony's sign-in
+      and captcha in the new tab, then copy the full final redirect URL and paste it back
+      on the phone page. The TV adds the account and fetches its profile automatically.
+      Enter your password only on Sony's site. The local page uses HTTP, so use a trusted LAN.
+      The private link expires after ten minutes and stops when the TV dialog closes.
+      Choose **Manual entry** to paste a redirect URL or authorization **code** directly into the TV;
+      if the phone page cannot start, the QR code opens Sony directly instead.
+      Tokens are exchanged over HTTPS and stored encrypted on the TV.
    4. Your PS5 consoles appear in the **Remote** section of the home screen. Selecting one
       connects over the internet (the first connection auto-registers the console — no PIN
       needed; afterwards it behaves like a locally registered console).

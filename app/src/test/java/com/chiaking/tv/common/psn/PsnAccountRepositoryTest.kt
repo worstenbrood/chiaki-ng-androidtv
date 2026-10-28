@@ -7,6 +7,14 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PsnAccountRepositoryTest {
+    @Test(timeout = 10000) fun loginPreservesDeviceIdentityFromAuthorizationAttempt() = runBlocking {
+        val store = PsnTokenStore(MemoryPsnPreferences().prefs)
+        val repository = PsnAccountRepository(store, auth, object : PsnProfileService {
+            override suspend fun fetchProfile(rid: String, accessToken: String) = PsnProfile("Player", "")
+        }, { throw AssertionError("Must reuse the login attempt device ID") })
+        repository.loginWithCode("code", deviceUid = "authorized-device")
+        assertEquals("authorized-device", store.duid)
+    }
     @Test(timeout = 10000) fun removingAnAccountDuringTokenRefreshCannotRestoreCredentials() = runBlocking {
         val store = PsnTokenStore(MemoryPsnPreferences().prefs)
         store.putExtra(PsnAccount("account", "expired", "refresh", 0))

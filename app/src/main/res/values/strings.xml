@@ -159,7 +159,7 @@
 
 	<!-- PSN login dialog -->
 	<string name="psn_login_title">Sign in with PSN</string>
-	<string name="psn_login_instructions">Scan this QR code with your phone and sign in to PlayStation Network. After signing in, your browser lands on a blank page — copy the full URL from the address bar and paste it below.</string>
+	<string name="psn_login_instructions">Scan with your phone and sign in to PlayStation. Copy the final redirect URL, then choose Manual entry on the TV.</string>
 	<string name="psn_paste_hint">Paste redirect URL (or code)</string>
 	<string name="psn_sign_in">Sign in</string>
 	<string name="psn_working">Working…</string>
@@ -294,4 +294,18 @@
 	<string name="coop_choose_account_hint">Use this controller to choose an account. Press Cross to join or Back to cancel.</string>
 	<string name="coop_account_unavailable">Already in use or unavailable</string>
     <string name="export_failed">Export failed: %1$s</string>
+    <string name="psn_phone_instructions">Scan with a phone on the same network. Sign in and paste the redirect on the phone page.</string>
+    <string name="psn_phone_qr">PSN sign-in QR code</string>
+    <string name="psn_phone_expiry">Link valid for 10 minutes.</string>
+    <string name="psn_phone_manual">Paste the Sony redirect URL or authorization code using the TV keyboard.</string>
+    <string name="psn_phone_unavailable">The phone page is unavailable or has expired. Scan the Sony QR code and paste the redirect here, or reopen this dialog for a new phone link.</string>
+    <string name="psn_phone_page_instructions">Keep this page open. Open PlayStation sign-in below in a new tab, complete sign-in and the captcha, then copy the full final redirect URL from the address bar. Return to this page and paste it below. Only enter your password on Sony’s site. Use your trusted local network; this temporary page uses a local HTTP connection.</string>
+    <string name="psn_phone_paste">Paste the full Sony redirect URL</string>
+    <string name="psn_phone_send">Add account on TV</string>
+    <string name="psn_phone_success">Account added. You can close this page and continue on the TV.</string>
+    <string name="psn_phone_failed">Sign-in failed. Check the message on the TV, then obtain a new Sony redirect and try again.</string>
+    <string name="psn_phone_invalid">This is not a valid redirect for this sign-in attempt. Open PlayStation sign-in from this page and copy the complete final URL, including code and state.</string>
+    <string name="psn_phone_retry">Try again</string>
+    <string name="psn_show_qr">Back to QR code</string>
+    <string name="psn_manual_entry">Manual entry</string>
 </resources>

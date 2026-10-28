@@ -83,10 +83,10 @@ class PsnAccountRepository internal constructor(
 		store.account(rid)?.summary()
 	}
 
-	/** Generates a fresh duid, logs in with the given code, returns the account id. */
-	suspend fun loginWithCode(code: String, asExtra: Boolean = false, onStatus: (PsnLoginPhase) -> Unit = {}): String = withContext(Dispatchers.IO) {
+	/** Reuses the authorization attempt's device ID (or generates one for legacy callers). */
+	suspend fun loginWithCode(code: String, asExtra: Boolean = false, deviceUid: String? = null, onStatus: (PsnLoginPhase) -> Unit = {}): String = withContext(Dispatchers.IO) {
 		onStatus(PsnLoginPhase.GENERATING_UID)
-		val duid = generateUid()
+		val duid = deviceUid ?: generateUid()
 		if(duid.isEmpty())
 			throw PsnLoginException(PsnLoginPhase.GENERATING_UID)
 		onStatus(PsnLoginPhase.EXCHANGING)

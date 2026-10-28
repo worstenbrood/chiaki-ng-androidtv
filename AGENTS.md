@@ -231,3 +231,4 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
 
 - StreamInput delegates sensors and orientation to StreamMotionSensors and HUD shortcut state to HudShortcut/ShortcutKeyState. Keep resource attachment in ResumedResourceBinding so stale Activity cleanup cannot detach a newer owner.
 - Backup document streams are opened, parsed/written and closed by SettingsDocumentIO on Dispatchers.IO; transfer callbacks must propagate cancellation and report other errors.
+- The PSN dialog owns `PsnLoginController` and a temporary `PhoneSignInServer`: bind only to a LAN address, close sockets on disposal, expire pairing after ten minutes, and validate exact redirect endpoint plus per-attempt OAuth state. Both phone and manual input share one login worker and device UID. Never serve or log passwords, tokens or submitted redirects.
