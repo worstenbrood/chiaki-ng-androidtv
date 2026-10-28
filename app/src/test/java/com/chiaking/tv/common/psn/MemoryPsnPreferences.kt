@@ -6,6 +6,7 @@ import java.lang.reflect.Proxy
 /** Test the SharedPreferences contract without an Android device or encrypted test secrets. */
 internal class MemoryPsnPreferences {
     val values = mutableMapOf<String, Any?>()
+    var commitSucceeds = true
     val prefs = Proxy.newProxyInstance(SharedPreferences::class.java.classLoader,
         arrayOf(SharedPreferences::class.java)) { _, method, args ->
         when(method.name) {
@@ -29,10 +30,10 @@ internal class MemoryPsnPreferences {
                 }
                 "remove" -> { changes[args!![0] as String] = null; proxy }
                 "apply", "commit" -> {
-                    changes.forEach { (key, value) ->
+                    if(method.name == "apply" || commitSucceeds) changes.forEach { (key, value) ->
                         if(value == null) values.remove(key) else values[key] = value
                     }
-                    if(method.name == "commit") true else null
+                    if(method.name == "commit") commitSucceeds else null
                 }
                 else -> error("Unexpected Editor method ${method.name}")
             }

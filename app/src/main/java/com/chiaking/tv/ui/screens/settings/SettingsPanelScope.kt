@@ -13,6 +13,5 @@ internal class SettingsPanelScope(
     val onImportSettings: () -> Unit,
     val onEditPin: () -> Unit,
     val onAddPsn: () -> Unit,
-    val onAddCoop: () -> Unit,
-    val onRemovePsn: (String) -> Unit,
+    val onManagePsn: (String) -> Unit,
 )

@@ -45,6 +45,8 @@ internal fun CoopAccountPicker(choice: CoopAccountChoice, controller: CoopAccoun
             Spacer(Modifier.height(12.dp))
             Text(stringResource(R.string.coop_choose_account_hint),
                 style = MaterialTheme.typography.bodyMedium, color = OnSurfaceMuted)
+            if(!controller.ownerKnown) Text(stringResource(R.string.coop_unknown_owner),
+                style = MaterialTheme.typography.bodySmall, color = OnSurfaceMuted, modifier = Modifier.padding(horizontal = 36.dp))
             if(choice.accounts.isEmpty()) {
                 Spacer(Modifier.height(16.dp))
                 Text(stringResource(R.string.coop_account_required, choice.slot + 1),
@@ -65,7 +67,7 @@ internal fun CoopAccountPicker(choice: CoopAccountChoice, controller: CoopAccoun
                                 verticalArrangement = Arrangement.Center) {
                                 PsnAccountAvatar(account.avatarUrl, Modifier.size(72.dp))
                                 Spacer(Modifier.height(16.dp))
-                                Text(account.onlineId.ifBlank { stringResource(R.string.psn_extra_account, index + 1) },
+                                Text(account.onlineId.ifBlank { stringResource(R.string.psn_account_number, index + 1) },
                                     style = MaterialTheme.typography.titleMedium, color = OnSurfaceLight,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Spacer(Modifier.height(8.dp))

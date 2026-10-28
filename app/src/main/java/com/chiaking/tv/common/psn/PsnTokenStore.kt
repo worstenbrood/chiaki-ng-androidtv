@@ -16,6 +16,7 @@ data class PsnAccount(
 	val onlineId: String = "",
 	val avatarUrl: String = "",
 	val profileUpdatedMs: Long = 0,
+    val deviceUid: String = "",
 )
 
 /**
@@ -26,7 +27,10 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 {
 	companion object
 	{
-		const val MAX_EXTRA_ACCOUNTS = 7
+		const val MAX_ACCOUNTS = 8
+        private const val INDEX = "accounts_v2"
+        private const val SELECTED = "connection_account_v2"
+        private const val MIGRATED = "accounts_migration"
 		private const val PREFS_NAME = "chiaki_psn_tokens"
 		private const val KEY_ACCESS = "access_token"
 		private const val KEY_REFRESH = "refresh_token"
@@ -45,171 +49,147 @@ class PsnTokenStore internal constructor(private val prefs: SharedPreferences)
 			{
 				instance?.let { return it }
 				val appContext = context.applicationContext
-				val store = try
+				val storage = try
 				{
 					val masterKey = MasterKey.Builder(appContext)
 						.setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
 						.build()
-					PsnTokenStore(EncryptedSharedPreferences.create(
+					EncryptedSharedPreferences.create(
 						appContext,
 						PREFS_NAME,
 						masterKey,
 						EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
 						EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-					))
+					)
 				}
 				catch(e: Exception)
 				{
 					android.util.Log.e("PsnTokenStore", "Encrypted prefs unavailable, falling back", e)
 					@Suppress("DEPRECATION")
-					PsnTokenStore(appContext.getSharedPreferences(PREFS_NAME + "_plain", Context.MODE_PRIVATE))
+					appContext.getSharedPreferences(PREFS_NAME + "_plain", Context.MODE_PRIVATE)
 				}
+				val store = PsnTokenStore(storage)
 				instance = store
 				return store
 			}
 		}
 	}
 
-	val isLoggedIn get() = !prefs.getString(KEY_ACCOUNT_ID, "").isNullOrEmpty()
-	val accountId: String? get() = prefs.getString(KEY_ACCOUNT_ID, null)
-	val duid: String get() = prefs.getString(KEY_DUID, "") ?: ""
 
-	@Synchronized
-	fun save(tokens: PsnTokens, accountId: String, duid: String)
-	{
-		val previous = this.accountId
-		if(previous != null && previous != accountId) clearProfile(previous)
-		prefs.edit()
-			.putString(KEY_ACCESS, tokens.accessToken)
-			.putString(KEY_REFRESH, tokens.refreshToken)
-			.putLong(KEY_EXPIRY, System.currentTimeMillis() + tokens.expiresInSeconds * 1000L)
-			.putString(KEY_ACCOUNT_ID, accountId)
-			.putString(KEY_DUID, duid)
-			.remove(extraKey(accountId, "access"))
-			.remove(extraKey(accountId, "refresh"))
-			.remove(extraKey(accountId, "expiry"))
-			.putStringSet(KEY_EXTRA_INDEX, extraRids() - accountId)
-			.apply()
-	}
 
-	@Synchronized
-	fun logout()
-	{
-		accountId?.let { clearProfile(it) }
-		prefs.edit().remove(KEY_ACCESS).remove(KEY_REFRESH).remove(KEY_EXPIRY)
-			.remove(KEY_ACCOUNT_ID).remove(KEY_DUID).apply()
-	}
+    private fun key(rid: String, field: String) = "account_${rid}_$field"
+    private val fields = listOf("access", "refresh", "expiry", "online_id", "avatar_url", "profile_updated", "duid")
+    init { migrate() }
 
-	fun accountIdBytes(): ByteArray? =
-		accountId?.let { runCatching { android.util.Base64.decode(it, android.util.Base64.NO_WRAP) }.getOrNull() }
+    private fun index() = prefs.getStringSet(INDEX, emptySet())?.toSet().orEmpty()
+    val accountId: String? get() = prefs.getString(SELECTED, null)?.takeIf { account(it) != null }
+    val isLoggedIn get() = accountId != null
+    val duid get() = accountId?.let { account(it)?.deviceUid }.orEmpty()
 
-	private fun extraKey(rid: String, field: String) = "extra_${rid}_$field"
-	private fun clearProfile(rid: String) {
-		prefs.edit().remove(extraKey(rid, "online_id")).remove(extraKey(rid, "avatar_url"))
-			.remove(extraKey(rid, "profile_updated")).apply()
-	}
+    /** Copy legacy credentials/profile metadata and remove old keys in one synchronous atomic edit. */
+    @Synchronized
+    private fun migrate() {
+        if(prefs.getString(MIGRATED, null) == "2") return
+        val primary = prefs.getString(KEY_ACCOUNT_ID, null)
+        val extras = prefs.getStringSet(KEY_EXTRA_INDEX, emptySet())?.toSet().orEmpty()
+        val ids = extras + listOfNotNull(primary)
+        val migrated = mutableSetOf<String>()
+        val edit = prefs.edit()
+        for(rid in ids) {
+            val isPrimary = rid == primary
+            val access = prefs.getString(if(isPrimary) KEY_ACCESS else "extra_${rid}_access", null)
+            val refresh = prefs.getString(if(isPrimary) KEY_REFRESH else "extra_${rid}_refresh", null)
+            if(access != null && refresh != null) {
+                val account = PsnAccount(rid, access, refresh,
+                    prefs.getLong(if(isPrimary) KEY_EXPIRY else "extra_${rid}_expiry", 0),
+                    prefs.getString("extra_${rid}_online_id", "").orEmpty(),
+                    prefs.getString("extra_${rid}_avatar_url", "").orEmpty(),
+                    prefs.getLong("extra_${rid}_profile_updated", 0),
+                    if(isPrimary) prefs.getString(KEY_DUID, "").orEmpty() else "")
+                write(edit, account)
+                migrated.add(rid)
+            }
+            fields.forEach { edit.remove("extra_${rid}_$it") }
+        }
+        edit.putStringSet(INDEX, migrated)
+            .putString(SELECTED, primary?.takeIf { it in migrated } ?: migrated.sorted().firstOrNull())
+            .putString(MIGRATED, "2")
+            .remove(KEY_ACCESS).remove(KEY_REFRESH).remove(KEY_EXPIRY).remove(KEY_ACCOUNT_ID)
+            .remove(KEY_DUID).remove(KEY_EXTRA_INDEX)
+        check(edit.commit()) { "Unable to migrate PSN accounts" }
+    }
 
-	private fun extraRids(): Set<String> = prefs.getStringSet(KEY_EXTRA_INDEX, emptySet())?.toSet() ?: emptySet()
+    private fun write(edit: SharedPreferences.Editor, account: PsnAccount) {
+        edit.putString(key(account.rid, "access"), account.accessToken)
+            .putString(key(account.rid, "refresh"), account.refreshToken)
+            .putLong(key(account.rid, "expiry"), account.expiryMs)
+            .putString(key(account.rid, "online_id"), account.onlineId)
+            .putString(key(account.rid, "avatar_url"), account.avatarUrl)
+            .putLong(key(account.rid, "profile_updated"), account.profileUpdatedMs)
+            .putString(key(account.rid, "duid"), account.deviceUid)
+    }
 
-	private fun loadExtra(rid: String): PsnAccount?
-	{
-		val access = prefs.getString(extraKey(rid, "access"), null) ?: return null
-		val refresh = prefs.getString(extraKey(rid, "refresh"), null) ?: return null
-		return PsnAccount(rid, access, refresh, prefs.getLong(extraKey(rid, "expiry"), 0L),
-			prefs.getString(extraKey(rid, "online_id"), "") ?: "",
-			prefs.getString(extraKey(rid, "avatar_url"), "") ?: "",
-			prefs.getLong(extraKey(rid, "profile_updated"), 0L))
-	}
+    @Synchronized
+    fun accounts(): List<PsnAccount> = index().sorted().mapNotNull { account(it) }
 
-	private fun loadExtras(): List<PsnAccount> = extraRids().sorted().filter { it != accountId }.mapNotNull { loadExtra(it) }
+    @Synchronized
+    fun account(rid: String): PsnAccount? {
+        if(rid !in index()) return null
+        val access = prefs.getString(key(rid, "access"), null) ?: return null
+        val refresh = prefs.getString(key(rid, "refresh"), null) ?: return null
+        return PsnAccount(rid, access, refresh, prefs.getLong(key(rid, "expiry"), 0),
+            prefs.getString(key(rid, "online_id"), "").orEmpty(), prefs.getString(key(rid, "avatar_url"), "").orEmpty(),
+            prefs.getLong(key(rid, "profile_updated"), 0), prefs.getString(key(rid, "duid"), "").orEmpty())
+    }
 
-	@Synchronized
-	internal fun putExtra(account: PsnAccount)
-	{
-		if(account.rid == accountId) throw PsnAccountException(PsnAccountError.PRIMARY_ACCOUNT)
-		val index = loadExtras().map { it.rid }.toSet()
-		if(account.rid !in index && index.size >= MAX_EXTRA_ACCOUNTS)
-			throw PsnAccountException(PsnAccountError.LIMIT_REACHED)
-		prefs.edit()
-			.putString(extraKey(account.rid, "access"), account.accessToken)
-			.putString(extraKey(account.rid, "refresh"), account.refreshToken)
-			.putLong(extraKey(account.rid, "expiry"), account.expiryMs)
-			.putString(extraKey(account.rid, "online_id"), account.onlineId.ifBlank {
-				prefs.getString(extraKey(account.rid, "online_id"), "") ?: "" })
-			.putString(extraKey(account.rid, "avatar_url"), account.avatarUrl.ifBlank {
-				prefs.getString(extraKey(account.rid, "avatar_url"), "") ?: "" })
-			.putLong(extraKey(account.rid, "profile_updated"), maxOf(account.profileUpdatedMs,
-				prefs.getLong(extraKey(account.rid, "profile_updated"), 0L)))
-			.putStringSet(KEY_EXTRA_INDEX, index + account.rid)
-			.apply()
-	}
+    @Synchronized
+    internal fun put(incoming: PsnAccount) {
+        val existing = account(incoming.rid)
+        val ids = accounts().map { it.rid }.toSet()
+        if(existing == null && ids.size >= MAX_ACCOUNTS) throw PsnAccountException(PsnAccountError.LIMIT_REACHED)
+        val preserved = incoming.copy(onlineId = incoming.onlineId.ifBlank { existing?.onlineId.orEmpty() },
+            avatarUrl = incoming.avatarUrl.ifBlank { existing?.avatarUrl.orEmpty() },
+            profileUpdatedMs = maxOf(incoming.profileUpdatedMs, existing?.profileUpdatedMs ?: 0),
+            deviceUid = incoming.deviceUid.ifBlank { existing?.deviceUid.orEmpty() })
+        val edit = prefs.edit()
+        write(edit, preserved)
+        edit.putStringSet(INDEX, ids + incoming.rid)
+        if(accountId == null) edit.putString(SELECTED, incoming.rid)
+        edit.apply()
+    }
 
-	private fun deleteExtra(rid: String)
-	{
-		prefs.edit()
-			.remove(extraKey(rid, "access"))
-			.remove(extraKey(rid, "refresh"))
-			.remove(extraKey(rid, "expiry"))
-			.remove(extraKey(rid, "online_id"))
-			.remove(extraKey(rid, "avatar_url"))
-			.remove(extraKey(rid, "profile_updated"))
-			.putStringSet(KEY_EXTRA_INDEX, extraRids() - rid)
-			.apply()
-	}
+    @Synchronized
+    fun selectAccount(rid: String) {
+        require(account(rid) != null) { "Unknown PSN account" }
+        prefs.edit().putString(SELECTED, rid).apply()
+    }
 
-	/** All accounts: primary first (if logged in), then co-op extras. */
-	@Synchronized
-	fun accounts(): List<PsnAccount>
-	{
-		val out = mutableListOf<PsnAccount>()
-		val primaryRid = accountId
-		if(!primaryRid.isNullOrEmpty())
-			out.add(PsnAccount(primaryRid, prefs.getString(KEY_ACCESS, "") ?: "",
-				prefs.getString(KEY_REFRESH, "") ?: "", prefs.getLong(KEY_EXPIRY, 0L),
-				prefs.getString(extraKey(primaryRid, "online_id"), "") ?: "",
-				prefs.getString(extraKey(primaryRid, "avatar_url"), "") ?: "",
-				prefs.getLong(extraKey(primaryRid, "profile_updated"), 0L)))
-		out.addAll(loadExtras())
-		return out
-	}
+    @Synchronized
+    fun removeAccount(rid: String) {
+        val ids = index() - rid
+        val edit = prefs.edit().putStringSet(INDEX, ids)
+        fields.forEach { edit.remove(key(rid, it)) }
+        if(accountId == rid) edit.putString(SELECTED, ids.sorted().firstOrNull { account(it) != null })
+        edit.apply()
+    }
 
-	fun account(rid: String): PsnAccount? = accounts().firstOrNull { it.rid == rid }
+    @Synchronized
+    internal fun saveProfileIfPresent(rid: String, profile: PsnProfile): Boolean {
+        if(account(rid) == null) return false
+        prefs.edit().putString(key(rid, "online_id"), profile.onlineId)
+            .putString(key(rid, "avatar_url"), profile.avatarUrl)
+            .putLong(key(rid, "profile_updated"), System.currentTimeMillis()).apply()
+        return true
+    }
 
-	@Synchronized
-	internal fun saveProfileIfPresent(rid: String, profile: PsnProfile): Boolean {
-		if(rid != accountId && (rid !in extraRids() || loadExtra(rid) == null)) return false
-		prefs.edit().putString(extraKey(rid, "online_id"), profile.onlineId)
-			.putString(extraKey(rid, "avatar_url"), profile.avatarUrl)
-			.putLong(extraKey(rid, "profile_updated"), System.currentTimeMillis()).apply()
-		return true
-	}
-
-	@Synchronized
-	fun removeAccount(rid: String)
-	{
-		if(rid == accountId) { logout(); return }
-		deleteExtra(rid)
-	}
-
-	@Synchronized
-	internal fun refreshExtraIfPresent(account: PsnAccount, previousRefreshToken: String): Boolean {
-		if(loadExtra(account.rid)?.refreshToken != previousRefreshToken || account.rid !in extraRids()) return false
-		// Refresh only credentials; a concurrent profile response may contain newer metadata.
-		prefs.edit().putString(extraKey(account.rid, "access"), account.accessToken)
-			.putString(extraKey(account.rid, "refresh"), account.refreshToken)
-			.putLong(extraKey(account.rid, "expiry"), account.expiryMs).apply()
-		return true
-	}
-
-	@Synchronized
-	internal fun refreshPrimaryIfCurrent(rid: String, previousRefreshToken: String, tokens: PsnTokens): Boolean {
-		if(accountId != rid || prefs.getString(KEY_REFRESH, null) != previousRefreshToken) return false
-		prefs.edit().putString(KEY_ACCESS, tokens.accessToken).putString(KEY_REFRESH, tokens.refreshToken)
-			.putLong(KEY_EXPIRY, System.currentTimeMillis() + tokens.expiresInSeconds * 1000L).apply()
-		return true
-	}
-
+    @Synchronized
+    internal fun refreshIfCurrent(rid: String, previousRefreshToken: String, tokens: PsnTokens): Boolean {
+        if(account(rid)?.refreshToken != previousRefreshToken) return false
+        prefs.edit().putString(key(rid, "access"), tokens.accessToken).putString(key(rid, "refresh"), tokens.refreshToken)
+            .putLong(key(rid, "expiry"), System.currentTimeMillis() + tokens.expiresInSeconds * 1000L).apply()
+        return true
+    }
 }
 
-internal enum class PsnAccountError { LIMIT_REACHED, PRIMARY_ACCOUNT }
+internal enum class PsnAccountError { LIMIT_REACHED, CONNECTION_IN_USE }
 internal class PsnAccountException(val reason: PsnAccountError) : IllegalStateException(reason.name)

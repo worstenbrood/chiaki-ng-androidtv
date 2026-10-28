@@ -62,9 +62,9 @@ internal fun SettingsScreen(
 )
 {
     val ctx = LocalContext.current
+    var managePsnAccount by remember { mutableStateOf<String?>(null) }
     var removePsnAccount by remember { mutableStateOf<String?>(null) }
     var showPsnLogin by remember { mutableStateOf(false) }
-    var showCoopLogin by remember { mutableStateOf(false) }
     var showPinEdit by remember { mutableStateOf(false) }
     var pinDraft by remember { mutableStateOf(viewModel.loginPin) }
 	var category by remember { mutableStateOf(
@@ -84,9 +84,9 @@ internal fun SettingsScreen(
 	fun fr(i: Int): FocusRequester? {
 		var target = restoreRow.coerceAtLeast(1)
 		if(category == SettingsCategory.PSN) {
-			val count = viewModel.psnAccounts.count { it.rid != viewModel.primaryAccountId }
-			target = target.coerceAtMost(count + 2)
-			if(count >= PsnAccountRepository.MAX_EXTRA_ACCOUNTS && target == 2) target = 3
+			val count = viewModel.psnAccounts.size
+            val rows = count + if(count < PsnAccountRepository.MAX_ACCOUNTS) 1 else 0
+            target = target.coerceAtMost(rows.coerceAtLeast(1))
 		}
 		return if(i == target) rowFocus else null
 	}
@@ -95,7 +95,7 @@ internal fun SettingsScreen(
     val panel = SettingsPanelScope(viewModel, ::fr, ::fb, onShowLogs, onManageHosts,
         onExportSettings, onImportSettings,
         { pinDraft = viewModel.loginPin; showPinEdit = true },
-        { showPsnLogin = true }, { showCoopLogin = true }, { removePsnAccount = it })
+        { if(viewModel.allowAccountChange()) showPsnLogin = true }, { managePsnAccount = it })
 	Column(modifier = Modifier.fillMaxSize().padding(top = 24.dp)) {
 		ScreenHeader(
 			stringResource(R.string.settings), onBack,
@@ -183,13 +183,29 @@ internal fun SettingsScreen(
 			onLoggedIn = { showPsnLogin = false; navFocus.tryRequestFocus() }
 		)
 
-	if(showCoopLogin)
-		PsnLoginDialog(
-			asExtra = true,
-			onDismiss = { showCoopLogin = false },
-			onLoggedIn = { showCoopLogin = false; navFocus.tryRequestFocus() }
-		)
-
+    managePsnAccount?.let { rid ->
+        val account = viewModel.psnAccounts.firstOrNull { it.rid == rid }
+        if(account != null) PsAlertDialog(
+            onDismissRequest = { managePsnAccount = null },
+            title = { Text(account.onlineId.ifBlank { stringResource(R.string.psn_account) }) },
+            text = { Text(stringResource(if(rid == viewModel.connectionAccountId) R.string.psn_default_account_summary else R.string.psn_manage_account_summary)) },
+            confirmButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { managePsnAccount = null }) {
+                        Text(stringResource(R.string.close))
+                    }
+                    TextButton(enabled = !viewModel.accountChangesLocked && rid != viewModel.connectionAccountId,
+                        onClick = { viewModel.selectAccount(rid); managePsnAccount = null }) {
+                        Text(stringResource(R.string.psn_use_for_connections))
+                    }
+                    TextButton(enabled = !viewModel.accountChangesLocked,
+                        onClick = { managePsnAccount = null; removePsnAccount = rid }) {
+                        Text(stringResource(R.string.delete))
+                    }
+                }
+            }
+        )
+    }
 	removePsnAccount?.let { rid ->
 		PsAlertDialog(
 			onDismissRequest = { removePsnAccount = null },

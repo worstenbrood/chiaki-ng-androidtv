@@ -40,6 +40,7 @@ class LocalConnectController(
 	companion object
 	{
 		const val EXTRA_AUTO_CONNECT_MAC = "com.chiaking.tv.AUTO_CONNECT_MAC"
+		const val EXTRA_REMOTE_CONNECT_ACCOUNT = "remote_connect_account"
 		const val EXTRA_REMOTE_CONNECT_DUID = "com.chiaking.tv.REMOTE_CONNECT_DUID"
 		const val EXTRA_REMOTE_CONNECT_PS5 = "com.chiaking.tv.REMOTE_CONNECT_PS5"
 		const val EXTRA_REMOTE_CONNECT_NAME = "com.chiaking.tv.REMOTE_CONNECT_NAME"
@@ -74,6 +75,11 @@ class LocalConnectController(
 		if(duid != null)
 		{
 			intent.removeExtra(EXTRA_REMOTE_CONNECT_DUID)
+            val rid = intent.getStringExtra(EXTRA_REMOTE_CONNECT_ACCOUNT)
+            if(rid != null && rid != com.chiaking.tv.common.psn.PsnAccountRepository.get(context).accountId) {
+                android.widget.Toast.makeText(context, com.chiaking.tv.R.string.psn_shortcut_account_changed, android.widget.Toast.LENGTH_LONG).show()
+                return
+            }
 			val ps5 = intent.getBooleanExtra(EXTRA_REMOTE_CONNECT_PS5, true)
 			val name = intent.getStringExtra(EXTRA_REMOTE_CONNECT_NAME) ?: ""
 			deepLinkRequested = true

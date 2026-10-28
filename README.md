@@ -10,7 +10,7 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
 **Jetpack Compose for TV** app with a PlayStation-inspired look (Inter typeface, PS5-style
 home with ambient glow and pill buttons, two-pane settings) and full D-pad/gamepad navigation.
 
-Current version: **1.26.0-tv** (Android version code **35**).
+Current version: **1.27.0-tv** (Android version code **36**).
 
 ## Features
 
@@ -37,6 +37,9 @@ Current version: **1.26.0-tv** (Android version code **35**).
   (*Settings → PlayStation Network*: scan the QR code and complete sign-in on a phone/PC on the same local network);
   your PS5 consoles then appear in the **Remote** section and stream from anywhere over the
   internet (PSN holepunching). First connection to a console auto-registers it — no PIN needed
+- **PSN startup recovery** — the app and TV home channel share network-readiness checks and
+  retry temporary console-list failures with increasing delays. Returning to the app retries
+  a failed lookup automatically, including after the TV wakes from sleep
 - **Google TV home channel** — registered consoles appear as programs on a "Chiaki TV" preview
   channel on the home row (with per-console PS5/PS4 artwork); selecting one wakes and connects.
   PSN-registered consoles additionally get **Remote Play via PSN** programs that start an
@@ -50,9 +53,10 @@ Current version: **1.26.0-tv** (Android version code **35**).
 - **PS5 local multiplayer** — additional gamepads can join the same Remote Play session using
   separate saved PSN accounts. Player 2 joining has been verified on a Shield TV and PS5;
   the game and console determine how many players can participate
-- **PSN account management** — save up to **seven extra accounts in addition to the primary account**
-  in *Settings → PlayStation Network*. View saved account IDs and remove extra accounts individually;
-  removing one preserves the other accounts, and signing out of the primary account keeps the extras.
+- **PSN account management** — save up to **eight accounts** in *Settings → PlayStation Network*.
+  Choose a default for PSN connections; every saved account can also be used for co-op when it is
+  not already playing in the session. View names and avatars in one list; account actions
+  appear side by side as **Close**, **Default** and **Delete**.
   PSN tokens are stored encrypted on the device and are excluded from settings exports
 - **TV remote support** — D-pad and menu button act as controller input while streaming (toggleable)
 - **Manual hosts** — add consoles by IP when discovery is not enough
@@ -111,7 +115,7 @@ Current version: **1.26.0-tv** (Android version code **35**).
 
 | PSN accounts | Co-op account picker |
 | --- | --- |
-| ![PSN settings showing the primary and extra accounts with their names and avatars](docs/screenshots/psn_accounts.png) | ![Co-op account selection with PSN name and avatar over the active stream](docs/screenshots/coop_account_picker.png) |
+| ![PSN settings showing saved accounts with their names and avatars](docs/screenshots/psn_accounts.png) | ![Co-op account selection with PSN name and avatar over the active stream](docs/screenshots/coop_account_picker.png) |
 
 ## Requirements
 
@@ -164,24 +168,36 @@ Current version: **1.26.0-tv** (Android version code **35**).
 
 1. Add each extra player's user profile to the PS5 and sign it in to that player's PSN account.
    Complete any console sign-in or profile passcode prompts first.
-2. In Chiaki TV, open *Settings → PlayStation Network → Add co-op account* and sign in with
-   that player's PSN account. Repeat for other players; up to seven extra accounts can be saved.
+2. In Chiaki TV, open *Settings → PlayStation Network → Add account* and sign in with
+   that player's PSN account. Up to eight accounts can be saved. Select an account's row
+   to make it the default for PSN connections or remove it.
 3. Connect the gamepads to the TV and start a PS5 stream. Press a button on an additional
    gamepad to open the account cards over the stream. Choose an available account with
    that controller's D-pad or left stick and press Cross to join; Back cancels. Accounts
    already in use are unavailable. A message confirms when the console accepts the player.
-   PSN names and avatars are fetched when an account is added and shown in PSN settings for the primary and extra accounts. Cards reuse this cache, refreshing it through the Remote Play account-info and profile services. A standard account icon and saved account ID remain available if fetching fails.
+   PSN names and avatars are fetched when an account is added and shown in PSN settings for all accounts. Cards reuse this cache, refreshing it through the Remote Play account-info and profile services. A standard account icon and saved account ID remain available if fetching fails.
 4. Start a game that supports local multiplayer. Additional controllers send their own input;
    player 1 controls the stream HUD.
 
-The seven saved extra accounts form an account pool, not a promise of eight simultaneous
+The eight saved accounts form an account pool, not a promise of eight simultaneous
 players. The current protocol implementation has seven controller slots in total, including
 player 1, and the console or game may impose a lower limit. Extra-player joins are PS5-only.
 
-To remove a saved extra account, select its row in *Settings → PlayStation Network* and
+To remove a saved account, select its row in *Settings → PlayStation Network* and
 confirm removal. This removes its saved credentials from the app, not its profile on the PS5.
 Accounts are stored by account ID, so deleting one from the middle of the list does not change
 the credentials of the remaining accounts.
+
+Account changes are locked while connecting or streaming. Removing the default selects another
+saved account automatically. Existing accounts, credentials and profiles migrate on upgrade;
+the former primary account remains the default.
+
+Local connections use the account associated with their console registration, which may differ
+from the default for PSN connections. Switching the default refreshes the PSN console list;
+the next PSN connection registers that console for the chosen account when needed. One local
+registration is retained per console. Older local registrations have no recorded owner: they
+remain usable, but the co-op picker asks you to choose a different player yourself. Re-register
+the console to record its account and exclude it automatically from the picker.
 
 ## Building
 
@@ -257,6 +273,10 @@ The Kotlin layer is a manual port of upstream's Android app adapted for TV.
   check router AP-isolation settings, or add the console as a manual host.
 - **Registration fails** — double-check the PSN Account ID (base64, decodes to 8 bytes) and that
   the PIN was entered within its validity window; enable *Verbose Logs* and check *Session Logs*.
+- **Remote console list shows “Found: -1 (error)”** — this is the app's lookup-failure indicator,
+  not a Sony error code. Startup retries wait for the network and back off between attempts;
+  returning to the app retries a failed list. If it still fails, check internet access and
+  use **Refresh PSN consoles**. Home and TV-channel lookups use the default PSN account.
 - **Stutter / high latency** — prefer 5 GHz Wi-Fi or Ethernet; try H.265 and lower the bitrate.
 - **D-pad does nothing in game** — enable *Settings → Controller → D-pad sends controller input*.
 - **Extra player cannot join** — use a PS5, add a distinct extra PSN account in the app, and

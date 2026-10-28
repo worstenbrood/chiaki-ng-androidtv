@@ -21,7 +21,7 @@ class SettingsDocumentIOTest {
     @Test fun backupRoundTripPreservesKeysAndManualHostAssociation() = runBlocking {
         val mac = MacAddress("01:23:45:67:89:ab")
         val original = SerializedSettings(listOf(SerializedRegisteredHost(Target.PS5_1, null, null,
-            null, null, mac, "Console", byteArrayOf(0, -1, 42), 1, byteArrayOf(-128, 127))),
+            null, null, mac, "Console", byteArrayOf(0, -1, 42), 1, byteArrayOf(-128, 127), "AQAAAAAAAAA=")),
             listOf(SerializedManualHost("192.168.2.10", mac), SerializedManualHost("manual", null)))
         val caller = Thread.currentThread()
         var closed = false
@@ -44,6 +44,7 @@ class SettingsDocumentIOTest {
         val host = restored.registeredHosts.single()
         assertEquals(Target.PS5_1, host.target)
         assertEquals("Console", host.serverNickname)
+        assertEquals("AQAAAAAAAAA=", host.psnAccountId)
         assertArrayEquals(original.registeredHosts.single().rpRegistKey, host.rpRegistKey)
         assertArrayEquals(original.registeredHosts.single().rpKey, host.rpKey)
         assertEquals(mac, host.serverMac)
@@ -70,6 +71,13 @@ class SettingsDocumentIOTest {
             try { parseSettingsImport(Buffer().writeUtf8(json)); fail("Expected invalid backup") }
             catch(_: SettingsImportException) { }
         }
+    }
+
+    @Test fun olderBackupsWithoutRegistrationAccountRemainImportable() = runBlocking {
+        val original = SerializedSettings(listOf(SerializedRegisteredHost(Target.PS5_1, null, null,
+            null, null, MacAddress("01:23:45:67:89:ab"), "Old", byteArrayOf(1), 1, byteArrayOf(2))), emptyList())
+        val json = exportSettings(original).replace(Regex(",?\\s*\"psn_account_id\"\\s*:\\s*null"), "")
+        assertNull(parseSettingsImport(Buffer().writeUtf8(json)).registeredHosts.single().psnAccountId)
     }
 
     @Test fun cancellationIsNotConvertedToTransferFailure() = runBlocking {

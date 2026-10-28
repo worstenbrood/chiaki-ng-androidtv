@@ -5,6 +5,12 @@ package com.chiaking.tv.common.db
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE registered_host ADD COLUMN psn_account_id TEXT")
+    }
+}
+
 val MIGRATION_1_2 = object : Migration(1, 2)
 {
 	override fun migrate(database: SupportSQLiteDatabase)
