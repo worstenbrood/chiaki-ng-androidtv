@@ -140,8 +140,6 @@
 	<string name="sign_out_summary">PSN-inloggegevens van dit apparaat verwijderen</string>
 	<string name="sign_in_psn">Aanmelden met PSN</string>
 	<string name="sign_in_psn_summary">Vereist voor Remote Play via internet</string>
-	<string name="coop_add_account">Co-op-account toevoegen</string>
-	<string name="coop_add_account_summary">Voeg extra PSN-accounts toe voor andere spelers</string>
 	<string name="backup">Back-up</string>
 	<string name="export_settings">Instellingen exporteren</string>
 	<string name="export_settings_summary">Geregistreerde en handmatige hosts opslaan in een JSON-bestand</string>
@@ -279,17 +277,11 @@
 	<string name="coop_timeout">Speler %1$d heeft geen antwoord op het deelnameverzoek ontvangen. Verbind opnieuw als de console het verzoek niet vrijgeeft.</string>
 	<string name="coop_refused">Speler %1$d kon niet deelnemen of vertrekken. Controleer de console en druk op een knop om opnieuw te proberen. Verbind zo nodig opnieuw.</string>
 	<string name="coop_ps5_only">Speler %1$d: extra Remote Play-spelers worden alleen op PS5 ondersteund.</string>
-	<string name="coop_account_required">Speler %1$d heeft een apart PSN-account voor co-op nodig. Voeg het toe in Instellingen voordat je deelneemt.</string>
-	<string name="psn_primary_account">Hoofdaccount PSN</string>
-	<string name="psn_extra_accounts">Extra PSN-accounts</string>
-	<string name="psn_extra_count">%1$d van %2$d extra accounts opgeslagen</string>
-	<string name="psn_extra_account">Extra account %1$d</string>
-	<string name="psn_extra_limit">Je kunt maximaal 7 extra accounts opslaan. Verwijder een account om een ander toe te voegen.</string>
-	<string name="psn_extra_is_primary">Dit is je hoofdaccount. Meld je aan met een ander PSN-account.</string>
-	<string name="psn_sign_out_keep_extras">Meld het hoofdaccount af. Extra accounts blijven bewaard.</string>
+	<string name="coop_account_required">Speler %1$d heeft een ander opgeslagen PSN-account nodig. Voeg het toe in Instellingen voordat je deelneemt.</string>
+	<string name="psn_account_number">Account %1$d</string>
 	<string name="psn_remove_account">Account verwijderen</string>
 	<string name="psn_remove_account_summary">Account-ID: %1$s · Selecteer om te verwijderen</string>
-	<string name="psn_remove_account_confirm">Opgeslagen account %1$s uit deze app verwijderen? Andere accounts en consoleprofielen blijven bewaard.</string>
+	<string name="psn_remove_account_confirm">Opgeslagen account %1$s uit deze app verwijderen? Als dit het standaardaccount is, wordt een ander opgeslagen account de standaard. Console-registraties blijven bewaard.</string>
 	<string name="coop_choose_account">Kies een account voor speler %1$d</string>
 	<string name="coop_choose_account_hint">Kies met deze controller een account. Druk op kruisje om deel te nemen of Terug om te annuleren.</string>
 	<string name="coop_account_unavailable">Al in gebruik of niet beschikbaar</string>
@@ -308,4 +300,16 @@
     <string name="psn_phone_retry">Opnieuw proberen</string>
     <string name="psn_show_qr">Terug naar QR-code</string>
     <string name="psn_manual_entry">Handmatig invoeren</string>
+    <string name="psn_manage_account_summary">Selecteer om te gebruiken voor PSN-verbindingen of om dit account te verwijderen.</string>
+    <string name="coop_unknown_owner">Deze oudere lokale registratie heeft geen opgeslagen accountkoppeling. Kies een ander spelersaccount. Registreer de console opnieuw om de eigenaar vast te leggen.</string>
+    <string name="psn_shortcut_account_changed">Deze tv-snelkoppeling hoort bij een ander PSN-account. Open Chiaki TV en selecteer eerst het account.</string>
+    <string name="psn_default_account_summary">Standaard voor PSN-verbindingen. Selecteer om te beheren.</string>
+    <string name="psn_add_account">Account toevoegen</string>
+    <string name="psn_account">PSN-account</string>
+    <string name="psn_account_limit">Je kunt maximaal 8 accounts opslaan. Verwijder een account om een ander toe te voegen.</string>
+    <string name="psn_add_account_summary">Gebruik elk opgeslagen account voor PSN-verbindingen of co-op</string>
+    <string name="psn_accounts">PSN-accounts</string>
+    <string name="psn_use_for_connections">Standaard</string>
+    <string name="psn_account_count">%1$d van %2$d accounts opgeslagen</string>
+    <string name="psn_account_locked">Verbreek de huidige stream of verbindingspoging voordat je accounts wijzigt.</string>
 </resources>

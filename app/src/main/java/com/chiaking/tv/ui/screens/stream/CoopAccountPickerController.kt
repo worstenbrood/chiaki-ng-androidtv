@@ -21,6 +21,7 @@ internal class CoopAccountPickerController(
     private val accounts: PsnAccountRepository,
     scope: CoroutineScope,
 ) {
+    val ownerKnown get() = players.ownerAccountId != null
     private val _choice = MutableStateFlow<CoopAccountChoice?>(null)
     val choice = _choice.asStateFlow()
     private val choiceKeys = CoopChoiceKeys()

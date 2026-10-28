@@ -19,7 +19,7 @@ import com.chiaking.tv.common.AudioDevices
 import com.chiaking.tv.common.logging.LogManager
 import com.metallic.chiaki.lib.*
 
-class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, val logVerbose: Boolean, val input: StreamInput)
+class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, val logVerbose: Boolean, val input: StreamInput, val accountId: String? = null)
 {
 	var session: Session? = null
 		private set
@@ -76,7 +76,7 @@ class StreamSession(val connectInfo: ConnectInfo, val logManager: LogManager, va
 	}
 
 	internal val coopPlayers = CoopPlayers(input, mainScope, { session },
-		{ _state.value is StreamStateConnected && !stopped && !disconnecting }, connectInfo.ps5, com.chiaking.tv.common.psn.PsnAccountRepository.get(input.context))
+		{ _state.value is StreamStateConnected && !stopped && !disconnecting }, connectInfo.ps5, com.chiaking.tv.common.psn.PsnAccountRepository.get(input.context), accountId)
 	/** True when the mic feature is on and we hold the RECORD_AUDIO permission. */
 	fun micWanted(): Boolean =
 		input.preferences.micEnabled && MicCapture.hasPermission(input.context)

@@ -6,7 +6,7 @@ import android.content.Context
 import androidx.room.*
 
 @Database(
-	version = 3,
+	version = 4,
 	entities = [RegisteredHost::class, ManualHost::class],
 	exportSchema = false)
 @TypeConverters(Converters::class)
@@ -27,7 +27,7 @@ fun getDatabase(context: Context): AppDatabase
 		context.applicationContext,
 		AppDatabase::class.java,
 		"chiaki")
-		.addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+		.addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
 		.build()
 	database = db
 	return db

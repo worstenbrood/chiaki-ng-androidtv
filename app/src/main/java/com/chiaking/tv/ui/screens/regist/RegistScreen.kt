@@ -57,7 +57,8 @@ fun RegistScreen(
 			null -> ConsoleVersion.PS5
 		}
 	) }
-	var psnId by remember { mutableStateOf("") }
+	val defaultAccountId = com.chiaking.tv.common.psn.PsnAccountRepository.get(androidx.compose.ui.platform.LocalContext.current).accountId.orEmpty()
+	var psnId by remember { mutableStateOf(defaultAccountId) }
 	var pin by remember { mutableStateOf("") }
 	var error by remember { mutableStateOf<String?>(null) }
 

@@ -2,7 +2,7 @@
 package com.chiaking.tv.session
 
 import android.os.SystemClock
-import android.util.Base64
+import com.chiaking.tv.common.psn.psnUserId
 import com.chiaking.tv.common.psn.PsnAccountRepository
 import com.metallic.chiaki.lib.Session
 import kotlinx.coroutines.CoroutineScope
@@ -22,6 +22,7 @@ internal class CoopPlayers(
     private val connected: () -> Boolean,
     private val ps5: Boolean,
     private val accounts: PsnAccountRepository,
+    val ownerAccountId: String?,
 ) {
     private val wanted = mutableSetOf<Int>()
     private val assigned = mutableMapOf<Int, String>()
@@ -86,9 +87,9 @@ internal class CoopPlayers(
         if(choice.accounts.none { it.rid == rid && it.available }) return
         val store = accounts
         val session = currentSession()
-        val numeric = numericRid(rid)
+        val numeric = psnUserId(rid)
         if(!connected() || session == null || session !== native || choice.slot !in devices ||
-            rid in assigned.values || rid == store.accountId || store.account(rid) == null || numeric == null) {
+            rid in assigned.values || rid == ownerAccountId || store.account(rid) == null || numeric == null) {
             cancelChoice(id)
             return
         }
@@ -106,14 +107,6 @@ internal class CoopPlayers(
     private fun notify(slot: Int, message: CoopNoticeKind) {
         _notices.tryEmit(CoopNotice(slot, message))
     }
-
-    private fun numericRid(rid: String): Long? = runCatching {
-        val bytes = Base64.decode(rid, Base64.NO_WRAP)
-        require(bytes.size == 8)
-        var value = 0L
-        for(i in bytes.indices) value = value or ((bytes[i].toLong() and 0xff) shl (8 * i))
-        value.takeIf { it != 0L }
-    }.getOrNull()
 
     private fun tick() {
         val session = currentSession()
@@ -161,10 +154,8 @@ internal class CoopPlayers(
             return
         }
         val store = accounts
-        val accounts = store.accounts().filter { it.rid != store.accountId }.sortedBy { it.rid }
-        val choice = CoopAccountRequest(++nextChoiceId, slot, accounts.map {
-            CoopAccountOption(it.rid, it.rid !in assigned.values && numericRid(it.rid) != null, it.onlineId, it.avatarUrl)
-        })
+        val choice = CoopAccountRequest(++nextChoiceId, slot,
+            coopAccountOptions(store.accounts(), ownerAccountId, assigned.values.toSet()))
         input.resetSecondaryState(slot)
         _request.value = choice
     }

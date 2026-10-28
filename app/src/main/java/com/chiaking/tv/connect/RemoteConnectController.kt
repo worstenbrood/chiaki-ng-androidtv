@@ -81,11 +81,20 @@ class RemoteConnectController(
 		}
 	}
 
-	private fun start(device: HolepunchDevice, internal: Boolean, attempt: Int)
+	private fun start(device: HolepunchDevice, internal: Boolean, attempt: Int, expectedAccountId: String? = null)
 	{
 		if(StreamManager.session != null || (connectingText != null && !internal))
 			return
-		val deviceName = device.name.ifBlank { context.getString(R.string.console) }
+		val store = PsnAccountRepository.get(context)
+        val usage = store.acquireConnectionUsage()
+        val accountId = usage.accountId
+        if(accountId == null || (expectedAccountId != null && accountId != expectedAccountId)) {
+            usage.close()
+            connectingText = null
+            Toast.makeText(context, R.string.remote_psn_required, Toast.LENGTH_LONG).show()
+            return
+        }
+        val deviceName = device.name.ifBlank { context.getString(R.string.console) }
 		connectingText = context.getString(R.string.remote_linking_with, deviceName)
 		job = scope.launch {
 			var ownedSession: StreamSession? = null
@@ -93,15 +102,14 @@ class RemoteConnectController(
 			try
 			{
 				connectingText = context.getString(R.string.remote_refreshing_token)
-				val store = PsnAccountRepository.get(context)
-				val token = withContext(Dispatchers.IO) { store.ensureFreshToken() }
+				val token = withContext(Dispatchers.IO) { store.ensureFreshTokenFor(accountId) }
 				if(token == null)
 				{
 					connectingText = null
 					Toast.makeText(context, R.string.remote_psn_required, Toast.LENGTH_LONG).show()
 					return@launch
 				}
-				val accountIdBytes = store.accountIdBytes()
+				val accountIdBytes = store.accountIdBytes(accountId)
 				if(accountIdBytes == null)
 				{
 					connectingText = null
@@ -123,7 +131,7 @@ class RemoteConnectController(
 					{
 						Log.i(TAG, "Holepunch create failed (${result.errorCode}), retry ${attempt + 1}/$MAX_RETRIES")
 						delay(RETRY_DELAY_MS)
-						start(device, internal = true, attempt = attempt + 1)
+						start(device, internal = true, attempt = attempt + 1, expectedAccountId = accountId)
 						return@launch
 					}
 					connectingText = null
@@ -133,7 +141,10 @@ class RemoteConnectController(
 				}
 				// First connect to a console: the session only performs the PSN auto-registration
 				// and then stops (upstream design). Save the host, then reconnect to actually stream.
-				val autoRegist = device.duid !in preferences.autoRegistDuids
+				val registrationKey = "$accountId|${device.duid}"
+				val registeredMac = preferences.remoteHostMacs.firstOrNull { it.startsWith("${device.duid}|") }?.substringAfter('|')
+                val registered = registeredMac?.let { database.registeredHostDao().getByMac(MacAddress(it)) }
+                val autoRegist = registrationKey !in preferences.autoRegistDuids || registered?.psnAccountId != accountId
 				if(StreamManager.session != null)
 				{
 					connectingText = null
@@ -155,7 +166,7 @@ class RemoteConnectController(
 				registSession = session
 				if(!autoRegist)
 				{
-					resolveRemoteLoginPin(session, device.duid)
+					resolveRemoteLoginPin(session, device.duid, accountId)
 					connectingText = null
 					registSession = null // handed off to the stream screen
 					onStreamReady(session)
@@ -166,24 +177,25 @@ class RemoteConnectController(
 				var registSeen = false
 				session.autoRegistCallback = { host ->
 					registSeen = true
-					scope.launch {
+					launch {
 						try
 						{
-							val reg = RegisteredHost(host)
+							val reg = RegisteredHost(host).copy(psnAccountId = accountId)
 							database.withTransaction {
 								val dao = database.registeredHostDao()
 								val previous = dao.getByMac(reg.serverMac)
 								if(previous == null)
 									dao.insert(reg)
 								else
-									dao.update(reg.copy(id = previous.id, rpPin = previous.rpPin))
+									dao.update(reg.copy(id = previous.id, rpPin = previous.rpPin.takeIf { previous.psnAccountId == accountId }))
 							}
 							preferences.remoteHostMacs = preferences.remoteHostMacs
 								.filterNot { it.startsWith("${device.duid}|") }.toSet() + "${device.duid}|${reg.serverMac}"
-							preferences.autoRegistDuids = preferences.autoRegistDuids + device.duid
+							preferences.autoRegistDuids = preferences.autoRegistDuids + registrationKey
 							Log.i(TAG, "Auto-registered console ${reg.serverMac} over PSN")
 							registOk.complete(true)
 						}
+                        catch(e: CancellationException) { throw e }
 						catch(e: Exception)
 						{
 							Log.e(TAG, "Failed to save auto-registered host", e)
@@ -208,7 +220,7 @@ class RemoteConnectController(
 				if(ok)
 				{
 					delay(SETTLE_DELAY_MS) // let the console settle after the regist session
-					start(device, internal = true, attempt = 0)
+					start(device, internal = true, attempt = 0, expectedAccountId = accountId)
 				}
 				else
 				{
@@ -233,6 +245,7 @@ class RemoteConnectController(
 					withContext(NonCancellable + Dispatchers.IO) { Holepunch.fini(holepunchPtr) }
 			}
 		}
+        job?.invokeOnCompletion { usage.close() }
 	}
 
 	private suspend fun closeSession(session: StreamSession)
@@ -245,12 +258,13 @@ class RemoteConnectController(
 		withContext(NonCancellable + Dispatchers.IO) { session.shutdown() }
 	}
 
-	private suspend fun resolveRemoteLoginPin(session: StreamSession, duid: String)
+	private suspend fun resolveRemoteLoginPin(session: StreamSession, duid: String, accountId: String)
 	{
 		val mac = preferences.remoteHostMacs
 			.firstOrNull { it.startsWith("$duid|") }
 			?.substringAfter('|') ?: return
 		val reg = database.registeredHostDao().getByMac(MacAddress(mac)) ?: return
+		if(reg.psnAccountId != accountId) return
 		session.storedLoginPin = reg.rpPin
 		session.loginPinHostId = reg.id
 	}

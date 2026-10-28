@@ -1,164 +1,150 @@
 package com.chiaking.tv.common.psn
 
-import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
 
 class PsnTokenStoreTest {
-    @Test fun primaryProfileSurvivesReloadAndLateResultsCannotRestoreLoggedOutAccount() {
-        val memory = MemoryPsnPreferences()
-        val store = PsnTokenStore(memory.prefs)
-        primary(store)
-        store.putExtra(extra("other"))
-        val profile = PsnProfile("Main Player", "https://example.test/main.png")
-        assertTrue(store.saveProfileIfPresent("primary", profile))
-        val reloaded = PsnTokenStore(memory.prefs)
-        assertEquals("Main Player", reloaded.account("primary")?.onlineId)
-        assertEquals(profile.avatarUrl, reloaded.account("primary")?.avatarUrl)
-        reloaded.logout()
-        assertFalse(reloaded.saveProfileIfPresent("primary", profile))
-        assertFalse(memory.values.containsKey("extra_primary_online_id"))
-        assertEquals(extra("other"), reloaded.account("other"))
-    }
-
-    @Test fun promotingExtraPreservesItsProfileAndSwitchingPrimaryClearsPreviousProfile() {
-        val memory = MemoryPsnPreferences()
-        val store = PsnTokenStore(memory.prefs)
-        primary(store)
-        store.saveProfileIfPresent("primary", PsnProfile("Previous", ""))
-        store.putExtra(extra("b"))
-        store.saveProfileIfPresent("b", PsnProfile("Player B", "https://example.test/b.png"))
-        primary(store, "b")
-        assertEquals(listOf("b"), store.accounts().map { it.rid })
-        assertEquals("Player B", store.account("b")?.onlineId)
-        assertFalse(memory.values.containsKey("extra_primary_online_id"))
-        assertFalse(store.saveProfileIfPresent("primary", PsnProfile("Late", "")))
-    }
-
-    @Test fun profilesPersistWithTheirAccountAndCannotResurrectADeletedAccount() {
-        val memory = MemoryPsnPreferences()
-        val store = PsnTokenStore(memory.prefs)
-        store.putExtra(extra("a"))
-        store.putExtra(extra("b"))
-        val profile = PsnProfile("Player B", "https://example.test/avatar.png")
-        assertTrue(store.saveProfileIfPresent("b", profile))
-        val cached = PsnTokenStore(memory.prefs).account("b")!!
-        assertEquals("Player B", cached.onlineId)
-        assertEquals(profile.avatarUrl, cached.avatarUrl)
-        assertEquals("access-b", cached.accessToken)
-        assertTrue(cached.profileUpdatedMs > 0)
-        assertTrue(store.refreshExtraIfPresent(extra("b").copy(accessToken = "fresh"), "refresh-b"))
-        assertEquals("Player B", store.account("b")?.onlineId)
-        assertEquals("fresh", store.account("b")?.accessToken)
-        store.removeAccount("b")
-        assertFalse(store.saveProfileIfPresent("b", profile))
-        assertFalse(memory.values.keys.any { it.startsWith("extra_b_") })
-        assertEquals(extra("a"), store.account("a"))
-    }
-    private fun extra(id: String) = PsnAccount(id, "access-$id", "refresh-$id", 1234)
-    private fun primary(store: PsnTokenStore, id: String = "primary") =
-        store.save(PsnTokens("main-access", "main-refresh", 3600), id, "duid")
-
-    @Test fun removingMiddleAccountKeepsOtherCredentialsAndSurvivesReload() {
-        val memory = MemoryPsnPreferences()
-        val store = PsnTokenStore(memory.prefs)
-        primary(store)
-        listOf("a", "b", "c").forEach { store.putExtra(extra(it)) }
-        store.removeAccount("b")
-        val reloaded = PsnTokenStore(memory.prefs)
-        assertEquals(listOf("primary", "a", "c"), reloaded.accounts().map { it.rid })
-        assertEquals(extra("c"), reloaded.account("c"))
-        assertEquals(setOf("a", "c"), memory.values["extra_rids"])
-        assertFalse(memory.values.keys.any { it.startsWith("extra_b_") })
-        reloaded.putExtra(extra("d"))
-        reloaded.putExtra(extra("b"))
-        assertEquals(listOf("primary", "a", "b", "c", "d"), reloaded.accounts().map { it.rid })
-    }
-
-    @Test fun sevenExtrasAreAllowedInAdditionToPrimaryAndDeletionFreesCapacity() {
-        val store = PsnTokenStore(MemoryPsnPreferences().prefs)
-        primary(store)
-        (1..7).forEach { store.putExtra(extra("$it")) }
-        assertEquals(8, store.accounts().size)
-        assertEquals(PsnAccountError.LIMIT_REACHED,
-            assertThrows(PsnAccountException::class.java) { store.putExtra(extra("8")) }.reason)
-        store.putExtra(extra("7").copy(accessToken = "updated"))
-        assertEquals(8, store.accounts().size)
-        store.removeAccount("4")
-        store.putExtra(extra("8"))
-        assertEquals(8, store.accounts().size)
-        assertEquals("updated", store.account("7")?.accessToken)
-    }
-
-    @Test fun removingPrimaryPreservesExtrasAndNewLoginDoesNotDuplicateAnExtra() {
-        val store = PsnTokenStore(MemoryPsnPreferences().prefs)
-        primary(store)
-        store.putExtra(extra("a"))
-        store.putExtra(extra("b"))
-        store.removeAccount("primary")
-        assertFalse(store.isLoggedIn)
-        assertEquals(listOf("a", "b"), store.accounts().map { it.rid })
-        primary(store, "b")
-        assertEquals(listOf("b", "a"), store.accounts().map { it.rid })
-        store.logout()
-        assertEquals(listOf("a"), store.accounts().map { it.rid })
-    }
-
-    @Test fun primaryCannotBeAddedAsExtra() {
-        val store = PsnTokenStore(MemoryPsnPreferences().prefs)
-        primary(store)
-        assertEquals(PsnAccountError.PRIMARY_ACCOUNT,
-            assertThrows(PsnAccountException::class.java) { store.putExtra(extra("primary")) }.reason)
-        assertEquals(1, store.accounts().size)
-    }
-
-    @Test(timeout = 10000) fun primaryTokenLookupDoesNotLockTheRefreshMutexTwice() = runBlocking {
-        val store = PsnTokenStore(MemoryPsnPreferences().prefs)
-        primary(store)
-        assertEquals("main-access", PsnAccountRepository(store).ensureFreshTokenFor("primary"))
-    }
-
-    @Test fun refreshCannotResurrectDeletedAccountOrOverwriteNewLogin() {
-        val store = PsnTokenStore(MemoryPsnPreferences().prefs)
-        store.putExtra(extra("a"))
-        store.removeAccount("a")
-        assertFalse(store.refreshExtraIfPresent(extra("a"), "refresh-a"))
-        assertTrue(store.accounts().isEmpty())
-        val fresh = extra("a").copy(refreshToken = "new-login")
-        store.putExtra(fresh)
-        assertFalse(store.refreshExtraIfPresent(extra("a"), "refresh-a"))
-        assertEquals(fresh, store.account("a"))
-        assertTrue(store.refreshExtraIfPresent(fresh.copy(accessToken = "refreshed"), "new-login"))
-    }
-
-    @Test fun legacyRidIndexIsReadWithoutRenumberingOrMutatingSharedSet() {
-        val memory = MemoryPsnPreferences()
-        val legacyIndex = setOf("c", "a", "b")
-        memory.values["extra_rids"] = legacyIndex
-        legacyIndex.forEach {
-            memory.values["extra_${it}_access"] = "access-$it"
-            memory.values["extra_${it}_refresh"] = "refresh-$it"
-            memory.values["extra_${it}_expiry"] = 1234L
+    private fun account(id: String) = PsnAccount(id, "access-$id", "refresh-$id", 1234)
+    private fun legacy(): MemoryPsnPreferences = MemoryPsnPreferences().apply {
+        values["account_id"] = "main"
+        values["access_token"] = "main-access"
+        values["refresh_token"] = "main-refresh"
+        values["expiry_epoch_ms"] = 5678L
+        values["duid"] = "device"
+        values["extra_main_online_id"] = "Main Player"
+        values["extra_main_avatar_url"] = "https://example.test/main.png"
+        values["extra_main_profile_updated"] = 456L
+        values["extra_rids"] = (1..7).map { "other-$it" }.toSet()
+        for(id in 1..7) {
+            values["extra_other-${id}_access"] = "access-$id"
+            values["extra_other-${id}_refresh"] = "refresh-$id"
+            values["extra_other-${id}_expiry"] = 9000L + id
+            values["extra_other-${id}_online_id"] = "Player $id"
+            values["extra_other-${id}_avatar_url"] = "https://example.test/$id.png"
         }
-        val store = PsnTokenStore(memory.prefs)
-        store.removeAccount("b")
-        assertEquals(setOf("a", "b", "c"), legacyIndex)
-        assertEquals(listOf(extra("a"), extra("c")), store.accounts())
-        store.removeAccount("missing")
-        assertEquals(listOf(extra("a"), extra("c")), store.accounts())
     }
 
-    @Test fun stalePrimaryRefreshCannotRestoreRemovedCredentialsOrOverwriteAnotherAccount() {
+    @Test fun migratesPrimaryAndSevenExtrasWithoutLosingCredentialsOrProfiles() {
+        val memory = legacy()
+        val store = PsnTokenStore(memory.prefs)
+        assertEquals("main", store.accountId)
+        assertEquals(8, store.accounts().size)
+        assertEquals(PsnAccount("main", "main-access", "main-refresh", 5678,
+            "Main Player", "https://example.test/main.png", 456, "device"), store.account("main"))
+        for(id in 1..7) {
+            val account = store.account("other-$id")!!
+            assertEquals("access-$id", account.accessToken)
+            assertEquals("refresh-$id", account.refreshToken)
+            assertEquals("Player $id", account.onlineId)
+        }
+        assertFalse(memory.values.containsKey("access_token"))
+        assertFalse(memory.values.keys.any { it.startsWith("extra_") })
+        assertEquals(store.accounts(), PsnTokenStore(memory.prefs).accounts())
+    }
+
+    @Test fun migrationIsNotRepeatedAfterRemovingAnAccount() {
+        val memory = legacy()
+        val store = PsnTokenStore(memory.prefs)
+        store.removeAccount("main")
+        val reloaded = PsnTokenStore(memory.prefs)
+        assertNull(reloaded.account("main"))
+        assertEquals("other-1", reloaded.accountId)
+        assertEquals(7, reloaded.accounts().size)
+    }
+
+    @Test fun failedMigrationKeepsLegacyDataForRetry() {
+        val memory = legacy().apply { commitSucceeds = false }
+        try { PsnTokenStore(memory.prefs); fail("Expected migration failure") } catch(_: IllegalStateException) { }
+        assertEquals("main-access", memory.values["access_token"])
+        assertFalse(memory.values.containsKey("accounts_migration"))
+        memory.commitSucceeds = true
+        assertEquals(8, PsnTokenStore(memory.prefs).accounts().size)
+    }
+
+    @Test fun legacyExtrasWithoutMainSelectAValidAccountAndIgnoreBrokenEntries() {
+        val memory = MemoryPsnPreferences()
+        memory.values["extra_rids"] = setOf("valid", "broken")
+        memory.values["extra_valid_access"] = "access"
+        memory.values["extra_valid_refresh"] = "refresh"
+        val store = PsnTokenStore(memory.prefs)
+        assertEquals("valid", store.accountId)
+        assertEquals(listOf("valid"), store.accounts().map { it.rid })
+    }
+
+    @Test fun removingMiddleAccountNeverRenumbersOrChangesOtherCredentials() {
         val memory = MemoryPsnPreferences()
         val store = PsnTokenStore(memory.prefs)
-        primary(store)
-        val tokens = PsnTokens("stale-access", "stale-refresh", 3600)
-        store.logout()
-        assertFalse(store.refreshPrimaryIfCurrent("primary", "main-refresh", tokens))
-        assertFalse(memory.values.containsKey("access_token"))
-        primary(store, "different")
-        assertFalse(store.refreshPrimaryIfCurrent("primary", "main-refresh", tokens))
-        assertEquals("main-access", store.account("different")?.accessToken)
+        listOf("a", "b", "c").forEach { store.put(account(it)) }
+        store.selectAccount("c")
+        store.removeAccount("b")
+        val reloaded = PsnTokenStore(memory.prefs)
+        assertEquals(listOf(account("a"), account("c")), reloaded.accounts())
+        assertEquals("c", reloaded.accountId)
+        assertFalse(memory.values.keys.any { it.startsWith("account_b_") })
     }
 
+    @Test fun selectedAccountIsAReferenceAndSwitchingDoesNotMoveTokens() {
+        val store = PsnTokenStore(MemoryPsnPreferences().prefs)
+        store.put(account("a")); store.put(account("b"))
+        store.selectAccount("b")
+        assertEquals("b", store.accountId)
+        assertEquals(account("a"), store.account("a"))
+        assertEquals(account("b"), store.account("b"))
+        try { store.selectAccount("missing"); fail("Expected unknown account") } catch(_: IllegalArgumentException) { }
+        assertEquals("b", store.accountId)
+    }
+
+    @Test fun eightAccountLimitAllowsReauthenticationOfExistingAccount() {
+        val store = PsnTokenStore(MemoryPsnPreferences().prefs)
+        (1..8).forEach { store.put(account("$it")) }
+        try { store.put(account("9")); fail("Expected limit") }
+        catch(e: PsnAccountException) { assertEquals(PsnAccountError.LIMIT_REACHED, e.reason) }
+        store.put(account("4").copy(accessToken = "new"))
+        assertEquals(8, store.accounts().size)
+        assertEquals("1", store.accountId)
+        assertEquals("new", store.account("4")?.accessToken)
+        store.removeAccount("3")
+        store.put(account("9"))
+        assertEquals(8, store.accounts().size)
+    }
+
+    @Test fun removingDefaultSelectsAnotherAndRemovingLastSignsOut() {
+        val store = PsnTokenStore(MemoryPsnPreferences().prefs)
+        store.put(account("a")); store.put(account("b"))
+        store.removeAccount("a")
+        assertEquals("b", store.accountId)
+        store.removeAccount("b")
+        assertNull(store.accountId)
+        assertFalse(store.isLoggedIn)
+    }
+
+    @Test fun refreshForPreviousSelectionUpdatesOnlyThatAccount() {
+        val store = PsnTokenStore(MemoryPsnPreferences().prefs)
+        store.put(account("a")); store.put(account("b"))
+        store.selectAccount("b")
+        assertTrue(store.refreshIfCurrent("a", "refresh-a", PsnTokens("fresh", "rotated", 3600)))
+        assertEquals("fresh", store.account("a")?.accessToken)
+        assertEquals(account("b"), store.account("b"))
+        assertEquals("b", store.accountId)
+    }
+
+    @Test fun lateRefreshAndProfileCannotRestoreDeletedAccountOrOverwriteNewLogin() {
+        val store = PsnTokenStore(MemoryPsnPreferences().prefs)
+        store.put(account("a")); store.removeAccount("a")
+        assertFalse(store.saveProfileIfPresent("a", PsnProfile("Late", "")))
+        assertFalse(store.refreshIfCurrent("a", "refresh-a", PsnTokens("late", "late", 3600)))
+        store.put(account("a").copy(refreshToken = "new-login"))
+        assertFalse(store.refreshIfCurrent("a", "refresh-a", PsnTokens("late", "late", 3600)))
+        assertEquals("new-login", store.account("a")?.refreshToken)
+    }
+
+    @Test fun reauthenticationAndTokenRefreshPreserveNewerProfileMetadata() {
+        val store = PsnTokenStore(MemoryPsnPreferences().prefs)
+        store.put(account("a"))
+        store.saveProfileIfPresent("a", PsnProfile("Player", "https://example.test/a.png"))
+        store.put(account("a").copy(refreshToken = "new-login"))
+        assertTrue(store.refreshIfCurrent("a", "new-login", PsnTokens("fresh", "refresh", 3600)))
+        assertEquals("Player", store.account("a")?.onlineId)
+        assertEquals("https://example.test/a.png", store.account("a")?.avatarUrl)
+    }
 }

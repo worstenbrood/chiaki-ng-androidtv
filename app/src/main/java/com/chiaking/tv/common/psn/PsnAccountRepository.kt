@@ -1,6 +1,8 @@
 package com.chiaking.tv.common.psn
 
 import android.content.Context
+import java.io.Closeable
+import java.util.concurrent.atomic.AtomicBoolean
 import com.metallic.chiaki.lib.Holepunch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +20,7 @@ class PsnAccountRepository internal constructor(
     private val generateUid: () -> String = { Holepunch.generateClientDeviceUid() },
 ) {
     companion object {
-        const val MAX_EXTRA_ACCOUNTS = PsnTokenStore.MAX_EXTRA_ACCOUNTS
+        const val MAX_ACCOUNTS = PsnTokenStore.MAX_ACCOUNTS
         private const val REFRESH_MARGIN_MS = 5 * 60 * 1000L
         @Volatile private var instance: PsnAccountRepository? = null
         fun get(context: Context): PsnAccountRepository = instance ?: synchronized(this) {
@@ -27,18 +29,32 @@ class PsnAccountRepository internal constructor(
     }
 
     private val refreshMutex = Mutex()
+    @Volatile private var connectionUsers = 0
     private val _state = MutableStateFlow(snapshot())
     val state = _state.asStateFlow()
     val accountId get() = store.accountId
     val isLoggedIn get() = store.isLoggedIn
-    fun accountIdBytes() = store.accountIdBytes()
+    fun accountIdBytes(rid: String? = accountId) = rid?.let(::decodePsnAccountId)
     fun accounts() = store.accounts().map { it.summary() }
     fun account(rid: String) = store.account(rid)?.summary()
-    fun logout() { store.logout(); publish() }
-    fun removeAccount(rid: String) { store.removeAccount(rid); publish() }
+    @Synchronized
+    fun removeAccount(rid: String) { requireEditable(); store.removeAccount(rid); publish() }
+    @Synchronized
+    fun selectAccount(rid: String) { requireEditable(); store.selectAccount(rid); publish() }
+    private fun requireEditable() {
+        if(connectionUsers > 0) throw PsnAccountException(PsnAccountError.CONNECTION_IN_USE)
+    }
+    @Synchronized
+    fun acquireConnectionUsage(): PsnConnectionUsage {
+        connectionUsers++
+        publish()
+        return PsnConnectionUsage(store.accountId) { releaseConnectionUsage() }
+    }
+    @Synchronized
+    private fun releaseConnectionUsage() { connectionUsers--; publish() }
 
     private fun snapshot() = synchronized(store) {
-        PsnAccountsState(store.accountId, store.accounts().map { it.summary() })
+        PsnAccountsState(store.accountId, store.accounts().map { it.summary() }, connectionUsers > 0)
     }
     private fun publish() = synchronized(store) { _state.value = snapshot() }
 
@@ -55,11 +71,7 @@ class PsnAccountRepository internal constructor(
         if(account.expiryMs - System.currentTimeMillis() > REFRESH_MARGIN_MS) return account.accessToken
         return try {
             val tokens = auth.refresh(account.refreshToken)
-            val saved = if(rid == store.accountId)
-                store.refreshPrimaryIfCurrent(rid, account.refreshToken, tokens)
-            else store.refreshExtraIfPresent(account.copy(accessToken = tokens.accessToken,
-                refreshToken = tokens.refreshToken,
-                expiryMs = System.currentTimeMillis() + tokens.expiresInSeconds * 1000L), account.refreshToken)
+            val saved = store.refreshIfCurrent(rid, account.refreshToken, tokens)
             if(saved) tokens.accessToken else null
         } catch(e: CancellationException) { throw e }
         catch(e: Exception) {
@@ -84,7 +96,7 @@ class PsnAccountRepository internal constructor(
 	}
 
 	/** Reuses the authorization attempt's device ID (or generates one for legacy callers). */
-	suspend fun loginWithCode(code: String, asExtra: Boolean = false, deviceUid: String? = null, onStatus: (PsnLoginPhase) -> Unit = {}): String = withContext(Dispatchers.IO) {
+	suspend fun loginWithCode(code: String, deviceUid: String? = null, onStatus: (PsnLoginPhase) -> Unit = {}): String = withContext(Dispatchers.IO) {
 		onStatus(PsnLoginPhase.GENERATING_UID)
 		val duid = deviceUid ?: generateUid()
 		if(duid.isEmpty())
@@ -95,13 +107,19 @@ class PsnAccountRepository internal constructor(
 		val accountId = auth.fetchAccountId(tokens.accessToken)
 		onStatus(PsnLoginPhase.SAVING)
 		val expiry = System.currentTimeMillis() + tokens.expiresInSeconds * 1000L
-		if(asExtra)
-			store.putExtra(PsnAccount(accountId, tokens.accessToken, tokens.refreshToken, expiry))
-		else
-			store.save(tokens, accountId, duid)
+        synchronized(this@PsnAccountRepository) {
+            requireEditable()
+            store.put(PsnAccount(accountId, tokens.accessToken, tokens.refreshToken, expiry, deviceUid = duid))
+        }
 		publish()
 		// Optional metadata failure does not undo a successful login.
 		refreshProfile(accountId, force = true)
 		accountId
 	}
+}
+
+/** Holds account selection steady across asynchronous connection setup and the lifetime of a stream. */
+class PsnConnectionUsage internal constructor(val accountId: String?, private val release: () -> Unit) : Closeable {
+    private val closed = AtomicBoolean()
+    override fun close() { if(closed.compareAndSet(false, true)) release() }
 }

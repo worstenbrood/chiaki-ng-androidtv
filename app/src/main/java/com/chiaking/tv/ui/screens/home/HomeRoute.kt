@@ -13,6 +13,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.chiaking.tv.common.db.AppDatabase
 import com.chiaking.tv.common.db.ManualHost
 import com.chiaking.tv.common.DisplayHost
@@ -42,6 +45,7 @@ fun HomeRoute(
 {
     val context = LocalContext.current.applicationContext
     val viewModel = rememberRouteViewModel { HomeViewModel(context, database, preferences) }
+    val lifecycleOwner = LocalLifecycleOwner.current
     val hosts by viewModel.displayHosts.collectAsState()
     val discoveryActive by viewModel.discoveryActive.collectAsState()
     val psnLoggedIn by viewModel.psnLoggedIn.collectAsState()
@@ -56,6 +60,15 @@ fun HomeRoute(
     LaunchedEffect(Unit) { localController.autoConnect(viewModel.discoveryManager) }
     LaunchedEffect(Unit) { viewModel.refreshPsnLoginState(); if(viewModel.psnLoggedIn.value) viewModel.refreshPsnDevices() }
     DisposableEffect(Unit) { onDispose { viewModel.discoveryManager.pause() } }
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            // Startup can run while the TV is asleep. Recover a failed lookup on foregrounding.
+            if(event == Lifecycle.Event.ON_RESUME && viewModel.psnLoggedIn.value &&
+                viewModel.psnDeviceCount.value == -1) viewModel.refreshPsnDevices()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     BackHandler(enabled = showManualHostDialog) { showManualHostDialog = false }
 
     Box {

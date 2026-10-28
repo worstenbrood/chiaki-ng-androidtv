@@ -45,10 +45,10 @@ import com.google.zxing.EncodeHintType
 import com.google.zxing.MultiFormatWriter
 
 @Composable
-fun PsnLoginDialog(asExtra: Boolean = false, onDismiss: () -> Unit, onLoggedIn: (String) -> Unit) {
+fun PsnLoginDialog(onDismiss: () -> Unit, onLoggedIn: (String) -> Unit) {
     val context = LocalContext.current.applicationContext
     val scope = rememberCoroutineScope()
-    val controller = remember(asExtra) { PsnLoginController(context, asExtra, scope) }
+    val controller = remember { PsnLoginController(context, scope) }
     DisposableEffect(controller) { onDispose { controller.close() } }
     val state by controller.state.collectAsState()
     var paste by remember { mutableStateOf("") }

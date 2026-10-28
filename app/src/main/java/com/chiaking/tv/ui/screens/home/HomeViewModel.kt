@@ -12,10 +12,10 @@ import com.chiaking.tv.common.logging.*
 import com.chiaking.tv.common.psn.PsnAccountRepository
 import com.chiaking.tv.discovery.DiscoveryManager
 import com.chiaking.tv.discovery.serverMac
-import com.metallic.chiaki.lib.Holepunch
 import com.metallic.chiaki.lib.HolepunchDevice
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -25,9 +25,6 @@ class HomeViewModel(context: Context, val database: AppDatabase, val preferences
 	companion object
 	{
 		private const val SUBSCRIBE_TIMEOUT_MS = 5000L
-		private const val PSN_FETCH_RETRIES = 2
-		private const val PSN_FETCH_RETRY_BASE_MS = 2000L
-		private const val NETWORK_WAIT_TIMEOUT_MS = 15000L
 	}
 
 	private val appContext = context.applicationContext
@@ -78,11 +75,26 @@ class HomeViewModel(context: Context, val database: AppDatabase, val preferences
 		discoveryManager.discoveryActive.stateIn(viewModelScope, SharingStarted.WhileSubscribed(SUBSCRIBE_TIMEOUT_MS), false)
 	}
 
-	val psnLoggedIn = MutableStateFlow(PsnAccountRepository.get(appContext).isLoggedIn)
+	private var psnRefreshJob: Job? = null
+    private var refreshGeneration = 0
+    val psnLoggedIn = MutableStateFlow(PsnAccountRepository.get(appContext).isLoggedIn)
 	val psnDevices = MutableStateFlow<List<HolepunchDevice>>(emptyList())
 	val psnLoading = MutableStateFlow(false)
 	val psnDeviceCount = MutableStateFlow<Int?>(null)
 
+    init {
+        viewModelScope.launch {
+            PsnAccountRepository.get(appContext).state.map { it.connectionAccountId }.distinctUntilChanged().collect { rid ->
+                psnRefreshJob?.cancel()
+                refreshGeneration++
+                psnLoading.value = false
+                psnLoggedIn.value = rid != null
+                psnDevices.value = emptyList()
+                psnDeviceCount.value = null
+                if(rid != null) refreshPsnDevices()
+            }
+        }
+    }
 	fun refreshPsnLoginState()
 	{
 		psnLoggedIn.value = PsnAccountRepository.get(appContext).isLoggedIn
@@ -92,37 +104,15 @@ class HomeViewModel(context: Context, val database: AppDatabase, val preferences
 	{
 		if(psnLoading.value)
 			return
-		viewModelScope.launch {
-			psnLoading.value = true
+		val store = PsnAccountRepository.get(appContext)
+        val rid = store.accountId ?: return
+        val generation = ++refreshGeneration
+        psnLoading.value = true
+        psnRefreshJob = viewModelScope.launch {
 			try
 			{
-				if(!NetworkMonitor.get(appContext).awaitValidated(NETWORK_WAIT_TIMEOUT_MS))
-					android.util.Log.w("HomeViewModel", "no validated network after ${NETWORK_WAIT_TIMEOUT_MS}ms, trying anyway")
-				val store = PsnAccountRepository.get(appContext)
-				psnLoggedIn.value = store.isLoggedIn
-				// On cold start DNS may not be resolved yet ("Could not resolve hostname"),
-				// so retry with backoff before surfacing the failure.
-				// NOTE: chiaki_holepunch_list_devices only supports PS5 upstream.
-				var devices: List<HolepunchDevice>? = null
-				for(attempt in 0..PSN_FETCH_RETRIES)
-				{
-					if(attempt > 0)
-						delay(PSN_FETCH_RETRY_BASE_MS * attempt)
-					devices = withContext(Dispatchers.IO) {
-						val token = store.ensureFreshToken()
-						if(token == null)
-							return@withContext null
-						val ps5 = Holepunch.listDevices(token, true)
-						if(!ps5.errorCode.isSuccess)
-						{
-							android.util.Log.e("HomeViewModel", "PSN listDevices failed (attempt ${attempt + 1}): ps5=${ps5.errorCode}")
-							return@withContext null
-						}
-						ps5.devices
-					}
-					if(devices != null)
-						break
-				}
+				val devices = com.chiaking.tv.common.psn.PsnDeviceRepository.list(appContext, rid)
+                if(generation != refreshGeneration || store.accountId != rid) return@launch
 				if(devices == null)
 				{
 					psnDevices.value = emptyList()
@@ -133,15 +123,17 @@ class HomeViewModel(context: Context, val database: AppDatabase, val preferences
 				psnDevices.value = remote
 				psnDeviceCount.value = remote.size
 			}
-			catch(e: Exception)
+			catch(e: CancellationException) { throw e }
+            catch(e: Exception)
 			{
-				android.util.Log.e("HomeViewModel", "PSN device refresh failed", e)
+				if(generation != refreshGeneration || store.accountId != rid) return@launch
+                android.util.Log.e("HomeViewModel", "PSN device refresh failed", e)
 				psnDevices.value = emptyList()
 				psnDeviceCount.value = -1
 			}
 			finally
 			{
-				psnLoading.value = false
+				if(generation == refreshGeneration) psnLoading.value = false
 			}
 		}
 	}

@@ -19,5 +19,6 @@ class SerializedRegisteredHost(
 	@Json(name = "server_nickname") val serverNickname: String?,
 	@Json(name = "rp_regist_key") val rpRegistKey: ByteArray,
 	@Json(name = "rp_key_type") val rpKeyType: Int,
-	@Json(name = "rp_key") val rpKey: ByteArray
+	@Json(name = "rp_key") val rpKey: ByteArray,
+    @Json(name = "psn_account_id") val psnAccountId: String? = null
 )

@@ -35,4 +35,5 @@ interface RegisteredHostDao
 
 	@Query("UPDATE registered_host SET rp_pin = :pin WHERE id == :id")
 	suspend fun setPin(id: Long, pin: String?)
+
 }

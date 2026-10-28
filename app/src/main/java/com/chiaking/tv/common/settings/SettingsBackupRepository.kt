@@ -15,7 +15,7 @@ class SettingsBackupRepository(private val database: AppDatabase) {
             val manual = database.manualHostDao().getAllOnce()
             SerializedSettings(registered.map {
                 SerializedRegisteredHost(it.target, it.apSsid, it.apBssid, it.apKey, it.apName,
-                    it.serverMac, it.serverNickname, it.rpRegistKey, it.rpKeyType, it.rpKey)
+                    it.serverMac, it.serverNickname, it.rpRegistKey, it.rpKeyType, it.rpKey, it.psnAccountId)
             }, manual.map { host ->
                 SerializedManualHost(host.host, registered.firstOrNull { it.id == host.registeredHost }?.serverMac)
             })
@@ -28,7 +28,7 @@ class SettingsBackupRepository(private val database: AppDatabase) {
             RegisteredHost(target = it.target, apSsid = it.apSsid, apBssid = it.apBssid,
                 apKey = it.apKey, apName = it.apName, serverMac = it.serverMac,
                 serverNickname = it.serverNickname, rpRegistKey = it.rpRegistKey,
-                rpKeyType = it.rpKeyType, rpKey = it.rpKey)
+                rpKeyType = it.rpKeyType, rpKey = it.rpKey, psnAccountId = it.psnAccountId)
         }
         database.importDao().importAll(registered,
             settings.manualHosts.map { ManualHostImport(it.host, it.serverMac) }, replace)

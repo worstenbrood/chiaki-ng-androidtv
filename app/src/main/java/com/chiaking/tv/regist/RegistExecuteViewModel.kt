@@ -40,6 +40,7 @@ class RegistExecuteViewModel(val database: AppDatabase): ViewModel()
 		private set
 
 	private var assignManualHostId: Long? = null
+    private var accountId: String? = null
 
 	fun start(info: RegistInfo, assignManualHostId: Long?)
 	{
@@ -47,6 +48,7 @@ class RegistExecuteViewModel(val database: AppDatabase): ViewModel()
 			return
 		try
 		{
+			accountId = info.psnAccountId?.let { android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP) }
 			regist = Regist(info, log.log, this::registEvent)
 			this.assignManualHostId = assignManualHostId
 			_state.value = State.RUNNING
@@ -95,7 +97,7 @@ class RegistExecuteViewModel(val database: AppDatabase): ViewModel()
 		viewModelScope.launch(Dispatchers.IO) {
 			val dao = database.registeredHostDao()
 			val manualHostDao = database.manualHostDao()
-			val registeredHost = RegisteredHost(host)
+			val registeredHost = RegisteredHost(host).copy(psnAccountId = accountId)
 			dao.deleteByMac(registeredHost.serverMac)
 			val registeredHostId = dao.insert(registeredHost)
 			if(assignManualHostId != null)

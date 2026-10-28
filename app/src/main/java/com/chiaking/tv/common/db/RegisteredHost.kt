@@ -22,7 +22,8 @@ data class RegisteredHost(
 	@ColumnInfo(name = "rp_regist_key", typeAffinity = BLOB) val rpRegistKey: ByteArray, // CHIAKI_SESSION_AUTH_SIZE
 	@ColumnInfo(name = "rp_key_type") val rpKeyType: Int,
 	@ColumnInfo(name = "rp_key", typeAffinity = BLOB) val rpKey: ByteArray, // 0x10
-	@ColumnInfo(name = "rp_pin") val rpPin: String? = null
+	@ColumnInfo(name = "rp_pin") val rpPin: String? = null,
+    @ColumnInfo(name = "psn_account_id") val psnAccountId: String? = null
 )
 {
 	constructor(registHost: RegistHost) : this(
@@ -57,6 +58,7 @@ data class RegisteredHost(
 		if(rpKeyType != other.rpKeyType) return false
 		if(!rpKey.contentEquals(other.rpKey)) return false
 		if(rpPin != other.rpPin) return false
+        if(psnAccountId != other.psnAccountId) return false
 
 		return true
 	}
@@ -75,6 +77,7 @@ data class RegisteredHost(
 		result = 31 * result + rpKeyType
 		result = 31 * result + rpKey.contentHashCode()
 		result = 31 * result + (rpPin?.hashCode() ?: 0)
+        result = 31 * result + (psnAccountId?.hashCode() ?: 0)
 		return result
 	}
 }

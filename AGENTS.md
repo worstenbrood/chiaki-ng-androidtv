@@ -159,6 +159,15 @@ Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
 
 ## Gotchas
 
+- PSN accounts form one pool of eight in `common/psn/`. `PsnTokenStore` migrates the legacy
+  primary/extra keys to an account-ID index in one committed edit; tokens never enter settings
+  exports. `PsnAccountRepository` holds connection-usage leases during PSN setup and streaming,
+  preventing account mutations. Default selection is only for PSN connections. Local sessions use
+  `RegisteredHost.psnAccountId` (Room v4, nullable for legacy registrations; never infer the owner).
+  Co-op excludes the captured session owner, not the default. Registrations remain one per MAC;
+  PSN auto-registration is scoped by account ID and console DUID and verifies the stored owner.
+  Backup registration owner metadata is optional, so older backups remain importable.
+
 - The focus observer in `TvFocusCard`/`PsIconButton` (`onFocusEvent { focused = it.hasFocus }`)
   MUST be the **first** modifier in the chain. Placed after `.clip()`/`.clickable()` it never
   observes focus, so `focused` stays false and the scale/glow silently never apply (only Compose's

@@ -3,6 +3,9 @@
 package com.chiaking.tv.session
 
 import android.content.Context
+import com.chiaking.tv.common.psn.PsnAccountRepository
+import com.chiaking.tv.common.psn.PsnConnectionUsage
+import okio.ByteString.Companion.toByteString
 import com.chiaking.tv.common.AudioDevices
 import com.chiaking.tv.common.DisplayHost
 import com.chiaking.tv.common.LastSeenHosts
@@ -31,6 +34,8 @@ object StreamManager
 	private const val SLEEP_RECONNECT_TIMEOUT_MS = 10000L
 	private const val GOTO_BED_SETTLE_MS = 500L
 
+	private var accountUsage: PsnConnectionUsage? = null
+
 	private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
 	var session: StreamSession? = null
@@ -55,7 +60,7 @@ object StreamManager
 			preferences.videoProfile,
 			enableIDROnFECFailure = preferences.idrOnFecFailure
 		)
-		val session = newSession(context, preferences, logManager, connectInfo)
+		val session = newSession(context, preferences, logManager, connectInfo, registeredHost.psnAccountId)
 		this.displayHost = host
 		session.storedLoginPin = registeredHost.rpPin
 		session.loginPinHostId = registeredHost.id
@@ -63,16 +68,30 @@ object StreamManager
 	}
 
 	/** Creates the input + session, wires them into the manager, starts streaming and applies audio prefs. */
-	private fun newSession(context: Context, preferences: Preferences, logManager: LogManager, connectInfo: ConnectInfo): StreamSession
+	private fun newSession(context: Context, preferences: Preferences, logManager: LogManager, connectInfo: ConnectInfo, ownerId: String? = connectInfo.psnAccountId?.toByteString()?.base64()): StreamSession
 	{
 		val input = StreamInput(context.applicationContext, preferences)
-		val session = StreamSession(connectInfo, logManager, preferences.logVerbose, input)
+		val usage = PsnAccountRepository.get(context).acquireConnectionUsage()
+		val session = try {
+			StreamSession(connectInfo, logManager, preferences.logVerbose, input, ownerId)
+		} catch(e: Exception) {
+			usage.close()
+			input.dispose()
+			throw e
+		}
+		accountUsage = usage
 		this.input = input
 		this.session = session
-		session.resume()
-		session.applyAudioSettings(preferences.audioVolume,
-			AudioDevices.resolveDeviceId(context, preferences.audioDeviceName, preferences.audioDeviceId),
-			preferences.audioBufferMs)
+		try {
+			session.resume()
+			session.applyAudioSettings(preferences.audioVolume,
+				AudioDevices.resolveDeviceId(context, preferences.audioDeviceName, preferences.audioDeviceId),
+				preferences.audioBufferMs)
+		} catch(e: Exception) {
+			clear(session)
+			scope.launch(Dispatchers.IO) { session.shutdown() }
+			throw e
+		}
 		return session
 	}
 
@@ -108,6 +127,8 @@ object StreamManager
 		if(session == null || this.session === session)
 		{
 			this.session = null
+			accountUsage?.close()
+			accountUsage = null
 			displayHost = null
 			input?.dispose()
 			input = null

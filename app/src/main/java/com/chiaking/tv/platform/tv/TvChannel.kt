@@ -17,7 +17,6 @@ import com.chiaking.tv.MainActivity
 import com.chiaking.tv.R
 import com.chiaking.tv.common.psn.PsnAccountRepository
 import com.chiaking.tv.connect.LocalConnectController
-import com.metallic.chiaki.lib.Holepunch
 import com.metallic.chiaki.lib.HolepunchDevice
 
 object TvChannel
@@ -58,7 +57,7 @@ object TvChannel
 		}
 	}
 
-	suspend fun sync(context: Context, preferences: Preferences, hosts: List<RegisteredHost>)
+	suspend fun sync(context: Context, preferences: Preferences, hosts: List<RegisteredHost>, accountId: String? = PsnAccountRepository.get(context).accountId)
 	{
 		try
 		{
@@ -96,11 +95,12 @@ object TvChannel
 					host.target.isPS5, intent)
 			}
 
-			for(device in remoteDevices(context))
+			for(device in remoteDevices(context, accountId))
 			{
 				val title = device.name.ifBlank { context.getString(if(device.isPS5) R.string.playstation5 else R.string.playstation4) }
 				val intent = Intent(context, MainActivity::class.java)
 					.putExtra(LocalConnectController.EXTRA_REMOTE_CONNECT_DUID, device.duid)
+                    .putExtra(LocalConnectController.EXTRA_REMOTE_CONNECT_ACCOUNT, accountId)
 					.putExtra(LocalConnectController.EXTRA_REMOTE_CONNECT_PS5, device.isPS5)
 					.putExtra(LocalConnectController.EXTRA_REMOTE_CONNECT_NAME, device.name)
 					.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -112,29 +112,24 @@ object TvChannel
 		}
 		catch(e: Exception)
 		{
+			if(e is kotlinx.coroutines.CancellationException) throw e
 			Log.e("TvChannel", "Failed to sync TV channel", e)
 		}
 	}
 
 	/** PSN consoles with Remote Play enabled; empty when not logged in or the lookup fails. */
-	private suspend fun remoteDevices(context: Context): List<HolepunchDevice>
+	private suspend fun remoteDevices(context: Context, accountId: String?): List<HolepunchDevice>
 	{
 		return try
 		{
 			val store = PsnAccountRepository.get(context)
-			if(!store.isLoggedIn)
+			if(accountId == null)
 				return emptyList()
-			val token = store.ensureFreshToken() ?: return emptyList()
-			val result = Holepunch.listDevices(token, true)
-			if(!result.errorCode.isSuccess)
-			{
-				Log.e("TvChannel", "PSN listDevices failed: ${result.errorCode}")
-				emptyList()
-			}
-			else
-				result.devices.filter { it.remotePlayEnabled }
-		}
-		catch(e: Exception)
+			val devices = com.chiaking.tv.common.psn.PsnDeviceRepository.list(context, accountId).orEmpty()
+            if(store.accountId == accountId) devices.filter { it.remotePlayEnabled } else emptyList()
+        }
+        catch(e: kotlinx.coroutines.CancellationException) { throw e }
+        catch(e: Exception)
 		{
 			Log.e("TvChannel", "PSN remote device lookup failed", e)
 			emptyList()

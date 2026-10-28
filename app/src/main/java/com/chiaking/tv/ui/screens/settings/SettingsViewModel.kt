@@ -25,8 +25,9 @@ internal class SettingsViewModel(context: Context, database: AppDatabase, privat
     var registeredHosts by mutableStateOf<List<RegisteredHost>>(emptyList())
         private set
     val psnAccounts get() = accountState.accounts
-    val primaryAccountId get() = accountState.primaryId
-    val psnLoggedIn get() = primaryAccountId != null
+    val connectionAccountId get() = accountState.connectionAccountId
+    val accountChangesLocked get() = accountState.connectionInUse
+    val psnLoggedIn get() = connectionAccountId != null
     private var profileJob: Job? = null
 
     init {
@@ -34,8 +35,18 @@ internal class SettingsViewModel(context: Context, database: AppDatabase, privat
         viewModelScope.launch { database.registeredHostDao().getAll().collect { registeredHosts = it } }
     }
 
-    fun signOut() = accounts.logout()
-    fun removeAccount(rid: String) = accounts.removeAccount(rid)
+    fun removeAccount(rid: String) = changeAccount { accounts.removeAccount(rid) }
+    fun selectAccount(rid: String) = changeAccount { accounts.selectAccount(rid) }
+    fun allowAccountChange(): Boolean {
+        if(!accountChangesLocked) return true
+        android.widget.Toast.makeText(appContext, com.chiaking.tv.R.string.psn_account_locked, android.widget.Toast.LENGTH_LONG).show()
+        return false
+    }
+    private fun changeAccount(action: () -> Unit) {
+        try { action() } catch(_: com.chiaking.tv.common.psn.PsnAccountException) {
+            android.widget.Toast.makeText(appContext, com.chiaking.tv.R.string.psn_account_locked, android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
     fun onCategoryChanged(category: SettingsCategory) {
         profileJob?.cancel()
         if(category == SettingsCategory.PSN) profileJob = viewModelScope.launch {

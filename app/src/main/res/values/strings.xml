@@ -141,8 +141,6 @@
 	<string name="sign_out_summary">Remove PSN credentials from this device</string>
 	<string name="sign_in_psn">Sign in with PSN</string>
 	<string name="sign_in_psn_summary">Required for Remote Play over the internet</string>
-	<string name="coop_add_account">Add co-op account</string>
-	<string name="coop_add_account_summary">Add extra PSN accounts for other players</string>
 	<string name="backup">Backup</string>
 	<string name="export_settings">Export Settings</string>
 	<string name="export_settings_summary">Save registered and manual hosts to a JSON file</string>
@@ -279,17 +277,11 @@
 	<string name="coop_timeout">Player %1$d did not receive a join response. Reconnect if the console does not release the pending request.</string>
 	<string name="coop_refused">Player %1$d could not join or leave. Check the console and press a button to retry; reconnect if needed.</string>
 	<string name="coop_ps5_only">Player %1$d: extra Remote Play players are supported on PS5 only.</string>
-	<string name="coop_account_required">Player %1$d needs a separate co-op PSN account. Add it in Settings before joining.</string>
-	<string name="psn_primary_account">Primary PSN account</string>
-	<string name="psn_extra_accounts">Extra PSN accounts</string>
-	<string name="psn_extra_count">%1$d of %2$d extra accounts saved</string>
-	<string name="psn_extra_account">Extra account %1$d</string>
-	<string name="psn_extra_limit">You can save up to 7 extra accounts. Remove an account to add another.</string>
-	<string name="psn_extra_is_primary">This is your primary account. Sign in with a different PSN account.</string>
-	<string name="psn_sign_out_keep_extras">Sign out of the primary account. Extra accounts are kept.</string>
+	<string name="coop_account_required">Player %1$d needs another saved PSN account. Add it in Settings before joining.</string>
+	<string name="psn_account_number">Account %1$d</string>
 	<string name="psn_remove_account">Remove account</string>
 	<string name="psn_remove_account_summary">Account ID: %1$s · Select to remove</string>
-	<string name="psn_remove_account_confirm">Remove saved account %1$s from this app? Other accounts and console profiles are kept.</string>
+	<string name="psn_remove_account_confirm">Remove saved account %1$s from this app? If this is the default account, another saved account becomes the default. Console registrations are kept.</string>
 	<string name="coop_choose_account">Choose an account for player %1$d</string>
 	<string name="coop_choose_account_hint">Use this controller to choose an account. Press Cross to join or Back to cancel.</string>
 	<string name="coop_account_unavailable">Already in use or unavailable</string>
@@ -308,4 +300,16 @@
     <string name="psn_phone_retry">Try again</string>
     <string name="psn_show_qr">Back to QR code</string>
     <string name="psn_manual_entry">Manual entry</string>
+    <string name="psn_manage_account_summary">Select to use for PSN connections or remove this account.</string>
+    <string name="coop_unknown_owner">This older local registration has no saved account identity. Choose a different player account. Register the console again to save its owner.</string>
+    <string name="psn_shortcut_account_changed">This TV shortcut belongs to a different PSN account. Open Chiaki TV and select the account first.</string>
+    <string name="psn_default_account_summary">Default for PSN connections. Select to manage.</string>
+    <string name="psn_add_account">Add account</string>
+    <string name="psn_account">PSN account</string>
+    <string name="psn_account_limit">You can save up to 8 accounts. Remove an account to add another.</string>
+    <string name="psn_add_account_summary">Use any saved account for PSN connections or co-op</string>
+    <string name="psn_accounts">PSN accounts</string>
+    <string name="psn_use_for_connections">Default</string>
+    <string name="psn_account_count">%1$d of %2$d accounts saved</string>
+    <string name="psn_account_locked">Disconnect the current stream or connection attempt before changing accounts.</string>
 </resources>

@@ -38,7 +38,7 @@ internal data class PsnLoginState(
 )
 
 /** Dialog-owned coordinator: both phone and TV input share one attempt and one login worker. */
-internal class PsnLoginController(context: Context, asExtra: Boolean, scope: CoroutineScope) : Closeable {
+internal class PsnLoginController(context: Context, scope: CoroutineScope) : Closeable {
     private val appContext = context.applicationContext
     private val accounts = PsnAccountRepository.get(appContext)
     private val mutableState = MutableStateFlow(PsnLoginState())
@@ -91,14 +91,14 @@ internal class PsnLoginController(context: Context, asExtra: Boolean, scope: Cor
                 if(closed) break
                 try {
                     val current = attempt ?: continue
-                    val id = accounts.loginWithCode(code, asExtra, current.deviceUid) { phase ->
+                    val id = accounts.loginWithCode(code, current.deviceUid) { phase ->
                         mutableState.update { it.copy(phase = phase) }
                     }
                     server?.status?.set(PhoneSignInStatus.SUCCESS)
                     mutableState.update { it.copy(success = id) }
                 } catch(e: CancellationException) { throw e }
                 catch(e: PsnAccountException) {
-                    fail(if(e.reason == PsnAccountError.LIMIT_REACHED) R.string.psn_extra_limit else R.string.psn_extra_is_primary)
+                    fail(if(e.reason == PsnAccountError.LIMIT_REACHED) R.string.psn_account_limit else R.string.psn_account_locked)
                 } catch(_: Exception) { fail(R.string.psn_signin_failed) }
                 finally { mutableState.update { it.copy(busy = false, phase = null) } }
             }

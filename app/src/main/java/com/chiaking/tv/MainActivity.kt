@@ -60,6 +60,11 @@ import com.chiaking.tv.ui.theme.ChiakiTvTheme
 import com.chiaking.tv.ui.theme.TvBackground
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.collectLatest
+import com.chiaking.tv.common.psn.PsnAccountRepository
 import kotlinx.coroutines.withContext
 
 class MainActivity: ComponentActivity()
@@ -125,8 +130,10 @@ class MainActivity: ComponentActivity()
         }
 
         lifecycleScope.launch {
-            database.registeredHostDao().getAll().collect { hosts ->
-                withContext(Dispatchers.IO) { TvChannel.sync(this@MainActivity, preferences, hosts) }
+            combine(database.registeredHostDao().getAll(),
+                PsnAccountRepository.get(applicationContext).state.map { it.connectionAccountId }.distinctUntilChanged()
+            ) { hosts, rid -> hosts to rid }.collectLatest { (hosts, rid) ->
+                withContext(Dispatchers.IO) { TvChannel.sync(this@MainActivity, preferences, hosts, rid) }
             }
         }
         localController.handleDeepLink(intent)

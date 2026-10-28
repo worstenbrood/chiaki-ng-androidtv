@@ -13,7 +13,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Caches the ConnectivityManager and exposes network-readiness checks.
- * VALIDATED means the system's connectivity probe succeeded: internet + DNS work.
+ * VALIDATED means the system's connectivity probe succeeded; individual endpoints may still fail.
  */
 class NetworkMonitor private constructor(context: Context)
 {
@@ -23,8 +23,13 @@ class NetworkMonitor private constructor(context: Context)
 		get() = cm.getNetworkCapabilities(cm.activeNetwork)
 			?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
 
+	/** An active internet-capable route can still work when the system probe is blocked. */
+	val hasInternetCapability: Boolean
+		get() = cm.getNetworkCapabilities(cm.activeNetwork)
+			?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+
 	/**
-	 * Suspends until the active network is VALIDATED (internet + DNS confirmed), so cold-start
+	 * Suspends until the active network is VALIDATED by the system probe, so cold-start
 	 * fetches do not race the network stack. Returns false on timeout.
 	 */
 	suspend fun awaitValidated(timeoutMs: Long): Boolean
