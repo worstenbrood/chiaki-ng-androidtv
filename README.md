@@ -10,7 +10,7 @@ MediaCodec hardware video decoding, Oboe low-latency audio). The UI is a native
 **Jetpack Compose for TV** app with a PlayStation-inspired look (Inter typeface, PS5-style
 home with ambient glow and pill buttons, two-pane settings) and full D-pad/gamepad navigation.
 
-Current version: **1.25.0-tv** (Android version code **34**).
+Current version: **1.26.0-tv** (Android version code **35**).
 
 ## Features
 
