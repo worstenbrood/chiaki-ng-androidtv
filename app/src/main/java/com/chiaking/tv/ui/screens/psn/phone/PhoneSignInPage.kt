@@ -7,6 +7,10 @@ internal data class PhoneSignInText(
     val title: String, val instructions: String, val signIn: String, val paste: String,
     val send: String, val working: String, val success: String, val failed: String,
     val invalid: String, val retry: String, val language: String = "en",
+    val signInStep: String = "Sign in to PlayStation",
+    val pasteStep: String = "Paste the redirect URL",
+    val pasteInstructions: String = "Copy the full URL from the address bar after signing in. Return here and paste it below.",
+    val notice: String = "Keep this page open. Use the same trusted network as your TV.",
 )
 
 /** No external assets, scripts, cookies or credentials; Sony always opens in its own browser tab. */
@@ -15,14 +19,22 @@ internal object PhoneSignInPage {
         invalid: Boolean = false): String {
         val content = when(status) {
             PhoneSignInStatus.WAITING -> """
-                <p>${escape(text.instructions)}</p>
-                <a class="button" href="${escape(loginUrl)}" target="_blank" rel="noopener noreferrer">${escape(text.signIn)}</a>
-                <form method="post" action="${escape(path)}submit">
+                <ol class="steps">
+                  <li><h2>${escape(text.signInStep)}</h2>
+                    <p>${escape(text.instructions)}</p>
+                    <a class="button" href="${escape(loginUrl)}" target="_blank" rel="noopener noreferrer">${escape(text.signIn)}</a>
+                  </li>
+                  <li><h2>${escape(text.pasteStep)}</h2>
+                    <p id="redirect-help">${escape(text.pasteInstructions)}</p>
+                    <form method="post" action="${escape(path)}submit">
                   <label for="redirect">${escape(text.paste)}</label>
-                  <textarea id="redirect" name="redirect" rows="5" maxlength="8192" required autocapitalize="off" autocomplete="off" spellcheck="false"></textarea>
+                  <textarea id="redirect" name="redirect" rows="3" maxlength="8192" required aria-describedby="redirect-help" autocapitalize="off" autocomplete="off" spellcheck="false"></textarea>
                   ${if(invalid) "<p role=\"alert\">${escape(text.invalid)}</p>" else ""}
                   <button type="submit">${escape(text.send)}</button>
-                </form>
+                    </form>
+                  </li>
+                </ol>
+                <p class="notice">${escape(text.notice)}</p>
             """.trimIndent()
             PhoneSignInStatus.PROCESSING -> "<p role=\"status\">${escape(text.working)}</p>"
             PhoneSignInStatus.SUCCESS -> "<p role=\"status\">${escape(text.success)}</p>"

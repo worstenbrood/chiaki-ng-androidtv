@@ -67,6 +67,10 @@ internal class PsnLoginController(context: Context, scope: CoroutineScope) : Clo
                     getString(R.string.psn_phone_success), getString(R.string.psn_phone_failed),
                     getString(R.string.psn_phone_invalid), getString(R.string.psn_phone_retry),
                     resources.configuration.locales[0].language,
+                    signInStep = getString(R.string.psn_phone_step_sign_in),
+                    pasteStep = getString(R.string.psn_phone_step_paste),
+                    pasteInstructions = getString(R.string.psn_phone_paste_instructions),
+                    notice = getString(R.string.psn_phone_notice),
                 ) }
                 try {
                     withContext(Dispatchers.IO) {
