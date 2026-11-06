@@ -7,6 +7,9 @@ plugins {
 }
 
 def chiakiRoot = "${rootDir}/external/chiaki-ng"
+// Keep host-specific CMake paths and outputs separate from the Docker build.
+def windowsHost = System.getProperty('os.name').toLowerCase().contains('windows')
+if (windowsHost) { layout.buildDirectory = file('build-windows') }
 android {
     namespace "com.chiaking.tv"
     compileSdk 35
@@ -66,6 +69,7 @@ android {
         cmake {
             version "3.22.1"
             path "${rootDir}/native/CMakeLists.txt"
+            if (windowsHost) { buildStagingDirectory file('.cxx-windows') }
         }
     }
 

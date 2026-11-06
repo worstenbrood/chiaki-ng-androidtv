@@ -2,8 +2,14 @@ param(
 	[string]$task = "assembleDebug",
 	[switch]$Fresh,
 	[switch]$Stop,
-	[switch]$SkipNative
+	[switch]$SkipNative,
+	[switch]$Local
 )
+if($Local) {
+	if($Fresh -or $Stop -or $SkipNative) { throw '-Local cannot be combined with Docker switches.' }
+	& "$PSScriptRoot/build-local.ps1" -Task $task
+	exit $LASTEXITCODE
+}
 $name = "chiaki-tv-build"
 if($Stop)
 {

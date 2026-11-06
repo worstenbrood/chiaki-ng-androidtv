@@ -3,6 +3,8 @@
 build/
 app/build/
 app/.cxx/
+app/build-windows/
+app/.cxx-windows/
 *.apk
 local.properties
 

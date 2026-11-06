@@ -35,7 +35,11 @@ docs/FEATURE_PORTING_PLAN.md  Qt→TV feature port roadmap (status per feature)
 
 ## Build
 
-All building happens in Docker (host is Windows ARM64; NDK + aapt2 are x86_64-only,
+On Windows x64, build locally with `.\build.ps1 -Local` (see
+`docs/WINDOWS_BUILD.md` for prerequisites). Windows outputs use `app/build-windows/`
+and native caches use `app/.cxx-windows/`, separate from Docker.
+
+On Windows ARM64, build in Docker (NDK + aapt2 are x86_64-only,
 so the image **must** be `--platform linux/amd64` — qemu emulation, builds are slow):
 
 ```powershell
@@ -63,7 +67,7 @@ docker run --rm --platform linux/amd64 -v "${PWD}:/src" -v "${PWD}/.docker-cache
 
 APK output: `app/build/outputs/apk/debug/app-debug.apk` or `app/build/outputs/apk/release/app-release.apk`
 (arm64-v8a; add ABIs with `-Pabis=arm64-v8a,armeabi-v7a`).
-Never run `gradlew` directly on the host — no local Android SDK/NDK is set up.
+Use `build.ps1 -Local` for a configured Windows x64 host; do not run host Gradle on Windows ARM64.
 
 ## Architecture rules
 

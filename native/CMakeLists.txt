@@ -39,6 +39,13 @@ list(APPEND CMAKE_MODULE_PATH "${CHIAKI_ROOT}/cmake")
 
 find_package(PythonInterp 3 REQUIRED) # Make sure nanopb doesn't find Python 2.7
 
+if(CMAKE_HOST_WIN32)
+	# Upstream tests UNIX (the Android target), then constructs a POSIX PATH.
+	# A command name avoids that branch; the launcher puts protoc on PATH.
+	find_program(CHIAKI_HOST_PROTOC protoc REQUIRED)
+	set(PROTOC protoc)
+endif()
+
 if(CHIAKI_LIB_OPENSSL_EXTERNAL_PROJECT)
 	include(OpenSSLExternalProject)
 endif()
