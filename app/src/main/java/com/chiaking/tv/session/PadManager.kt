@@ -7,6 +7,7 @@ import android.hardware.input.InputManager
 import android.view.InputDevice
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -94,6 +95,12 @@ class PadManager(context: Context)
 		deviceSlots.update(devices.map { it.id })
 		primaryDeviceId = slots[0] ?: -1
 		_pads.value = devices.filter { deviceSlots.slotOf(it.id) != null }.sortedBy { deviceSlots.slotOf(it.id) }
-		if(previous != slots) slotsChangedCallback?.invoke(slots)
+		if(previous != slots) {
+			for((slot, deviceId) in slots) {
+				if(previous[slot] != deviceId)
+					Log.i("PadManager", "Controller assigned: deviceId=$deviceId player=${slot + 1} protocolSlot=$slot")
+			}
+			slotsChangedCallback?.invoke(slots)
+		}
 	}
 }

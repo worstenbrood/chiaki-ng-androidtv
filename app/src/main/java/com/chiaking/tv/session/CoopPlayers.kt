@@ -24,10 +24,9 @@ internal class CoopPlayers(
     private val accounts: PsnAccountRepository,
     val ownerAccountId: String?,
 ) {
-    private val wanted = mutableSetOf<Int>()
+    private val requests = CoopJoinRequests()
     private val assigned = mutableMapOf<Int, String>()
     private val joined = mutableSetOf<Int>()
-    private val retryAfter = mutableMapOf<Int, Long>()
     private var devices = input.padManager.slots
     private var native: Session? = null
     @Volatile private var job: Job? = null
@@ -39,8 +38,8 @@ internal class CoopPlayers(
 
     init {
         input.secondaryPadInputCallback = { slot ->
-            if(connected() && slot !in assigned && SystemClock.elapsedRealtime() >= (retryAfter[slot] ?: 0L))
-                wanted.add(slot)
+            if(connected() && slot !in assigned)
+                requests.request(slot, SystemClock.elapsedRealtime())
         }
         input.slotStateChangedCallback = { slot, state ->
             if(connected() && slot in joined) native?.setControllerStateSlot(slot, state)
@@ -50,10 +49,9 @@ internal class CoopPlayers(
                 if(slot > 0 && slots[slot] != device) {
                     _request.value?.takeIf { it.slot == slot }?.let { cancelChoice(it.id) }
                     native?.removeUser(slot)
-                    wanted.remove(slot)
+                    requests.remove(slot)
                     assigned.remove(slot)
                     joined.remove(slot)
-                    retryAfter.remove(slot)
                 }
             devices = slots
         }
@@ -71,13 +69,18 @@ internal class CoopPlayers(
 
     fun stop() {
         job?.cancel()
+        job = null
         _request.value = null
+        requests.clear()
+        assigned.clear()
+        joined.clear()
+        native = null
+        input.resetSecondaryStates()
     }
 
     fun cancelChoice(id: Long) {
         val choice = _request.value?.takeIf { it.id == id } ?: return
-        wanted.remove(choice.slot)
-        retryAfter[choice.slot] = SystemClock.elapsedRealtime() + 500
+        requests.defer(choice.slot, SystemClock.elapsedRealtime(), CHOICE_COOLDOWN_MS)
         input.resetSecondaryState(choice.slot)
         _request.value = null
     }
@@ -98,8 +101,7 @@ internal class CoopPlayers(
         val result = session.addUser(choice.slot, numeric)
         if(result.isSuccess) assigned[choice.slot] = rid
         else {
-            retryAfter[choice.slot] = SystemClock.elapsedRealtime() + 5000
-            wanted.remove(choice.slot)
+            requests.defer(choice.slot, SystemClock.elapsedRealtime(), JOIN_RETRY_MS)
             notify(choice.slot, CoopNoticeKind.REFUSED)
         }
     }
@@ -112,11 +114,13 @@ internal class CoopPlayers(
         val session = currentSession()
         if(session !== native) {
             _request.value = null
-            if(native != null) input.resetSecondaryStates()
+            if(native != null) {
+                input.resetSecondaryStates()
+                requests.clear()
+            }
             native = session
             assigned.clear()
             joined.clear()
-            retryAfter.clear()
         }
         if(session == null || !connected()) {
             _request.value = null
@@ -131,9 +135,8 @@ internal class CoopPlayers(
             } else if(status < 0) {
                 joined.remove(slot)
                 assigned.remove(slot)
-                retryAfter[slot] = now + 5000
                 // A new input is required to retry: no automatic repeated host prompts.
-                wanted.remove(slot)
+                requests.defer(slot, now, JOIN_RETRY_MS)
                 notify(slot, when(status) {
                     -2 -> CoopNoticeKind.FULL
                     -3 -> CoopNoticeKind.PASSCODE
@@ -144,12 +147,9 @@ internal class CoopPlayers(
             }
         }
         if(_request.value != null || assigned.keys.any { session.coopStatus(it) == 1 }) return
-        val slot = wanted.sorted().firstOrNull {
-            it in devices && it !in assigned && now >= (retryAfter[it] ?: 0L)
-        } ?: return
+        val slot = requests.next(devices.keys - assigned.keys, now) ?: return
         if(!ps5) {
-            wanted.remove(slot)
-            retryAfter[slot] = now + 5000
+            requests.defer(slot, now, JOIN_RETRY_MS)
             notify(slot, CoopNoticeKind.PS5_ONLY)
             return
         }
@@ -158,5 +158,10 @@ internal class CoopPlayers(
             coopAccountOptions(store.accounts(), ownerAccountId, assigned.values.toSet()))
         input.resetSecondaryState(slot)
         _request.value = choice
+    }
+
+    private companion object {
+        const val CHOICE_COOLDOWN_MS = 500L
+        const val JOIN_RETRY_MS = 5000L
     }
 }

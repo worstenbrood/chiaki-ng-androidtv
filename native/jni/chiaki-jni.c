@@ -247,6 +247,7 @@ static void android_chiaki_event_cb(ChiakiEvent *event, void *user)
 	switch(event->type)
 	{
 		case CHIAKI_EVENT_CONNECTED:
+			CHIAKI_LOGI(session->log, "Primary controller connected: local_player=1 protocol_slot=0");
 			E->CallVoidMethod(env, session->java_session,
 							  session->java_session_event_connected_meth);
 			break;
@@ -273,6 +274,10 @@ static void android_chiaki_event_cb(ChiakiEvent *event, void *user)
 							  session->java_session_event_rumble_meth,
 							  (jint)event->rumble.left,
 							  (jint)event->rumble.right);
+			break;
+		case CHIAKI_EVENT_PLAYER_INDEX:
+			// Console-assigned index, distinct from our zero-based input slots.
+			CHIAKI_LOGI(session->log, "Console reported player index: %u", (unsigned)event->player_index);
 			break;
 		case CHIAKI_EVENT_MOTION_RESET:
 			E->CallVoidMethod(env, session->java_session,

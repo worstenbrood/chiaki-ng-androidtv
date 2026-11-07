@@ -100,6 +100,25 @@ duplicate device IDs and capacity limits.
 
 ## Console smoke test still required
 
+### Player labels in games
+
+Local player numbers, protocol slots and console/game player indices are distinct.
+The primary controller sends input on slot 0; the second controller normally uses
+slot 1. Slots remain stable if a controller disconnects, so surviving controllers
+can leave gaps. Do not add one to the wire slot to change a game's label: that
+would send input to a different controller. The primary CONTROLLERCONNECTION omits
+controller_id, as upstream does; secondary connections explicitly include their slot.
+
+A report of P0/P2 in a game such as Super Pang is not yet reproduced on a console.
+It cannot be attributed to a UI-label bug: Chiaki does not render those game labels.
+Capture Android `PadManager` assignment messages and the session log's primary
+connection, co-op join and console-reported player-index messages. Compare a fresh
+session with other console controllers disconnected, then the same game using
+controllers directly connected to the console. These checks distinguish local slot
+gaps, host assignment and game-specific numbering before changing protocol behavior.
+Console player-index events currently identify the upstream stream index; they do
+not provide a per-secondary-player index mapping.
+
 1. Connect normally with player 1; verify buttons, sticks and touchpad.
 2. Add a distinct extra PSN account in Settings, with its profile on the PS5.
 3. Press a button on controller 2. Wait for the joined message; verify independent input.
