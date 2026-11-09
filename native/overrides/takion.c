@@ -200,6 +200,7 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_takion_connect(ChiakiTakion *takion, Chiaki
 
 	takion->log = info->log;
 	takion->close_socket = info->close_socket;
+	takion->send_buffer.packets = NULL;
 	takion->version = info->protocol_version;
 	takion->disable_audio_video = info->disable_audio_video;
 
@@ -442,6 +443,11 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_takion_connect(ChiakiTakion *takion, Chiaki
 	}
 
 	err = chiaki_thread_create(&takion->thread, takion_thread_func, takion);
+	if(err != CHIAKI_ERR_SUCCESS)
+	{
+		ret = err;
+		goto error_sock;
+	}
 
 	chiaki_thread_set_name(&takion->thread, "Chiaki Takion");
 
@@ -466,6 +472,19 @@ CHIAKI_EXPORT void chiaki_takion_close(ChiakiTakion *takion)
 {
 	chiaki_stop_pipe_stop(&takion->stop_pipe);
 	chiaki_thread_join(&takion->thread, NULL);
+	// Keep the reliable sender alive until callers have stopped producing data.
+	if(takion->send_buffer.packets)
+	{
+		chiaki_takion_send_buffer_fini(&takion->send_buffer);
+		takion->send_buffer.packets = NULL;
+	}
+	// The stream owner stops feedback/congestion senders before calling close.
+	// Never close from the receive thread: those senders may still be using it.
+	if(takion->close_socket && !CHIAKI_SOCKET_IS_INVALID(takion->sock))
+	{
+		CHIAKI_SOCKET_CLOSE(takion->sock);
+		takion->sock = CHIAKI_INVALID_SOCKET;
+	}
 	chiaki_stop_pipe_fini(&takion->stop_pipe);
 	chiaki_mutex_fini(&takion->seq_num_local_mutex);
 	chiaki_mutex_fini(&takion->gkcrypt_local_mutex);
@@ -1127,7 +1146,10 @@ static void *takion_thread_func(void *user)
 
 	// The send buffer size MUST be consistent with the acked seqnums array size in takion_handle_packet_message_data_ack()
 	if(chiaki_takion_send_buffer_init(&takion->send_buffer, takion, TAKION_SEND_BUFFER_SIZE) != CHIAKI_ERR_SUCCESS)
+	{
+		takion->send_buffer.packets = NULL;
 		goto error_reoder_queue;
+	}
 
 
 	if(takion->cb)
@@ -1203,8 +1225,6 @@ static void *takion_thread_func(void *user)
 		takion_handle_packet(takion, recv_buf, received_size);
 	}
 
-	chiaki_takion_send_buffer_fini(&takion->send_buffer);
-
 	if(takion->video_queue_initialized)
 	{
 		chiaki_reorder_queue_fini(&takion->video_queue);
@@ -1220,14 +1240,6 @@ beach:
 		ChiakiTakionEvent event = { 0 };
 		event.type = CHIAKI_TAKION_EVENT_TYPE_DISCONNECT;
 		takion->cb(&event, takion->cb_user);
-	}
-	if(takion->close_socket)
-	{
-		if(!CHIAKI_SOCKET_IS_INVALID(takion->sock))
-		{
-			CHIAKI_SOCKET_CLOSE(takion->sock);
-			takion->sock = CHIAKI_INVALID_SOCKET;
-		}
 	}
 	return NULL;
 }

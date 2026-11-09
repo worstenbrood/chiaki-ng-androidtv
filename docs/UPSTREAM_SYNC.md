@@ -4,6 +4,32 @@ The chiaki-ng C core and JNI layer live in `external/chiaki-ng` as a **git submo
 (pinned commit). The Android TV app in `app/` is a separate, hand-maintained codebase
 that consumes that tree.
 
+## Transport lifecycle overrides
+
+Rebase `native/overrides/streamconnection.c` as well as `takion.c` on a core update.
+The stream must wake and fail on Takion disconnects during connection setup and
+streaming. A failed heartbeat must leave the streaming loop instead of retrying
+forever. Preserve transport errors through cleanup; explicit user stop and remote
+shutdown retain their existing handling.
+
+The receive thread must not destroy the reliable send buffer or close the socket.
+The stream owner first stops feedback and congestion workers, then calls
+`chiaki_takion_close`, which joins reception, frees the send buffer and closes an
+owned socket. Borrowed sockets (`close_socket=false`) remain open. Moving cleanup
+back into the receive thread races active senders against closed descriptors and
+destroyed send-buffer mutexes.
+
+After a local arm64 release build, run the native fault-injection regression on an
+authorized Android device:
+
+```powershell
+.\native\tests\run_stream_disconnect_test.ps1 -Device 192.168.2.75:5555
+```
+
+It links the production static library and uses a loopback UDP peer. Twenty cases
+cover failed handshakes, established-connection receive failures, waiter wakeup,
+post-receive sender lifetime and owned/borrowed socket closure, without a console.
+
 ## One-time setup (fresh clone)
 
 ```powershell

@@ -83,11 +83,13 @@ list(FILTER CHIAKI_LIB_SOURCES EXCLUDE REGEX "gkcrypt\\.c$")
 list(FILTER CHIAKI_LIB_SOURCES EXCLUDE REGEX "takion\\.c$")
 list(FILTER CHIAKI_LIB_SOURCES EXCLUDE REGEX "ctrl\\.c$")
 list(FILTER CHIAKI_LIB_SOURCES EXCLUDE REGEX "feedbacksender\\.c$")
+list(FILTER CHIAKI_LIB_SOURCES EXCLUDE REGEX "streamconnection\\.c$")
 list(APPEND CHIAKI_LIB_SOURCES
 	"${CMAKE_CURRENT_SOURCE_DIR}/overrides/gkcrypt.c"
 	"${CMAKE_CURRENT_SOURCE_DIR}/overrides/takion.c"
 	"${CMAKE_CURRENT_SOURCE_DIR}/overrides/ctrl.c"
 	"${CMAKE_CURRENT_SOURCE_DIR}/overrides/multislot.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/overrides/streamconnection.c"
 	"${CMAKE_CURRENT_SOURCE_DIR}/overrides/feedbacksender.c")
 set_target_properties(chiaki-lib PROPERTIES SOURCES "${CHIAKI_LIB_SOURCES}")
 target_include_directories(chiaki-lib BEFORE PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/overrides/include")

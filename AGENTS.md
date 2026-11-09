@@ -133,6 +133,10 @@ Use `build.ps1 -Local` for a configured Windows x64 host; do not run host Gradle
   `native/CMakeLists.txt` swaps them into the `chiaki-lib` target (SOURCES + a `BEFORE PUBLIC`
   include dir) so the submodule stays clean. Re-base them onto upstream at every bump — see
   `docs/UPSTREAM_SYNC.md`.
+- **Transport teardown**: our `native/overrides/streamconnection.c` propagates Takion
+  disconnects in every stream state, stops feedback/congestion workers and reports
+  failure. `takion.c` keeps its socket and reliable send buffer alive until owner-driven
+  close; never destroy them in the receive thread while other senders can still use them.
 - **Kotlin layer is a manual port** of `external/chiaki-ng/android/app/src/main/java`.
   It is NOT kept in sync automatically — see `docs/UPSTREAM_SYNC.md` for the file-by-file
   mapping and the list of intentional divergences (StateFlow instead of LiveData,
