@@ -120,6 +120,10 @@ class Preferences(context: Context)
 		const val logVerboseKey = "log_verbose"
 		const val swapCrossMoonKey = "swap_cross_moon"
 		const val dpadAsControllerKey = "dpad_as_controller"
+		const val primaryControllerDescriptorKey = "primary_controller_descriptor"
+		const val primaryControllerNameKey = "primary_controller_name"
+		const val navigationOnlyControllerDescriptorKey = "navigation_only_controller_descriptor"
+		const val navigationOnlyControllerNameKey = "navigation_only_controller_name"
 		const val displayModeKey = "display_mode"
 		const val audioVolumeKey = "audio_volume"
 		const val audioDeviceIdKey = "audio_device_id"
@@ -190,6 +194,22 @@ class Preferences(context: Context)
 	var dpadAsController
 		get() = sharedPreferences.getBoolean(dpadAsControllerKey, true)
 		set(value) { sharedPreferences.edit().putBoolean(dpadAsControllerKey, value).apply() }
+
+	var primaryControllerDescriptor
+		get() = sharedPreferences.getString(primaryControllerDescriptorKey, "") ?: ""
+		set(value) { sharedPreferences.edit().putString(primaryControllerDescriptorKey, value).apply() }
+
+	var primaryControllerName
+		get() = sharedPreferences.getString(primaryControllerNameKey, "") ?: ""
+		set(value) { sharedPreferences.edit().putString(primaryControllerNameKey, value).apply() }
+
+	var navigationOnlyControllerDescriptor
+		get() = sharedPreferences.getString(navigationOnlyControllerDescriptorKey, "") ?: ""
+		set(value) { sharedPreferences.edit().putString(navigationOnlyControllerDescriptorKey, value).apply() }
+
+	var navigationOnlyControllerName
+		get() = sharedPreferences.getString(navigationOnlyControllerNameKey, "") ?: ""
+		set(value) { sharedPreferences.edit().putString(navigationOnlyControllerNameKey, value).apply() }
 
 	var audioVolume
 		get() = sharedPreferences.getInt(audioVolumeKey, 100)

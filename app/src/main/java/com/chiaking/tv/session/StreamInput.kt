@@ -13,7 +13,7 @@ class StreamInput(val context: Context, val preferences: Preferences)
 {
 
     // Stable gamepad slots; secondary input is sent only after the host accepts its account.
-    val padManager = PadManager(context)
+    val padManager = PadManager(context, preferences)
 
     var controllerStateChangedCallback: ((ControllerState) -> Unit)? = null
 
@@ -122,9 +122,10 @@ class StreamInput(val context: Context, val preferences: Preferences)
         controllerStateChangedCallback?.let { it(controllerState) }
     }
 
-    private fun isGamepadEvent(event: KeyEvent): Boolean = PadManager.isGamepad(event.device)
+    private fun isGamepadEvent(event: KeyEvent): Boolean = padManager.isSessionGamepad(event.device)
 
     fun onHudComboKeyEvent(event: KeyEvent): Boolean {
+        if(padManager.isNavigationOnly(event.deviceId)) return false
         if(!padManager.isPrimary(event.deviceId)) return false
         if(event.action != KeyEvent.ACTION_DOWN && event.action != KeyEvent.ACTION_UP) return false
         return hudShortcut.handle(event)
@@ -254,12 +255,13 @@ class StreamInput(val context: Context, val preferences: Preferences)
 
     fun dispatchKeyEvent(event: KeyEvent): Boolean
     {
+        if(padManager.isNavigationOnly(event.deviceId)) return false
         //Log.i("StreamSession", "key event $event")
         if(event.action != KeyEvent.ACTION_DOWN && event.action != KeyEvent.ACTION_UP)
             return false
 
         // secondary pads drive their own co-op slot (player 2+)
-        if(PadManager.isGamepad(event.device) && !padManager.isPrimary(event.deviceId))
+        if(padManager.isSessionGamepad(event.device) && !padManager.isPrimary(event.deviceId))
         {
             val slot = padManager.slotOf(event.deviceId)
             if(slot == null || slot < 1)
@@ -376,12 +378,13 @@ class StreamInput(val context: Context, val preferences: Preferences)
 
     fun onGenericMotionEvent(event: MotionEvent): Boolean
     {
+        if(padManager.isNavigationOnly(event.deviceId)) return false
         if(event.source and InputDevice.SOURCE_CLASS_JOYSTICK != InputDevice.SOURCE_CLASS_JOYSTICK)
             return false
         if(!padManager.isPrimary(event.deviceId))
         {
             val slot = padManager.slotOf(event.deviceId)
-            if(slot != null && slot > 0 && PadManager.isGamepad(event.device))
+            if(slot != null && slot > 0 && padManager.isSessionGamepad(event.device))
                 return dispatchSlotMotion(slot, event)
             return false
         }

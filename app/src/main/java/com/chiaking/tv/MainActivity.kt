@@ -33,8 +33,8 @@ import com.chiaking.tv.connect.WakeConnectController
 import com.chiaking.tv.discovery.DiscoveryManager
 import com.chiaking.tv.platform.tv.TvChannel
 import com.chiaking.tv.session.AwayController
-import com.chiaking.tv.session.PadManager
 import com.chiaking.tv.session.StreamManager
+import com.chiaking.tv.ui.screens.stream.HudHatState
 import com.chiaking.tv.session.StreamStateConnected
 import com.chiaking.tv.session.StreamStateDisconnecting
 import com.chiaking.tv.ui.navigation.LocalRouteOwner
@@ -314,13 +314,13 @@ class MainActivity: ComponentActivity()
             val session = streamScreen.session
             val input = StreamManager.input
             if(coopPickerController?.handleKey(event) == true) return true
-            if(coopPickerController?.choice?.value != null && input != null && PadManager.isGamepad(event.device)) {
+            if(coopPickerController?.choice?.value != null && input != null && input.padManager.isSessionGamepad(event.device)) {
                 if(input.padManager.isPrimary(event.deviceId) && input.onHudComboKeyEvent(event)) return true
                 input.dispatchKeyEvent(event)
                 return true
             }
             if(input != null && session.state.value is StreamStateConnected &&
-                PadManager.isGamepad(event.device) && !input.padManager.isPrimary(event.deviceId))
+                input.padManager.isSessionGamepad(event.device) && !input.padManager.isPrimary(event.deviceId))
             {
                 input.dispatchKeyEvent(event)
                 return true
@@ -381,7 +381,7 @@ class MainActivity: ComponentActivity()
         if(streamScreen != null)
         {
             if(coopPickerController?.handleMotion(event) == true) return true
-            if(coopPickerController?.choice?.value != null && PadManager.isGamepad(event.device)) {
+            if(coopPickerController?.choice?.value != null && StreamManager.input?.padManager?.isSessionGamepad(event.device) == true) {
                 StreamManager.input?.onGenericMotionEvent(event)
                 return true
             }
@@ -408,18 +408,19 @@ class MainActivity: ComponentActivity()
         return super.onGenericMotionEvent(event)
     }
 
-    private var hudStickDir = 0
+    private val hudHatState = HudHatState()
 
     private fun hudStickNavigate(event: MotionEvent): Boolean
     {
         if(event.source and (InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_JOYSTICK) == 0)
             return false
         val session = (screenStack.last() as ScreenStream).session
-        if(StreamManager.input?.padManager?.isPrimary(event.deviceId) == false)
+        val pads = StreamManager.input?.padManager
+        if(pads?.isPrimary(event.deviceId) == false && !pads.isNavigationOnly(event.deviceId))
             return false
         if(!session.hudVisible.value)
         {
-            hudStickDir = 0
+            hudHatState.clear()
             return false
         }
         val x = event.getAxisValue(MotionEvent.AXIS_HAT_X)
@@ -434,12 +435,11 @@ class MainActivity: ComponentActivity()
         }
         if(dir == 0)
         {
-            hudStickDir = 0
+            hudHatState.update(event.deviceId, 0)
             return false
         }
-        if(dir == hudStickDir)
+        if(!hudHatState.update(event.deviceId, dir))
             return true
-        hudStickDir = dir
         dispatchKeyEvent(KeyEvent(event.eventTime, event.eventTime, KeyEvent.ACTION_DOWN, dir, 0))
         dispatchKeyEvent(KeyEvent(event.eventTime, event.eventTime, KeyEvent.ACTION_UP, dir, 0))
         return true

@@ -1,6 +1,9 @@
 package com.chiaking.tv.ui.screens.settings
 
 import android.content.Context
+import android.hardware.input.InputManager
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -11,6 +14,7 @@ import com.chiaking.tv.common.db.AppDatabase
 import com.chiaking.tv.common.db.RegisteredHost
 import com.chiaking.tv.common.psn.PsnAccountRepository
 import com.chiaking.tv.common.settings.Preferences
+import com.chiaking.tv.session.PadManager
 import com.chiaking.tv.ui.theme.AppThemeState
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.Job
@@ -29,10 +33,43 @@ internal class SettingsViewModel(context: Context, database: AppDatabase, privat
     val accountChangesLocked get() = accountState.connectionInUse
     val psnLoggedIn get() = connectionAccountId != null
     private var profileJob: Job? = null
+    private val inputManager = appContext.getSystemService(Context.INPUT_SERVICE) as InputManager
+    var controllerDevices by mutableStateOf(PadManager.connectedGamepads())
+        private set
+    private val inputListener = object : InputManager.InputDeviceListener {
+        override fun onInputDeviceAdded(deviceId: Int) { refreshControllers() }
+        override fun onInputDeviceChanged(deviceId: Int) { refreshControllers() }
+        override fun onInputDeviceRemoved(deviceId: Int) { refreshControllers() }
+    }
+    private fun refreshControllers() { controllerDevices = PadManager.connectedGamepads() }
+    val primaryControllerName get() = preferences.primaryControllerName
+    val navigationOnlyControllerName get() = preferences.navigationOnlyControllerName
+    fun nextPrimaryController() {
+        val options = listOf("") + controllerDevices.map { it.descriptor }.filter { it != navigationOnlyControllerDescriptor }.distinct()
+        val next = options[(options.indexOf(primaryControllerDescriptor) + 1) % options.size]
+        preferences.primaryControllerName = controllerDevices.firstOrNull { it.descriptor == next }?.name.orEmpty()
+        primaryControllerDescriptor = next
+    }
+    fun nextNavigationOnlyController() {
+        val options = listOf("") + controllerDevices.map { it.descriptor }.distinct()
+        val next = options[(options.indexOf(navigationOnlyControllerDescriptor) + 1) % options.size]
+        if(next.isNotEmpty() && next == primaryControllerDescriptor) {
+            preferences.primaryControllerName = ""
+            primaryControllerDescriptor = ""
+        }
+        preferences.navigationOnlyControllerName = controllerDevices.firstOrNull { it.descriptor == next }?.name.orEmpty()
+        navigationOnlyControllerDescriptor = next
+    }
 
     init {
+        inputManager.registerInputDeviceListener(inputListener, Handler(Looper.getMainLooper()))
         viewModelScope.launch { accounts.state.collect { accountState = it } }
         viewModelScope.launch { database.registeredHostDao().getAll().collect { registeredHosts = it } }
+    }
+
+    override fun onCleared() {
+        inputManager.unregisterInputDeviceListener(inputListener)
+        super.onCleared()
     }
 
     fun removeAccount(rid: String) = changeAccount { accounts.removeAccount(rid) }
@@ -86,6 +123,7 @@ internal class SettingsViewModel(context: Context, database: AppDatabase, privat
 
     fun refresh() {
         settings.forEach { it() }
+        refreshControllers()
         audioDevices = AudioDevices.outputDevices(appContext)
         micDevices = AudioDevices.inputDevices(appContext)
         deviceIndex = AudioDevices.indexOfSavedOutput(audioDevices, preferences.audioDeviceName, preferences.audioDeviceId)
@@ -102,6 +140,8 @@ internal class SettingsViewModel(context: Context, database: AppDatabase, privat
     var haptics by preferenceState({ preferences.buttonHapticEnabled }, { preferences.buttonHapticEnabled = it })
     var swapCrossMoon by preferenceState({ preferences.swapCrossMoon }, { preferences.swapCrossMoon = it })
     var dpadAsController by preferenceState({ preferences.dpadAsController }, { preferences.dpadAsController = it })
+    var primaryControllerDescriptor by preferenceState({ preferences.primaryControllerDescriptor }, { preferences.primaryControllerDescriptor = it })
+    var navigationOnlyControllerDescriptor by preferenceState({ preferences.navigationOnlyControllerDescriptor }, { preferences.navigationOnlyControllerDescriptor = it })
     var logVerbose by preferenceState({ preferences.logVerbose }, { preferences.logVerbose = it })
     var volume by preferenceState({ preferences.audioVolume }, { preferences.audioVolume = it })
     var bufferMs by preferenceState({ preferences.audioBufferMs }, { preferences.audioBufferMs = it })

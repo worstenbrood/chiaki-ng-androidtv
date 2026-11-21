@@ -45,5 +45,31 @@ internal fun SettingsPanelScope.ControllerSettingsPanel() {
             { viewModel.haptics = it },
             focusRequester = fr(5), onFocus = fb(5)
         )
+        val primary = viewModel.controllerDevices.firstOrNull { it.descriptor == viewModel.primaryControllerDescriptor }
+        TvCycleRow(
+            title = stringResource(R.string.primary_controller),
+            value = when {
+                viewModel.primaryControllerDescriptor.isEmpty() -> stringResource(R.string.primary_controller_auto)
+                primary != null -> "${primary.name} (${primary.id})"
+                else -> stringResource(R.string.primary_controller_disconnected, viewModel.primaryControllerName)
+            },
+            onNext = viewModel::nextPrimaryController,
+            focusRequester = fr(6), onFocus = fb(6)
+        )
+        Text(stringResource(R.string.primary_controller_summary),
+            style = MaterialTheme.typography.bodyMedium, color = OnSurfaceMuted)
+        val navigation = viewModel.controllerDevices.firstOrNull { it.descriptor == viewModel.navigationOnlyControllerDescriptor }
+        TvCycleRow(
+            title = stringResource(R.string.navigation_only_controller),
+            value = when {
+                viewModel.navigationOnlyControllerDescriptor.isEmpty() -> stringResource(R.string.navigation_only_controller_none)
+                navigation != null -> "${navigation.name} (${navigation.id})"
+                else -> stringResource(R.string.primary_controller_disconnected, viewModel.navigationOnlyControllerName)
+            },
+            onNext = viewModel::nextNavigationOnlyController,
+            focusRequester = fr(7), onFocus = fb(7)
+        )
+        Text(stringResource(R.string.navigation_only_controller_summary),
+            style = MaterialTheme.typography.bodyMedium, color = OnSurfaceMuted)
     }
 }
