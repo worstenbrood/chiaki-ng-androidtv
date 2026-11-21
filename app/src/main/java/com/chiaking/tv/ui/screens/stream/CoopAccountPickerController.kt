@@ -5,7 +5,6 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import com.chiaking.tv.common.psn.PsnAccountRepository
 import com.chiaking.tv.session.CoopPlayers
-import com.chiaking.tv.session.PadManager
 import com.chiaking.tv.session.StreamInput
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -66,7 +65,7 @@ internal class CoopAccountPickerController(
 
     private fun acceptsDevice(deviceId: Int, device: InputDevice?): Boolean {
         val choice = _choice.value ?: return false
-        return !PadManager.isGamepad(device) || input.padManager.slotOf(deviceId) == choice.slot
+        return !input.padManager.isSessionGamepad(device) || input.padManager.slotOf(deviceId) == choice.slot
     }
 
     fun handleKey(event: KeyEvent): Boolean {
@@ -95,7 +94,7 @@ internal class CoopAccountPickerController(
 
     fun handleMotion(event: MotionEvent): Boolean {
         val choice = _choice.value ?: return false
-        if(!PadManager.isGamepad(event.device)) return false
+        if(!input.padManager.isSessionGamepad(event.device) && !input.padManager.isNavigationOnly(event.deviceId)) return false
         if(!acceptsDevice(event.deviceId, event.device)) return false
         val x = event.getAxisValue(MotionEvent.AXIS_HAT_X).takeIf { kotlin.math.abs(it) > 0.5f }
             ?: event.getAxisValue(MotionEvent.AXIS_X)

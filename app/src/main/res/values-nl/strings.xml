@@ -93,6 +93,13 @@
 	<string name="mic_off">Uit</string>
 	<string name="mic_permission_needed">Microfoonmachtiging vereist. Schakel deze in bij Instellingen.</string>
 	<string name="controller">Controller</string>
+	<string name="primary_controller">Primaire controller (speler 1)</string>
+	<string name="navigation_only_controller">Alleen voor navigatie</string>
+	<string name="navigation_only_controller_none">Geen</string>
+	<string name="navigation_only_controller_summary">Kies hier de tv-afstandsbediening als Android deze als gamepad herkent. Menu-, HUD- en Terug-navigatie blijven werken, zonder spelersplek of verzoek om een co-opaccount.</string>
+	<string name="primary_controller_auto">Auto (DualSense eerst)</string>
+	<string name="primary_controller_disconnected">%1$s (niet verbonden)</string>
+	<string name="primary_controller_summary">Druk om een verbonden gamepad te kiezen. De keuze blijft bewaard na opnieuw verbinden. Als deze niet beschikbaar is, krijgt DualSense automatisch voorrang. Andere spelers behouden hun plek, behalve bij een wissel met speler 1.</string>
 	<string name="swap_cross_moon">Kruis / Cirkel wisselen</string>
 	<string name="swap_cross_moon_summary">Wissel de betekenis van de A- en B-knop (Japanse console-indeling)</string>
 	<string name="dpad_as_controller">D-pad stuurt controller-invoer</string>

@@ -94,6 +94,13 @@
 	<string name="mic_off">Off</string>
 	<string name="mic_permission_needed">Microphone permission needed. Enable it in Settings.</string>
 	<string name="controller">Controller</string>
+	<string name="primary_controller">Primary controller (player 1)</string>
+	<string name="navigation_only_controller">Navigation-only device</string>
+	<string name="navigation_only_controller_none">None</string>
+	<string name="navigation_only_controller_summary">Choose the TV remote here if Android detects it as a gamepad. It keeps menu, HUD and Back navigation, without taking a player slot or requesting a co-op account.</string>
+	<string name="primary_controller_auto">Auto (DualSense first)</string>
+	<string name="primary_controller_disconnected">%1$s (disconnected)</string>
+	<string name="primary_controller_summary">Press to choose a connected gamepad. The choice is remembered after reconnecting. If unavailable, DualSense is preferred automatically. Other players keep their slots unless swapped with player 1.</string>
 	<string name="swap_cross_moon">Swap Cross / Circular</string>
 	<string name="swap_cross_moon_summary">Swap the A and B button meanings (Japanese console layout)</string>
 	<string name="dpad_as_controller">D-pad sends controller input</string>
